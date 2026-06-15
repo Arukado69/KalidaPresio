@@ -1,0 +1,1151 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SelloKP from '../components/SelloKP.astro';
+import Estrellas from '../components/Estrellas.astro';
+import BotonCTA from '../components/BotonCTA.astro';
+import RelampagoSticky from '../components/RelampagoSticky.astro';
+import ImbatiblesGrid from '../components/ImbatiblesGrid.astro';
+import { generarVeredicto, tierKP } from '../utils/veredicto.js';
+import ofertas from '../data/ofertas.json';
+// Colecciones por sección (build-time, con fallback a ofertas.json si el
+// extractor aún no corrió). Relámpago e Imbatibles son el MVP; liquidación
+// y menos-500 quedan en backlog (los datos ya existen).
+import { ALL_RELAMPAGO, ALL_IMBATIBLES } from '../data/secciones.js';
+
+const isHotSale = import.meta.env.IS_HOT_SALE === 'true';
+
+// ════════════════════════════════════════════════════════
+// SCORING — Mismo algoritmo que n8n (importarOfertas.js ya lo calcula y ordena).
+// Aquí solo reordenamos de forma defensiva por si el JSON se edita a mano.
+//   Rating 65% · Descuento 20% (tope 40) · Volumen 15% (tope 500)
+// ════════════════════════════════════════════════════════
+function scoreDe(o) {
+  if (typeof o.score_kalidad_presio === 'number') return o.score_kalidad_presio;
+  const r = ((o.rating ?? 0) / 5) * 65;
+  const d = (Math.min(o.descuento ?? 0, 40) / 40) * 20;
+  const op = Math.min(((o.opiniones ?? 0) / 500) * 15, 15);
+  return Math.round(r + d + op);
+}
+
+const ofertasScored = ofertas
+  .map((o) => ({ ...o, score100: scoreDe(o) }))
+  // Mismo criterio que el scraper: K-P y, ante empate, mayor confianza.
+  .sort((a, b) => b.score100 - a.score100 || (b.confianza ?? 0) - (a.confianza ?? 0));
+
+// Relámpago ahora viene de las SECCIONES (ALL_RELAMPAGO, ya pre-filtrado de
+// vencidas al build y ordenado por K-P); el retiro en vivo lo hace el cliente.
+// El feed de ofertas.json sigue alimentando showpiece + bento, en paralelo,
+// hasta que n8n fusione ambos pipelines.
+const evergreen = ofertasScored.filter((o) => !o.oferta_relampago);
+
+// PRODUCTO DEL DÍA (showpiece del hero): la oferta más perfecta —
+// mayor K-P y, ante empate, mayor descuento real. Se excluye del bento
+// para no repetirla.
+const showpiece = [...evergreen].sort(
+  (a, b) => b.score100 - a.score100 || (b.descuento ?? 0) - (a.descuento ?? 0)
+)[0];
+const restantes = evergreen.filter((o) => o !== showpiece);
+
+const veredicto = restantes[0];        // hero del bento (tile grande)
+const bentoSmall = restantes.slice(1, 5); // 4 tiles que rodean al hero
+// (el viejo "resto" para el catálogo murió: ahora el catálogo es IMBATIBLES)
+
+// Datos derivados del showpiece
+const spDescuento = showpiece ? Math.round(showpiece.descuento ?? 0) : 0;
+const spPrev = showpiece
+  ? (showpiece.precio_previo ??
+     (spDescuento > 0 ? Math.round(showpiece.precio_actual / (1 - spDescuento / 100)) : null))
+  : null;
+
+// (categorizar vive ahora en src/utils/categorias.js; lo usa ImbatiblesGrid)
+
+const fmt = (n) =>
+  new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    maximumFractionDigits: 0,
+  }).format(n);
+
+// Datos derivados del veredicto del día
+const vInicial = veredicto ? (veredicto.titulo?.trim()?.charAt(0) ?? '?').toUpperCase() : '?';
+const vDescuento = veredicto ? Math.round(veredicto.descuento ?? 0) : 0;
+const vPrecioOriginal = veredicto
+  ? (veredicto.precio_previo ??
+     (vDescuento > 0 ? Math.round(veredicto.precio_actual / (1 - vDescuento / 100)) : null))
+  : null;
+
+const vConfianza = veredicto?.confianza ?? 0;
+const vConfNivel = vConfianza >= 80 ? 'Alta' : vConfianza >= 50 ? 'Media' : 'Básica';
+const vConfClase = vConfianza >= 80 ? 'alta' : vConfianza >= 50 ? 'media' : 'basica';
+
+// Tier + veredicto editorial del destacado (lógica compartida en utils/veredicto.js)
+const vTier = veredicto ? tierKP(veredicto.score100) : '';
+const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
+---
+
+<Layout
+  title="KalidaPresio | Las mejores ofertas calidad-precio de Mercado Libre"
+  description="Feed diario de ofertas en Mercado Libre México, ordenadas por nuestro sello calidad-precio. Sin publicidad disfrazada."
+>
+  <!-- Hero / Módulo estacional -->
+  <section class={`banner-estacional ${isHotSale ? 'modo-oferta' : 'modo-limpio'}`}>
+    {isHotSale ? (
+      <div class="alerta-hotsale">
+        <h2 class="oferta-neon">🔥 ¡HOT SALE ACTIVO! 🔥</h2>
+        <p class="oferta-texto">Precios históricos en tecnología. Verifica el stock en tiempo real.</p>
+      </div>
+    ) : (
+      <!-- HERO SPLIT: texto a la izquierda + Producto del día a la derecha.
+           La entrada la orquesta GSAP (timeline en Layout): líneas del título
+           enmascaradas que "suben", cascada de elementos, showpiece desde la
+           derecha con pop del sello K-P. -->
+      <div class="hero-grid">
+        <div class="hero-content">
+          <div class="hero-badge">⚡ Ofertas reales de Mercado Libre México</div>
+          <h1 class="hero-titulo">
+            <span class="hero-mask"><span class="hero-line">Solo las ofertas que</span></span>
+            <span class="hero-mask"><span class="hero-line hero-acento">de verdad valen la pena.</span></span>
+          </h1>
+          <p class="hero-subtitulo">
+            Rastreamos miles de ofertas y te mostramos únicamente las mejores según nuestro
+            <strong> Sello K-P</strong>: calidad real de los compradores + descuento real. Sin relleno.
+          </p>
+
+          <div class="hero-pills">
+            <span class="hero-pill"><span class="dot"></span> Cero anuncios pagados</span>
+            <span class="hero-pill"><span class="dot"></span> Datos reales de ML</span>
+            <span class="hero-pill"><span class="dot"></span> Actualizado a diario</span>
+          </div>
+
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <span class="stat-numero" data-countup={ofertas.length}>0</span>
+              <span class="stat-label">Ofertas curadas</span>
+            </div>
+            {ALL_RELAMPAGO.length > 0 && (
+              <>
+                <div class="hero-stat-divider"></div>
+                <div class="hero-stat">
+                  <span class="stat-numero" data-countup={ALL_RELAMPAGO.length}>0</span>
+                  <span class="stat-label">⚡ Relámpago hoy</span>
+                </div>
+              </>
+            )}
+            <div class="hero-stat-divider"></div>
+            <div class="hero-stat">
+              <span class="stat-numero" data-countup="100" data-suffix="%">0%</span>
+              <span class="stat-label">Calidad-precio</span>
+            </div>
+          </div>
+        </div>
+
+        {showpiece && (
+          <aside class="hero-show" aria-label="Producto del día">
+            <!-- Halo de marca detrás del producto (pulsa lento, solo opacity) -->
+            <div class="hs-glow" aria-hidden="true"></div>
+
+            <div class="hs-media">
+              <img
+                src={showpiece.imagen}
+                alt={showpiece.titulo}
+                class="hs-img"
+                loading="eager"
+                fetchpriority="high"
+                onerror="this.style.visibility='hidden'"
+              />
+              {spDescuento > 0 && <span class="hs-desc">-{spDescuento}%</span>}
+              <!-- Sello K-P prominente, medio fuera del marco (entra con pop) -->
+              <div class="hs-kp">
+                <SelloKP score={showpiece.score100} size={76} pulse tooltip tipAlign="start" />
+              </div>
+            </div>
+
+            <div class="hs-datos">
+              <span class="hs-eyebrow">★ Producto del día</span>
+              <h2 class="hs-titulo">{showpiece.titulo}</h2>
+              <div class="hs-precios">
+                <span class="hs-precio">{fmt(showpiece.precio_actual)}</span>
+                {spPrev && <s class="hs-prev">{fmt(spPrev)}</s>}
+              </div>
+              <div class="hs-rating">
+                <Estrellas rating={showpiece.rating} size={14} />
+                <strong>{showpiece.rating?.toFixed(1)}</strong>
+                <em>({showpiece.opiniones?.toLocaleString('es-MX')} opiniones)</em>
+              </div>
+              <BotonCTA id={showpiece.id} enlace={showpiece.link_afiliado} texto="Ver oferta" magnetic />
+            </div>
+          </aside>
+        )}
+      </div>
+    )}
+  </section>
+
+  <!-- RELÁMPAGO móvil/tablet: franja colapsable bajo el hero (tap revela).
+       En desktop el relámpago vive en el rail sticky de la izquierda. -->
+  <div class="solo-movil">
+    <RelampagoSticky ofertas={ALL_RELAMPAGO} modo="strip" />
+  </div>
+
+  {ALL_RELAMPAGO.length === 0 && (
+    <!-- Sin relámpago vivas al build: marquesina de confianza como respaldo -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-track">
+        {Array.from({ length: 2 }).map(() => (
+          <div class="marquee-group">
+            <span class="marquee-item">Sello calidad-precio</span>
+            <span class="marquee-item">Datos reales de Mercado Libre</span>
+            <span class="marquee-item">Descuentos verificados</span>
+            <span class="marquee-item">Vendedores reputados</span>
+            <span class="marquee-item">Cero publicidad disfrazada</span>
+            <span class="marquee-item">Ofertas relámpago al instante</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+
+  <!-- Layout 2 columnas: rail relámpago STICKY (izq, desktop) + contenido.
+       El rail queda siempre visible al scrollear bento + imbatibles. -->
+  <div class="kp-shell">
+    <aside class="kp-aside">
+      <RelampagoSticky ofertas={ALL_RELAMPAGO} modo="rail" />
+    </aside>
+
+    <div class="kp-main">
+
+  <!-- Bento: top calidad-precio (hero grande + tiles que lo rodean) -->
+  {veredicto && (
+    <section class="seccion-estructural bento-section" data-reveal>
+      <h2 class="titulo-seccion">🏆 Top calidad-precio de hoy</h2>
+
+      <div class="bento">
+        <!-- Tile hero (oferta #1 evergreen). data-tilt: se inclina hacia el cursor -->
+        <article class="bento-hero" data-spotlight data-tilt>
+          <div class="bh-media">
+            <img
+              src={veredicto.imagen}
+              alt={veredicto.titulo}
+              loading="lazy"
+              class="bh-img"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            />
+            <span class="bh-fallback" aria-hidden="true">{vInicial}</span>
+            {veredicto.mas_vendido ? (
+              <span class="veredicto-badge badge-vendido">★ MÁS VENDIDO</span>
+            ) : vDescuento > 0 ? (
+              <span class="veredicto-badge">-{vDescuento}%</span>
+            ) : null}
+          </div>
+
+          <div class="bh-info">
+            <span class="bh-eyebrow">⚡ Veredicto del día</span>
+            <!-- Título clicable: la card siempre tiene enlace a la vista,
+                 aunque el CTA quede bajo el pliegue en pantallas chicas -->
+            <h3 class="bh-titulo">
+              <a class="bh-titulo-link" href={veredicto.link_afiliado} target="_blank" rel="nofollow sponsored noopener noreferrer">{veredicto.titulo}</a>
+            </h3>
+
+            <!-- El PRECIO va antes del bloque narrativo: es lo primero que
+                 busca el usuario y nunca debe quedar tapado ni recortado -->
+            <div class="bh-precios">
+              <span class="bh-precio">{fmt(veredicto.precio_actual)}</span>
+              {vPrecioOriginal && <s class="bh-prev">{fmt(vPrecioOriginal)}</s>}
+            </div>
+
+            <!-- Unidad narrativa del Sello K-P: score + por qué + señales reales -->
+            <div class="bh-verdict">
+              <div class="bh-kp"><SelloKP score={veredicto.score100} size={86} pulse tooltip tipAlign="start" /></div>
+              <div class="bh-verdict-body">
+                <span class="bh-tier">{vTier} <em>· calidad-precio</em></span>
+                <p class="bh-why">{vVeredicto}</p>
+                <div class="bh-signals">
+                  <span class="bh-signal">
+                    <Estrellas rating={veredicto.rating} size={13} />
+                    <strong>{veredicto.rating?.toFixed(1)}</strong>
+                    <em>({veredicto.opiniones?.toLocaleString('es-MX')})</em>
+                  </span>
+                  {vDescuento > 0 && <span class="bh-signal bh-dscto">−{vDescuento}% real</span>}
+                </div>
+              </div>
+            </div>
+
+            <BotonCTA id={veredicto.id} enlace={veredicto.link_afiliado} texto="Ver oferta" />
+          </div>
+        </article>
+
+        <!-- Tiles pequeños (siguientes mejores), en su propio wrapper:
+             el bento es flex hero|tiles — sin filas compartidas que Chrome
+             se niegue a estirar (causa raíz del recorte/solape) -->
+        <div class="bento-tiles">
+        {bentoSmall.map((o) => (
+          <a
+            class="bento-tile"
+            data-spotlight
+            data-ripple
+            href={o.link_afiliado}
+            target="_blank"
+            rel="nofollow sponsored noopener noreferrer"
+          >
+            <div class="bt-media">
+              <img src={o.imagen} alt={o.titulo} loading="lazy" class="bt-img" onerror="this.style.visibility='hidden'" />
+              {o.descuento > 0 && <span class="bt-desc">-{Math.round(o.descuento)}%</span>}
+              <!-- Chip K-P con contexto: número + etiqueta + escala de color.
+                   El title da la leyenda en desktop (el tile es un enlace, no
+                   admite el tooltip interactivo del sello). -->
+              <span
+                class="bt-kp"
+                style={`--kp-c:${o.score100 >= 70 ? 'var(--color-primary)' : o.score100 >= 55 ? 'var(--color-warm)' : '#ff6b6b'}`}
+                title="Sello Kalidad-Precio: combina la calidad real según los compradores con el descuento real. Mientras más alto, mejor es la compra."
+              >
+                <strong>{Math.round(o.score100)}</strong>
+                <em>K-P</em>
+              </span>
+            </div>
+            <div class="bt-info">
+              <h4 class="bt-titulo">{o.titulo}</h4>
+              <span class="bt-precio">{fmt(o.precio_actual)}</span>
+              <span class="bt-cta">Ver oferta →</span>
+            </div>
+          </a>
+        ))}
+        </div><!-- /.bento-tiles -->
+      </div>
+    </section>
+  )}
+
+  <!-- Catálogo principal: IMBATIBLES (grid 3/2/1, score recalibrado 65/10/25).
+       Liquidación y menos-500: datos listos en secciones.js, render en el
+       siguiente sprint (backlog). -->
+  <ImbatiblesGrid productos={ALL_IMBATIBLES} />
+
+    </div><!-- /.kp-main -->
+  </div><!-- /.kp-shell -->
+</Layout>
+
+<style>
+  /* =========================================
+     Hero / Módulo estacional
+     ========================================= */
+  .banner-estacional {
+    border-radius: var(--radius-lg);
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+  }
+
+  /* Hero reducido ~80%: menos padding y tipografía, misma fuerza de mensaje.
+     Es UNA de las 3 zonas con glow permitido (auroras verde + ámbar). */
+  .modo-limpio {
+    background: linear-gradient(
+      135deg,
+      var(--color-surface) 0%,
+      rgba(120, 80, 255, 0.06) 50%,
+      var(--color-surface) 100%
+    );
+    border: 1px solid var(--color-violet-border);
+    box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    padding: clamp(1.6rem, 4.5vw, 3.1rem) clamp(1.25rem, 4vw, 2.75rem);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .modo-limpio::before {
+    content: '';
+    position: absolute;
+    top: -10%;
+    right: -10%;
+    width: 320px;
+    height: 320px;
+    background: radial-gradient(circle at top right, rgba(31, 210, 142, 0.09) 0%, transparent 65%);
+    pointer-events: none;
+    animation: kp-aurora 16s ease-in-out infinite;
+  }
+
+  /* Aurora violeta de marca: el hero respira en los colores del logo */
+  .modo-limpio::after {
+    content: '';
+    position: absolute;
+    bottom: -20%;
+    left: -10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle at bottom left, rgba(130, 90, 255, 0.12) 0%, transparent 65%);
+    pointer-events: none;
+    animation: kp-aurora 20s ease-in-out infinite reverse;
+  }
+
+  /* === HERO SPLIT: texto izquierda / showpiece derecha === */
+  .hero-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xl);
+    align-items: center;
+    text-align: left; /* el split abandona el centrado */
+  }
+  @media (min-width: 920px) {
+    .hero-grid { grid-template-columns: 1.08fr 0.92fr; }
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* === Showpiece: Producto del día === */
+  .hero-show {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    max-width: 400px;
+    width: 100%;
+    margin-inline: auto;   /* móvil: centrado bajo el texto */
+    justify-self: center;
+  }
+
+  /* Halo violeta+verde detrás del producto: pulsa SOLO con opacity */
+  .hs-glow {
+    position: absolute;
+    inset: -12% -8% auto;
+    height: 78%;
+    border-radius: 50%;
+    background:
+      radial-gradient(closest-side, rgba(130, 90, 255, 0.22), transparent 75%),
+      radial-gradient(closest-side at 70% 30%, rgba(31, 210, 142, 0.12), transparent 70%);
+    filter: blur(6px);
+    pointer-events: none;
+    animation: kp-glow-pulse 4.5s var(--ease-soft) infinite;
+  }
+
+  /* Marco blanco cuadrado: la foto de ML en su formato nativo, sin recorte.
+     overflow visible → el sello sobresale y la burbuja del tooltip respira. */
+  .hs-media {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    background: #fff;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    overflow: visible;
+  }
+  .hs-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: clamp(1rem, 5cqw, 1.6rem);
+    will-change: transform; /* flota en idle (GSAP) */
+  }
+  .hs-desc {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    background-color: var(--color-error);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 900;
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+  }
+  /* Sello K-P medio fuera del marco: protagonista, no decoración */
+  .hs-kp {
+    position: absolute;
+    bottom: -16px;
+    left: -14px;
+    padding: 5px;
+    border-radius: var(--radius-pill);
+    background: var(--overlay-ink);
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+    box-shadow: var(--shadow-md);
+    z-index: 3;
+  }
+
+  .hs-datos {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-left: 0.25rem;
+  }
+  .hs-eyebrow {
+    color: var(--color-accent);
+    font-weight: 800;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .hs-titulo {
+    font-size: clamp(1rem, 2.4vw, 1.2rem);
+    color: #fff;
+    line-height: 1.3;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .hs-precios { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+  .hs-precio {
+    font-family: var(--font-display);
+    font-size: clamp(1.9rem, 4vw, 2.5rem);
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+  .hs-prev { font-size: 1rem; color: var(--color-text-muted); text-decoration: line-through; }
+  .hs-rating {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+  }
+  .hs-rating strong { color: var(--color-text); }
+  .hs-rating em { font-style: normal; }
+  .hero-show :global(.cta-wrapper) { margin: var(--spacing-xs) 0 0; justify-content: flex-start; }
+  .hero-show :global(.cta-button) { width: auto; padding: 0.8rem 1.8rem; }
+
+  .hero-badge {
+    display: inline-block;
+    background-color: rgba(31, 210, 142, 0.08);
+    border: 1px solid var(--color-primary-border);
+    color: var(--color-primary);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.9rem;
+    border-radius: var(--radius-pill);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  /* Titular monumental: grande en desktop (~3.5rem; en la columna estrecha
+     del split, más allá empieza a generar huérfanos). El mínimo (2rem)
+     mantiene legibilidad en móvil sin saturar <640px. */
+  .hero-titulo {
+    font-size: clamp(2rem, 5.2vw, 3.5rem);
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.08;
+    margin-bottom: var(--spacing-md);
+    letter-spacing: -0.03em;
+  }
+
+  /* Máscaras del título: cada línea "sube" desde su propio marco recortado
+     (GSAP anima .hero-line con yPercent). Sin JS, las líneas se ven normales. */
+  .hero-mask {
+    display: block;
+    overflow: hidden;
+    padding-block: 0.08em; /* aire para ascendentes/descendentes al recortar */
+  }
+  .hero-line {
+    display: inline-block;
+    text-wrap: balance; /* si una línea envuelve, reparte parejo (sin huérfanos) */
+    will-change: transform;
+  }
+
+  /* Acento con gradiente verde→dorado cálido (clip de texto) */
+  .hero-acento {
+    background: linear-gradient(100deg, var(--color-primary) 0%, #7ce9bd 40%, var(--color-warm) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Pills de confianza (alineadas al texto, ya no centradas) */
+  .hero-pills {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    margin-bottom: var(--spacing-md);
+  }
+  .hero-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--color-text);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.35rem 0.85rem;
+    border-radius: var(--radius-pill);
+  }
+  .hero-pill .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    box-shadow: 0 0 8px var(--color-primary);
+  }
+
+  /* Subtítulo con más presencia: más grande, casi blanco (antes gris-medio
+     se perdía) y con más aire de línea. El <strong> del Sello K-P resalta. */
+  .hero-subtitulo {
+    font-size: clamp(0.95rem, 2.4vw, 1.12rem);
+    color: var(--color-text);
+    max-width: 540px;
+    margin: 0 0 var(--spacing-lg);
+    line-height: 1.72;
+  }
+  .hero-subtitulo strong { color: #fff; font-weight: 700; }
+
+  .hero-stats {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+  }
+
+  .hero-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .stat-numero {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .hero-stat-divider {
+    width: 1px;
+    height: 36px;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  @media (max-width: 480px) {
+    .hero-stat-divider { display: none; }
+    .hero-stats { gap: var(--spacing-sm); }
+  }
+
+  /* Hot Sale: urgencia en cálido (ámbar/rojo), ya no magenta neón */
+  .modo-oferta {
+    background: linear-gradient(135deg, #2b1a14, #45260f);
+    color: #fff;
+    border: 2px solid var(--color-warm-border);
+    padding: clamp(1.6rem, 4.5vw, 3.1rem) clamp(1.25rem, 4vw, 2.75rem);
+    animation: pulsoCalido 2.4s infinite alternate;
+  }
+  .oferta-neon {
+    color: var(--color-warm);
+    font-size: 2.2rem;
+    text-shadow: 0 0 14px rgba(233, 184, 109, 0.35);
+  }
+  .oferta-texto {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0;
+  }
+  @keyframes pulsoCalido {
+    0% { box-shadow: 0 0 14px rgba(233, 184, 109, 0.15); }
+    100% { box-shadow: 0 0 26px rgba(233, 184, 109, 0.35); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modo-oferta { animation: none; }
+  }
+
+  /* =========================================
+     Secciones estructurales
+     ========================================= */
+  /* Más aire entre secciones (parte del "dark suavizado") */
+  .seccion-estructural {
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .titulo-seccion {
+    font-size: clamp(1.4rem, 3.2vw, 2rem);
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.015em;
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+  }
+  .titulo-seccion::before {
+    content: '';
+    width: 5px;
+    height: 1.05em;
+    border-radius: 3px;
+    background: linear-gradient(var(--color-primary), var(--color-secondary));
+    flex-shrink: 0;
+  }
+
+  /* === Marquesina viva === */
+  .marquee {
+    overflow: hidden;
+    margin: 0 0 var(--spacing-xl);
+    padding: 0.55rem 0;
+    border-block: 1px solid rgba(255, 255, 255, 0.06);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.02), transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: kp-marquee 32s linear infinite;
+  }
+  .marquee-group { display: flex; }
+  .marquee-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0 1.6rem;
+    white-space: nowrap;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+  .marquee-item::before {
+    content: '◆';
+    color: var(--color-primary);
+    font-size: 0.6rem;
+  }
+  @keyframes kp-marquee { to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) {
+    .marquee-track { animation: none; justify-content: center; width: 100%; flex-wrap: wrap; }
+  }
+
+  .veredicto-descuento {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: #00d26a;
+    background-color: rgba(0, 166, 80, 0.16);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-xs);
+    align-self: center;
+  }
+
+  /* =========================================
+     Veredicto del día
+     ========================================= */
+  .veredicto {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--color-primary-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg), var(--glow-primary-sm);
+    padding: var(--spacing-xl);
+  }
+
+  @media (min-width: 768px) {
+    .veredicto {
+      grid-template-columns: 1.1fr 1fr;
+      align-items: center;
+    }
+  }
+
+  .veredicto-media {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    background-color: var(--color-bg);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .veredicto-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: var(--spacing-sm);
+  }
+
+  .veredicto-img-fallback {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(4rem, 14vw, 7rem);
+    font-weight: 900;
+    color: var(--color-primary);
+    background: radial-gradient(circle at center, rgba(12, 226, 137, 0.08), transparent 70%);
+    letter-spacing: -0.04em;
+  }
+
+  .veredicto-badge {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    background-color: var(--color-error);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 900;
+    padding: 6px 13px;
+    border-radius: var(--radius-xs);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .veredicto-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .veredicto-sello {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+  }
+
+  .veredicto-sello-txt {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .veredicto-titulo {
+    font-size: clamp(1.2rem, 3vw, 1.6rem);
+    color: #ffffff;
+    line-height: 1.3;
+    margin: 0;
+  }
+
+  .veredicto-precios {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+  }
+
+  .veredicto-precio {
+    font-size: clamp(1.8rem, 5vw, 2.4rem);
+    font-weight: 900;
+    color: var(--color-primary);
+    letter-spacing: -0.02em;
+  }
+
+  .veredicto-precio-original {
+    font-size: 1.1rem;
+    color: var(--color-text-muted);
+    text-decoration: line-through;
+    text-decoration-color: rgba(255, 77, 109, 0.7);
+  }
+
+  .veredicto-rating {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+  }
+
+  .veredicto-rating-num {
+    color: var(--color-text);
+    font-weight: 700;
+  }
+
+  .veredicto-confianza {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .badge-vendido {
+    background-color: var(--color-primary) !important;
+    color: var(--color-bg) !important;
+  }
+
+  .conf-chip,
+  .meta-chip {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.65rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+  }
+
+  .meta-chip {
+    color: var(--color-text-muted);
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .conf-alta {
+    color: var(--color-primary);
+    background-color: rgba(12, 226, 137, 0.12);
+    border-color: var(--color-primary-border);
+  }
+
+  .conf-media {
+    color: var(--color-warm);
+    background-color: var(--color-warm-bg);
+    border-color: var(--color-warm-border);
+  }
+
+  .conf-basica {
+    color: var(--color-text-muted);
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .veredicto-info :global(.cta-wrapper) {
+    margin: var(--spacing-sm) 0 0;
+    justify-content: flex-start;
+  }
+
+  /* === Bento: top calidad-precio ===
+     FLEX hero|tiles (sin item que abarque filas de grid): el alto del bento
+     lo dicta SIEMPRE el contenido del hero → el precio y el CTA no pueden
+     recortarse ni solaparse con la sección siguiente (bug del piloto). */
+  .bento {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+  .bento-tiles {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+  @media (min-width: 560px) {
+    .bento-tiles { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 760px) {
+    .bento { flex-direction: row; align-items: stretch; }
+    /* `.bento > .bento-hero` (0,2,0): le gana a la regla base .bento-hero
+       que viene DESPUÉS en el archivo — sin esto, el row de desktop pierde
+       la cascada (bug histórico: el hero siempre quedó en columna). */
+    .bento > .bento-hero {
+      flex: 0 0 50%;
+      flex-direction: row; /* imagen izquierda, narrativa derecha */
+    }
+    /* Imagen más contenida: con el rail al lado, la narrativa necesita aire */
+    .bento-hero .bh-media { flex: 0 0 38%; min-height: 0; }
+    .bento-hero .bh-info { justify-content: center; }
+    /* Los 4 tiles llenan la otra columna en 2×2, igualando filas */
+    .bento-tiles {
+      flex: 1 1 auto;
+      min-width: 0;
+      grid-template-columns: repeat(2, 1fr);
+      grid-auto-rows: 1fr;
+    }
+  }
+
+  /* Tile hero */
+  .bento-hero {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--color-primary-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg), var(--glow-primary-sm);
+  }
+  .bh-media {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 200px;
+    background: var(--color-bg);
+    overflow: hidden;
+  }
+
+  /* === Unidad narrativa del Sello K-P (bento hero) === */
+  .bh-verdict {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    background: rgba(31, 210, 142, 0.05);
+    border: 1px solid var(--color-primary-border);
+  }
+  .bh-kp { flex-shrink: 0; }
+  .bh-verdict-body { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+  .bh-tier {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: var(--fs-md);
+    color: #fff;
+    line-height: 1.1;
+  }
+  .bh-tier em { color: var(--color-text-muted); font-style: normal; font-weight: 500; font-size: 0.7em; }
+  /* El "por qué" en ámbar cálido: humano, no neón */
+  .bh-why { font-size: var(--fs-sm); color: var(--color-warm); font-weight: 600; line-height: 1.45; margin: 0; }
+  .bh-signals { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.15rem; }
+  .bh-signal {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    font-size: var(--fs-sm); color: var(--color-text); font-weight: 600;
+  }
+  .bh-signal em { color: var(--color-text-muted); font-style: normal; font-weight: 400; }
+  .bh-dscto {
+    color: #00d26a;
+    background: rgba(0, 166, 80, 0.16);
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radius-xs);
+    font-weight: 800;
+  }
+  .bh-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: var(--spacing-md); }
+  .bh-fallback {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(3rem, 12vw, 6rem);
+    font-weight: 900;
+    color: var(--color-primary);
+    background: radial-gradient(circle at center, rgba(31, 210, 142, 0.06), transparent 70%);
+  }
+  .bh-sello {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    padding: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--overlay-ink);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    box-shadow: var(--shadow-sm);
+  }
+  .bh-info { padding: var(--spacing-lg); display: flex; flex-direction: column; gap: 0.5rem; }
+  .bh-eyebrow { color: var(--color-primary); font-weight: 800; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; }
+  .bh-titulo {
+    font-size: clamp(1.05rem, 2.2vw, 1.4rem);
+    color: #fff;
+    line-height: 1.25;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .bh-titulo-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-soft);
+  }
+  .bh-titulo-link:hover { color: var(--color-primary); }
+  .bh-precios { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+  /* Precio protagonista en blanco: el verde se reserva al CTA y al K-P */
+  .bh-precio {
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+  }
+  .bh-prev { font-size: 1rem; color: var(--color-text-muted); text-decoration: line-through; }
+  .bento-hero :global(.cta-wrapper) { margin: var(--spacing-xs) 0 0; justify-content: flex-start; }
+  .bento-hero :global(.cta-button) { width: auto; padding: 0.75rem 1.5rem; font-size: 1rem; }
+
+  /* Tiles pequeños */
+  .bento-tile {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elev-card);
+    transition: transform var(--dur-med) var(--ease-out-expo),
+                box-shadow var(--dur-med) var(--ease-out-expo),
+                border-color var(--dur-med) var(--ease-out-expo);
+  }
+  .bento-tile:hover {
+    transform: translateY(-4px);
+    border-color: rgba(31, 210, 142, 0.3);
+    box-shadow: var(--elev-card-hover);
+  }
+  /* El brillo extra solo donde hay puntero fino (no se "pega" en táctil) */
+  @media (hover: hover) {
+    .bento-tile:hover { filter: brightness(1.05); }
+    .bento-tile:hover .bt-img { transform: scale(1.05); }
+  }
+  .bt-img { transition: transform var(--dur-slow) var(--ease-out-expo); }
+  .bt-media { position: relative; flex: 1 1 auto; min-height: 120px; background: var(--color-bg); overflow: hidden; }
+  .bt-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 8px; }
+  .bt-desc {
+    position: absolute; top: 8px; left: 8px;
+    background-color: var(--color-error); color: #fff;
+    font-size: 0.72rem; font-weight: 900; padding: 2px 7px; border-radius: var(--radius-xs);
+  }
+  /* Chip K-P con contexto: número + mini-etiqueta. El color (--kp-c) escala
+     con el score, igual que el anillo del sello. */
+  .bt-kp {
+    position: absolute; bottom: 8px; right: 8px;
+    display: inline-flex; align-items: baseline; gap: 3px;
+    padding: 4px 8px;
+    border-radius: var(--radius-pill); background: var(--overlay-ink);
+    border: 1px solid color-mix(in srgb, var(--kp-c, var(--color-primary)) 35%, transparent);
+  }
+  .bt-kp strong { color: var(--kp-c, var(--color-primary)); font-weight: 900; font-size: 0.85rem; line-height: 1; }
+  .bt-kp em {
+    color: var(--color-text-muted); font-style: normal; font-weight: 700;
+    font-size: 0.55rem; letter-spacing: 0.12em; line-height: 1;
+  }
+  .bt-info { padding: 0.65rem 0.8rem; display: flex; flex-direction: column; gap: 0.15rem; }
+  .bt-titulo {
+    font-size: 0.82rem; color: #fff; font-weight: 600; line-height: 1.3; margin: 0 0 0.2rem;
+    display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .bt-precio { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: #ffffff; }
+  /* CTA del tile: el usuario sabe qué pasa al hacer clic */
+  .bt-cta {
+    font-size: 0.74rem; font-weight: 700; color: var(--color-primary);
+    transition: transform var(--dur-fast) var(--ease-soft);
+  }
+  .bento-tile:hover .bt-cta { transform: translateX(3px); }
+
+  /* (Los chips/filtros y el grid del catálogo viven ahora en ImbatiblesGrid;
+     .filter-in pasó a global.css para cruzar scopes de componentes.) */
+
+  /* === Layout 2 columnas: rail relámpago sticky (izq) + contenido === */
+  .kp-shell {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+  }
+
+  /* El rail solo existe en desktop; en móvil manda la franja colapsable */
+  .kp-aside { display: none; }
+
+  @media (min-width: 1024px) {
+    .kp-shell {
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: var(--spacing-xl);
+      align-items: start;
+    }
+    .kp-aside {
+      display: block;
+      position: sticky;
+      top: 96px; /* deja pasar el header pegajoso: SIEMPRE visible al scroll */
+    }
+    .solo-movil { display: none; }
+  }
+
+  .kp-main { min-width: 0; }
+</style>
+

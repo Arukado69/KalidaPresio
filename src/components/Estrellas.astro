@@ -1,0 +1,50 @@
+---
+/**
+ * Estrellas — Visual de 5 estrellas con relleno fraccional exacto.
+ * El relleno coincide con el rating real (ej. 4.8 → 96% de 5 estrellas).
+ * Props: { rating: number 0..5, size?: number (px) }
+ */
+export interface Props {
+  rating: number;
+  size?: number;
+}
+
+const { rating, size = 16 } = Astro.props;
+const r = Math.max(0, Math.min(5, rating ?? 0));
+const pct = (r / 5) * 100;
+---
+
+<span
+  class="estrellas"
+  style={`--star-size:${size}px; --fill:${pct}%;`}
+  role="img"
+  aria-label={`${r.toFixed(1)} de 5 estrellas`}
+>
+  <span class="estrellas-bg" aria-hidden="true">★★★★★</span>
+  <span class="estrellas-fg" aria-hidden="true">★★★★★</span>
+</span>
+
+<style>
+  .estrellas {
+    position: relative;
+    display: inline-block;
+    font-size: var(--star-size);
+    line-height: 1;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  .estrellas-bg {
+    color: rgba(255, 255, 255, 0.16);
+  }
+
+  .estrellas-fg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--fill);
+    overflow: hidden;
+    white-space: nowrap;
+    color: var(--color-warm); /* ámbar cálido de la paleta */
+  }
+</style>

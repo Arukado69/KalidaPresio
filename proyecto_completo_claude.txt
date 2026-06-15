@@ -1,0 +1,1526 @@
+=== CONTEXTO DEL PROYECTO: KALIDAPRESIO ===
+Dirección raíz: C:\Users\Arukado69\Documents\kalidapresio2.0
+
+<archivo ruta=".vscode\extensions.json">
+{
+  "recommendations": ["astro-build.astro-vscode"],
+  "unwantedRecommendations": []
+}
+
+</archivo>
+
+<archivo ruta=".vscode\launch.json">
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "command": "./node_modules/.bin/astro dev",
+      "name": "Development server",
+      "request": "launch",
+      "type": "node-terminal"
+    }
+  ]
+}
+
+</archivo>
+
+<archivo ruta="astro.config.mjs">
+// @ts-check
+import { defineConfig } from 'astro/config';
+
+// https://astro.build/config
+export default defineConfig({});
+
+</archivo>
+
+<archivo ruta="package.json">
+{
+  "name": "kalidapresio2.0",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "node src/scripts/generadorRedirects.js && astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "astro": "^6.4.2"
+  }
+}
+</archivo>
+
+<archivo ruta="src\components\BloqueResenas.astro">
+---
+export interface Props {
+  opiniones_sentimiento: {
+    pros: string[];
+    contras: string[];
+  };
+}
+
+const { opiniones_sentimiento } = Astro.props;
+const { pros, contras } = opiniones_sentimiento;
+---
+<section class="resenas-section">
+  <h2 class="section-title">Análisis de Ingeniería</h2>
+  
+  <div class="columnas-grid">
+    <!-- Columna Semántica: Pros -->
+    <div class="columna-pros">
+      <h3 class="columna-titulo pros-titulo">Ventajas Destacadas</h3>
+      <ul class="lista-pros">
+        {pros.map((pro) => (
+          <li>
+            <span class="icono-check" aria-hidden="true">✓</span>
+            {pro}
+          </li>
+        ))}
+      </ul>
+    </div>
+    
+    <!-- Columna Semántica: Contras -->
+    <div class="columna-contras">
+      <h3 class="columna-titulo contras-titulo">Puntos a Considerar</h3>
+      <ul class="lista-contras">
+        {contras.map((contra) => (
+          <li>
+            <span class="icono-cross" aria-hidden="true">✕</span>
+            {contra}
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<style>
+  .resenas-section {
+    margin: var(--spacing-lg) 0;
+  }
+
+  .section-title {
+    color: var(--color-primary); /* Cyan del logo */
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .columnas-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+
+  /* Responsive: Dos columnas en escritorio/tablets */
+  @media (min-width: 768px) {
+    .columnas-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .columna-pros, .columna-contras {
+    background-color: var(--color-surface);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border-top: 4px solid transparent; /* Preparando el borde semántico */
+  }
+
+  /* Estilos Semánticos Verdes (Pros) */
+  .columna-pros {
+    border-top-color: var(--color-primary); /* Aprovechamos el verde del logo */
+  }
+  .pros-titulo {
+    color: var(--color-primary);
+  }
+
+  /* Estilos Semánticos Rojos (Contras) */
+  .columna-contras {
+    border-top-color: #ff4d4d;
+  }
+  .contras-titulo {
+    color: #ff4d4d;
+  }
+
+  .columna-titulo {
+    font-size: 1.25rem;
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+  }
+
+  /* Reset de listas */
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  li {
+    position: relative;
+    padding-left: 2rem;
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-text);
+    line-height: 1.5;
+  }
+
+  li:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Iconos en CSS para no depender de librerías de fuentes (ej. FontAwesome) */
+  .icono-check {
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--color-primary);
+    font-weight: bold;
+    font-size: 1.2rem;
+  }
+
+  .icono-cross {
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #ff4d4d;
+    font-weight: bold;
+    font-size: 1.2rem;
+  }
+</style>
+
+</archivo>
+
+<archivo ruta="src\components\BotonCTA.astro">
+---
+export interface Props {
+  id: string;
+  enlace?: string;
+}
+
+const { id } = Astro.props;
+// Construimos internamente la ruta de redirección perimetral
+const redirectUrl = `/recomienda/${id}`;
+---
+<div class="cta-wrapper">
+  <!-- Atributos de seguridad obligatorios inyectados nativamente -->
+  <a 
+    href={redirectUrl} 
+    rel="nofollow noopener noreferrer" 
+    target="_blank" 
+    class="cta-button"
+  >
+    <span class="cta-text">Ver Oferta Disponible</span>
+    <svg class="cta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+      <polyline points="12 5 19 12 12 19"></polyline>
+    </svg>
+  </a>
+</div>
+
+<style>
+  .cta-wrapper {
+    display: flex;
+    justify-content: center;
+    margin: var(--spacing-lg) 0;
+    width: 100%;
+  }
+
+  .cta-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: var(--color-bg);
+    font-family: var(--font-main);
+    font-weight: 800;
+    font-size: 1.25rem;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 1rem 2rem;
+    border-radius: var(--radius-md);
+    width: 100%;
+    max-width: 450px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 4px 15px rgba(12, 226, 137, 0.2);
+    border: none;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+  }
+
+  /* Estados táctiles e interactivos (Alta Conversión) */
+  .cta-button:hover, .cta-button:focus {
+    background: linear-gradient(135deg, #10f496, var(--color-primary));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 8px 25px rgba(12, 226, 137, 0.4);
+    transform: translateY(-2px);
+    outline: none;
+  }
+
+  .cta-button:active {
+    transform: translateY(1px) scale(0.98);
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.2), 0 2px 8px rgba(12, 226, 137, 0.2);
+  }
+
+  .cta-icon {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.2s ease;
+  }
+
+  .cta-button:hover .cta-icon {
+    transform: translateX(4px);
+  }
+</style>
+
+</archivo>
+
+<archivo ruta="src\components\ComparadorLocal.astro">
+---
+// Importamos la fuente de verdad (JSON). En Astro, se lee en tiempo de compilación.
+import productos from '../data/productos.json';
+---
+<section class="comparador-section">
+  <div class="comparador-controles">
+    <!-- Selector Producto 1 -->
+    <div class="selector-grupo">
+      <label for="producto-1" class="selector-label">Equipo 1</label>
+      <select id="producto-1" class="kp-select">
+        <option value="" disabled selected>Selecciona un dispositivo...</option>
+        {productos.map((prod) => (
+          <option value={prod.id}>{prod.nombre}</option>
+        ))}
+      </select>
+    </div>
+
+    <!-- Divisor visual -->
+    <div class="selector-grupo vs-badge-container">
+      <span class="vs-badge">VS</span>
+    </div>
+
+    <!-- Selector Producto 2 -->
+    <div class="selector-grupo">
+      <label for="producto-2" class="selector-label">Equipo 2</label>
+      <select id="producto-2" class="kp-select">
+        <option value="" disabled selected>Selecciona un dispositivo...</option>
+        {productos.map((prod) => (
+          <option value={prod.id}>{prod.nombre}</option>
+        ))}
+      </select>
+    </div>
+  </div>
+
+  <!-- Contenedor vacío donde Vanilla JS inyectará la tabla -->
+  <div id="tabla-comparativa" class="tabla-comparativa-container">
+    <div class="mensaje-vacio">Selecciona dos productos para revelar la comparativa técnica.</div>
+  </div>
+</section>
+
+<!-- Directiva define:vars inyecta la data del JSON serializada de forma segura en el cliente, logrando Zero-Server-Load -->
+<script define:vars={{ productosCliente: productos }}>
+  // Vanilla JS puro: Cero dependencias para mantener TBT en 0ms.
+  document.addEventListener('DOMContentLoaded', () => {
+    const select1 = document.getElementById('producto-1');
+    const select2 = document.getElementById('producto-2');
+    const contenedorTabla = document.getElementById('tabla-comparativa');
+
+    // API nativa de internacionalización para formato monetario
+    function formatearPrecio(precio) {
+      return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(precio);
+    }
+
+    function renderizarComparacion() {
+      const id1 = select1.value;
+      const id2 = select2.value;
+
+      // Si falta uno de los dos por seleccionar, detenemos la ejecución
+      if (!id1 || !id2) return;
+
+      // Búsqueda en memoria local (ultrarrápida) O(N)
+      const p1 = productosCliente.find(p => p.id === id1);
+      const p2 = productosCliente.find(p => p.id === id2);
+
+      if (p1 && p2) {
+        // Unificamos las llaves de especificaciones utilizando un Set para evitar duplicidad de specs
+        const specsKeys = [...new Set([
+          ...Object.keys(p1.especificaciones), 
+          ...Object.keys(p2.especificaciones)
+        ])];
+
+        // Construcción manual de un string HTML semántico
+        let html = `
+          <div class="tabla-scroll">
+            <table class="kp-tabla-comparativa">
+              <thead>
+                <tr>
+                  <th scope="col" style="width: 30%">Métrica</th>
+                  <th scope="col" style="width: 35%">${p1.nombre}</th>
+                  <th scope="col" style="width: 35%">${p2.nombre}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="fila-destacada">
+                  <td class="spec-label">Precio Transaccional</td>
+                  <td class="precio-celda">${formatearPrecio(p1.precio_mxn)}</td>
+                  <td class="precio-celda">${formatearPrecio(p2.precio_mxn)}</td>
+                </tr>
+        `;
+
+        // Iteramos sobre las llaves combinadas de hardware
+        specsKeys.forEach(key => {
+          const val1 = p1.especificaciones[key];
+          const val2 = p2.especificaciones[key];
+          
+          const cleanVal1 = (!val1 || val1 === 'No especificado') ? '<span class="empty-spec">—</span>' : val1;
+          const cleanVal2 = (!val2 || val2 === 'No especificado') ? '<span class="empty-spec">—</span>' : val2;
+
+          html += `
+            <tr>
+              <td class="spec-label">${key.replace(/_/g, ' ')}</td>
+              <td>${cleanVal1}</td>
+              <td>${cleanVal2}</td>
+            </tr>
+          `;
+        });
+
+        // Fila de cierre con CTAs dinámicos apuntando al Cloaker perimetral de Cloudflare (/recomienda/)
+        // Inyectando obligatoriamente rel="nofollow noopener noreferrer"
+        html += `
+                <tr class="fila-cta">
+                  <td></td>
+                  <td>
+                    <a href="/recomienda/${p1.id}" rel="nofollow noopener noreferrer" target="_blank" class="cta-comparador">
+                      Ver Disponibilidad
+                    </a>
+                  </td>
+                  <td>
+                    <a href="/recomienda/${p2.id}" rel="nofollow noopener noreferrer" target="_blank" class="cta-comparador">
+                      Ver Disponibilidad
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        // Inyección cruda y segura al DOM
+        contenedorTabla.innerHTML = html;
+      }
+    }
+
+    // Escuchadores de eventos pasivos
+    select1.addEventListener('change', renderizarComparacion);
+    select2.addEventListener('change', renderizarComparacion);
+  });
+</script>
+
+<style>
+  /* CSS Estructural base */
+  .comparador-section {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    box-shadow: 0 4px 20px rgba(12, 226, 137, 0.05);
+    border: 1px solid rgba(12, 226, 137, 0.1);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    margin: var(--spacing-xl) 0;
+  }
+
+  .comparador-controles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  @media (min-width: 768px) {
+    .comparador-controles {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  .selector-grupo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .vs-badge-container {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 0;
+  }
+
+  .vs-badge {
+    background-color: var(--color-primary); /* Verde cyan del logo */
+    color: var(--color-bg); /* Morado oscuro de fondo */
+    font-weight: 900;
+    font-size: 1.2rem;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    line-height: 1;
+    box-shadow: 0 4px 10px rgba(12, 226, 137, 0.3);
+  }
+
+  .selector-label {
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-xs);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .kp-select {
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--border-radius);
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--color-text);
+    font-family: var(--font-main);
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+  }
+
+  .kp-select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(12, 226, 137, 0.2);
+  }
+  
+  .kp-select option {
+    background-color: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  .tabla-comparativa-container {
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .mensaje-vacio {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-style: italic;
+    padding: var(--spacing-xl) 0;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: var(--border-radius);
+  }
+
+  /* 
+   * ESTILOS DINÁMICOS: Usamos el modificador :global() de Astro para afectar 
+   * elementos HTML inyectados posteriormente por JavaScript 
+   */
+  :global(.tabla-scroll) {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  :global(.empty-spec) {
+    opacity: 0.4;
+    font-weight: 700;
+  }
+
+  :global(.kp-tabla-comparativa) {
+    width: 100%;
+    min-width: 600px;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid rgba(12, 226, 137, 0.1);
+  }
+
+  :global(.kp-tabla-comparativa tr:nth-child(even) td) {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
+
+  :global(.kp-tabla-comparativa th) {
+    background-color: rgba(12, 226, 137, 0.1);
+    color: var(--color-primary);
+    padding: var(--spacing-md);
+    text-align: center;
+    border-bottom: 2px solid var(--color-primary);
+    font-size: 1.1rem;
+    line-height: 1.3;
+  }
+
+  :global(.kp-tabla-comparativa td) {
+    padding: var(--spacing-md);
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    vertical-align: middle;
+  }
+
+  :global(.spec-label) {
+    font-weight: 700;
+    color: var(--color-text-muted) !important;
+    text-transform: capitalize;
+    text-align: right !important;
+    background-color: rgba(0,0,0,0.2);
+    border-right: 1px solid rgba(255,255,255,0.05);
+  }
+
+  :global(.fila-destacada td) {
+    background-color: rgba(12, 226, 137, 0.05);
+  }
+
+  :global(.precio-celda) {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #ffffff;
+  }
+
+  :global(.fila-cta td) {
+    border-bottom: none;
+    padding-top: var(--spacing-lg);
+    background-color: transparent;
+  }
+
+  :global(.cta-comparador) {
+    display: inline-block;
+    padding: 12px 24px;
+    background-color: var(--color-primary);
+    color: var(--color-bg);
+    text-decoration: none;
+    font-weight: 800;
+    border-radius: var(--border-radius);
+    text-transform: uppercase;
+    font-size: 0.95rem;
+    transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    box-shadow: 0 4px 12px rgba(12, 226, 137, 0.3);
+  }
+
+  :global(.cta-comparador:hover) {
+    background-color: var(--color-secondary);
+    box-shadow: 0 6px 15px rgba(12, 226, 137, 0.5);
+    transform: translateY(-2px);
+  }
+
+  :global(.cta-comparador:active) {
+    transform: translateY(2px) scale(0.98);
+  }
+</style>
+
+</archivo>
+
+<archivo ruta="src\components\FichaTecnica.astro">
+---
+export interface Props {
+  especificaciones: Record<string, string>;
+}
+
+const { especificaciones } = Astro.props;
+---
+<section class="ficha-tecnica-section">
+  <h2 class="section-title">Especificaciones Técnicas</h2>
+  
+  <div class="table-container">
+    <!-- Tabla semántica sin divs anidados innecesarios -->
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Característica</th>
+          <th scope="col">Detalle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {Object.entries(especificaciones).map(([clave, valor]) => (
+          <tr>
+            <td class="spec-key">{clave.replace(/_/g, ' ')}</td>
+            <td class="spec-value">{valor}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+  .ficha-tecnica-section {
+    margin: var(--spacing-lg) 0;
+  }
+
+  .section-title {
+    color: var(--color-primary); /* Cian brillante del logo */
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-sm);
+    display: inline-block;
+  }
+
+  .table-container {
+    width: 100%;
+    overflow-x: auto; /* Permite scroll horizontal en móviles si el contenido desborda */
+  }
+
+  /* Los estilos base de table, th, td están abstraídos en global.css */
+  
+  .spec-key {
+    font-weight: 600;
+    color: var(--color-text-muted);
+    width: 40%;
+  }
+
+  .spec-value {
+    font-weight: 500;
+    color: var(--color-text);
+  }
+</style>
+
+</archivo>
+
+<archivo ruta="src\components\Header.astro">
+---
+import '../styles/global.css';
+---
+<header class="site-header">
+  <div class="ftc-compliance">
+    <p>Esta publicación contiene enlaces de afiliados. Si compras a través de ellos, puedo ganar una comisión sin costo adicional para ti.</p>
+  </div>
+  <nav class="main-nav">
+    <a href="/" class="logo" aria-label="Inicio">
+      <span class="logo-text-kalida">KALIDA</span><br />
+      <span class="logo-text-presio">PRESIO</span>
+    </a>
+    <div class="subtitle">PRODUCTOS COMERCIALES</div>
+  </nav>
+</header>
+
+<style>
+  .site-header {
+    background-color: var(--color-surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  
+  .ftc-compliance {
+    background-color: #0d0422; /* Tono morado aún más profundo para contraste */
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    text-align: center;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  
+  .ftc-compliance p {
+    margin: 0;
+  }
+
+  .main-nav {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-sm);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* Comportamiento responsivo sin media queries pesadas */
+  @media (min-width: 768px) {
+    .main-nav {
+      flex-direction: row;
+      justify-content: space-between;
+    }
+  }
+
+  .logo {
+    text-decoration: none;
+    line-height: 0.9;
+    font-family: var(--font-main);
+    text-align: center;
+  }
+
+  @media (min-width: 768px) {
+    .logo {
+      text-align: left;
+    }
+  }
+
+  .logo-text-kalida, .logo-text-presio {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .subtitle {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 0.5rem;
+    font-weight: 600;
+  }
+</style>
+
+</archivo>
+
+<archivo ruta="src\data\productos.json">
+[
+  {
+    "id": "MLM123456789",
+    "nombre": "Laptop Gamer Pro X15 - AMD Ryzen 7 16GB RAM 512GB SSD",
+    "precio_mxn": 18499.00,
+    "enlace_afiliado": "https://mercadolibre.com/sec/afiliado_ejemplo_1",
+    "categoria": "Computo",
+    "especificaciones": {
+      "Procesador": "AMD Ryzen 7 5800H",
+      "RAM": "16 GB DDR4",
+      "Almacenamiento": "512 GB NVMe SSD",
+      "Tarjeta_Grafica": "NVIDIA RTX 3060",
+      "Pantalla": "15.6 IPS 144Hz"
+    },
+    "opiniones_sentimiento": {
+      "pros": [
+        "Excelente rendimiento en renderizado de video y compilación de código.",
+        "Pantalla con alta tasa de refresco ideal para edición fluida.",
+        "Relación calidad-precio insuperable en el mercado mexicano."
+      ],
+      "contras": [
+        "La duración de la batería se reduce a 3 horas bajo carga pesada.",
+        "El chasis de plástico tiende a retener marcas de huellas dactilares."
+      ]
+    }
+  },
+  {
+    "id": "MLM987654321",
+    "nombre": "Monitor Curvo 34 pulgadas UltraWide QHD 165Hz",
+    "precio_mxn": 8999.50,
+    "enlace_afiliado": "https://mercadolibre.com/sec/afiliado_ejemplo_2",
+    "categoria": "Monitores",
+    "especificaciones": {
+      "Tamano": "34 pulgadas",
+      "Resolucion": "3440 x 1440 (QHD)",
+      "Tasa_de_Refresco": "165Hz",
+      "Tiempo_Respuesta": "1ms VRB",
+      "Panel": "VA Curvo 1500R"
+    },
+    "opiniones_sentimiento": {
+      "pros": [
+        "Inmersión total gracias a la curvatura 1500R.",
+        "Tasa de refresco de 165Hz proporciona una experiencia hiperfluida.",
+        "Colores vibrantes y negros profundos por el panel VA."
+      ],
+      "contras": [
+        "El soporte de escritorio ocupa demasiado espacio.",
+        "Ángulos de visión ligeramente inferiores a un panel IPS."
+      ]
+    }
+  }
+]
+
+</archivo>
+
+<archivo ruta="src\layouts\Layout.astro">
+---
+// Importamos la hoja de estilos global (CSS Puro) para que Astro la compile e inyecte en todas las páginas
+import '../styles/global.css';
+
+// Importamos el componente de cabecera semántico
+import Header from '../components/Header.astro';
+
+// Definimos de forma estricta las Props requeridas para asegurar SEO On-Page en cada vista
+export interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+
+// Truncado dinámico y seguro de etiquetas SEO para cumplir con los límites estrictos de rastreadores
+// Title tag: Máximo 60 caracteres
+const metaTitle = title.length > 60 ? title.substring(0, 57) + '...' : title;
+// Meta description: Máximo 160 caracteres
+const metaDescription = description.length > 160 ? description.substring(0, 157) + '...' : description;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <!-- Metadatos técnicos base y de codificación (Obligatorios) -->
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    
+    <!-- SEO On-Page Estricto Inyectado Dinámicamente -->
+    <title>{metaTitle}</title>
+    <meta name="description" content={metaDescription} />
+  </head>
+  <body>
+    <!-- Renderizado del componente global de la cabecera (Incluye FTC Compliance text) -->
+    <Header />
+    
+    <!-- Contenedor principal semántico donde fluirá el contenido de cada página particular -->
+    <main class="kp-container">
+      <!-- El slot es el mecanismo nativo de Astro para inyectar el contenido de los hijos -->
+      <slot />
+    </main>
+    
+    <!-- Pie de página semántico y limpio con código estático -->
+    <footer class="site-footer">
+      <div class="footer-content">
+        <p>&copy; {new Date().getFullYear()} KalidaPresio. Construido con arquitectura estática ultrarrápida.</p>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  /* Estilos específicos de Layout que controlan el espaciado y estructura base del contenedor */
+  .kp-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-md);
+    /* Min height para empujar el footer al fondo en páginas con poco contenido */
+    min-height: calc(100vh - 200px);
+  }
+
+  .site-footer {
+    background-color: var(--color-surface); /* Tono morado oscuro / superficie principal */
+    color: var(--color-text-muted); /* Texto opaco para menor peso visual */
+    text-align: center;
+    padding: var(--spacing-lg) var(--spacing-md);
+    border-top: 1px solid rgba(255, 255, 255, 0.05); /* Separador sutil */
+    margin-top: var(--spacing-xl);
+  }
+</style>
+
+</archivo>
+
+<archivo ruta="src\pages\index.astro">
+---
+// Importación de módulos arquitectónicos
+import Layout from '../layouts/Layout.astro';
+import ComparadorLocal from '../components/ComparadorLocal.astro';
+import BotonCTA from '../components/BotonCTA.astro';
+
+// Importación de Datos (Single Source of Truth)
+import productos from '../data/productos.json';
+
+// Bandera lógica para el Módulo Estacional Pasivo
+// Evaluado estrictamente en Build-Time. Cero JavaScript del lado del cliente.
+const isHotSale = false; 
+---
+
+<Layout 
+  title="KalidaPresio | Comparador Inteligente de Hardware" 
+  description="Encuentra las mejores ofertas de tecnología y hardware en Mercado Libre México analizadas por ingenieros."
+>
+  
+  <!-- Módulo Estacional Pasivo: 
+       Lógica condicional pura procesada por Astro en SSR/SSG.
+       Si isHotSale es true, el DOM y la clase CSS mutan radicalmente.
+  -->
+  <section class={`banner-estacional ${isHotSale ? 'modo-oferta' : 'modo-limpio'}`}>
+    {isHotSale ? (
+      <div class="alerta-hotsale">
+        <h2 class="oferta-neon">🔥 ¡HOT SALE ACTIVO! 🔥</h2>
+        <p class="oferta-texto">Precios históricos en hardware. Verifica el stock en tiempo real.</p>
+      </div>
+    ) : (
+      <div class="mensaje-bienvenida">
+        <h2>Ingeniería y Análisis de Hardware</h2>
+        <p>Toma decisiones de compra informadas con nuestro análisis técnico real.</p>
+      </div>
+    )}
+  </section>
+
+  <!-- Zona Zero-Server-Load: Comparador Interactivo Local -->
+  <section class="seccion-estructural">
+    <h2 class="titulo-seccion">Compara Hardware de Mercado Libre al Instante</h2>
+    <ComparadorLocal />
+  </section>
+
+  <!-- Módulo Dinámico: Grid de Productos Destacados -->
+  <section class="seccion-estructural">
+    <h2 class="titulo-seccion">Catálogo Tecnológico Reciente</h2>
+    
+    <div class="grid-productos">
+      {/* Iteración de array usando JSX syntax en Astro */}
+      {productos.map((prod) => {
+        // Algoritmo idéntico a getStaticPaths() para unificar el enlace semántico SEO interno
+        const slug = prod.nombre
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9\s-]/g, "")
+          .trim()
+          .replace(/\s+/g, "-");
+
+        return (
+          <article class="tarjeta-producto">
+            <div class="tarjeta-visual">
+              {/* Imagen contextual con Lazy Loading (Rendimiento LCP) */}
+              <img 
+                src={`https://via.placeholder.com/400x300/1e0b4b/0ce289?text=${encodeURIComponent(prod.nombre.split(' ')[0])}`} 
+                alt={prod.nombre} 
+                loading="lazy" 
+                class="img-tarjeta" 
+              />
+              <span class="badge-categoria">{prod.categoria}</span>
+            </div>
+            
+            <div class="tarjeta-info">
+              <h3 class="tarjeta-titulo">
+                <!-- Enrutamiento semántico interno hacia la ficha generada en Fase 3 -->
+                <a href={`/productos/${slug}`}>{prod.nombre}</a>
+              </h3>
+              
+              <p class="tarjeta-precio">
+                {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(prod.precio_mxn)}
+              </p>
+              
+              <!-- Resumen ultracompacto (Solo RAM y Procesador si existen) -->
+              <ul class="tarjeta-specs-resumen">
+                {prod.especificaciones.Procesador && <li><strong>CPU:</strong> {prod.especificaciones.Procesador}</li>}
+                {prod.especificaciones.RAM && <li><strong>RAM:</strong> {prod.especificaciones.RAM}</li>}
+                {prod.especificaciones.Tamano && <li><strong>Tamaño:</strong> {prod.especificaciones.Tamano}</li>}
+              </ul>
+
+              <div class="tarjeta-cta">
+                <BotonCTA id={prod.id} enlace={prod.enlace_afiliado} />
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  </section>
+
+</Layout>
+
+<style>
+  /* =========================================
+     Módulo Estacional Pasivo (Build-Time UI)
+     ========================================= */
+  .banner-estacional {
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl) var(--spacing-md);
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+    transition: all 0.3s ease;
+  }
+
+  /* UI Base: Limpia, alineada al branding general morado/cyan */
+  .modo-limpio {
+    background-color: var(--color-surface);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  .modo-limpio h2 {
+    color: var(--color-primary);
+    font-size: 2rem;
+  }
+  .modo-limpio p {
+    color: var(--color-text-muted);
+    font-size: 1.1rem;
+    margin: 0;
+  }
+
+  /* UI Disruptiva para eventos (Hot Sale / Buen Fin) */
+  .modo-oferta {
+    /* Degradado extremo para forzar la atención visual del usuario */
+    background: linear-gradient(135deg, #4b0082, #ff00ff);
+    color: #fff;
+    border: 2px solid #ff00ff;
+    animation: pulsoNeon 2s infinite alternate;
+  }
+  .oferta-neon {
+    color: #ffffff;
+    font-size: 2.5rem;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 0, 255, 1);
+  }
+  .oferta-texto {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  @keyframes pulsoNeon {
+    0% { box-shadow: 0 0 20px rgba(255, 0, 255, 0.3); }
+    100% { box-shadow: 0 0 40px rgba(255, 0, 255, 0.8); }
+  }
+
+  /* =========================================
+     Secciones Estructurales Globales
+     ========================================= */
+  .seccion-estructural {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .titulo-seccion {
+    font-size: 1.8rem;
+    color: var(--color-text);
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 2px solid var(--color-primary); /* Subrayado Cyan */
+    display: inline-block;
+  }
+
+  /* =========================================
+     Grid Minimalista de Productos Destacados
+     ========================================= */
+  .grid-productos {
+    display: grid;
+    /* Comportamiento fluido sin Media Queries exactas: auto-fill minmax */
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--spacing-xl);
+  }
+
+  .tarjeta-producto {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(12, 226, 137, 0.05);
+    display: flex;
+    flex-direction: column;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(12, 226, 137, 0.1);
+  }
+
+  .tarjeta-producto:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(12, 226, 137, 0.2);
+    border-color: rgba(12, 226, 137, 0.3);
+  }
+
+  .tarjeta-visual {
+    position: relative;
+    width: 100%;
+    height: 220px;
+    background-color: #0d0422; /* Placeholder oscuro */
+  }
+
+  .img-tarjeta {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .badge-categoria {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background-color: var(--color-primary);
+    color: var(--color-bg);
+    font-size: 0.75rem;
+    font-weight: 900;
+    padding: 6px 12px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  }
+
+  .tarjeta-info {
+    padding: var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  .tarjeta-titulo {
+    font-size: 1.15rem;
+    margin-bottom: var(--spacing-xs);
+    line-height: 1.3;
+  }
+
+  .tarjeta-titulo a {
+    color: #ffffff;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .tarjeta-titulo a:hover {
+    color: var(--color-primary); /* Feedback visual */
+  }
+
+  .tarjeta-precio {
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .tarjeta-specs-resumen {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--spacing-md) 0;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    flex-grow: 1; /* Empuja el CTA al fondo */
+  }
+
+  .tarjeta-specs-resumen li {
+    margin-bottom: 6px;
+    border-bottom: 1px dotted rgba(255, 255, 255, 0.1);
+    padding-bottom: 4px;
+  }
+
+  .tarjeta-specs-resumen strong {
+    color: var(--color-text);
+  }
+  
+  .tarjeta-cta {
+    margin-top: auto;
+  }
+  
+  /* Sobrescritura de estilos globales del BotonCTA para adaptación a tarjeta pequeña */
+  .tarjeta-cta :global(.cta-wrapper) {
+    margin: 0; 
+  }
+  .tarjeta-cta :global(.cta-button) {
+    padding: 0.8rem 1rem;
+    font-size: 1rem;
+    width: 100%;
+    max-width: 100%;
+  }
+</style>
+
+</archivo>
+
+<archivo ruta="src\pages\productos\[producto].astro">
+---
+// Importamos el Layout base para envolver y proporcionar el <head> semántico a esta página
+import Layout from '../../layouts/Layout.astro';
+
+// Importamos todos los componentes semánticos desarrollados en la Fase 2
+import FichaTecnica from '../../components/FichaTecnica.astro';
+import BloqueResenas from '../../components/BloqueResenas.astro';
+import BotonCTA from '../../components/BotonCTA.astro';
+
+// Importamos la Fuente Única de Verdad (JSON). Astro parseará esto nativamente en build-time
+import productosData from '../../data/productos.json';
+
+// Lógica de Enrutamiento SSG: Generación Estática de Rutas
+// Esta función es mandatoria en Astro para iterar archivos estáticos sobre rutas dinámicas
+export async function getStaticPaths() {
+  return productosData.map((producto) => {
+    // Generación algorítmica de un slug limpio, amigable para motores de búsqueda
+    const slug = producto.nombre
+      .toLowerCase() // Normaliza a minúsculas
+      .normalize("NFD") // Descompone caracteres Unicode (preparación para eliminar acentos)
+      .replace(/[\u0300-\u036f]/g, "") // Elimina los acentos descompuestos
+      .replace(/[^a-z0-9\s-]/g, "") // Elimina todo lo que no sea alfanumérico o guión/espacio
+      .trim() // Elimina espacios en blanco de los extremos
+      .replace(/\s+/g, "-"); // Sustituye cualquier grupo de espacios por un solo guión medio
+
+    return {
+      // El parámetro 'producto' dicta el segmento final de la URL en /productos/[producto]/
+      params: { producto: slug },
+      // Las 'props' inyectan el objeto de datos íntegro en el contexto del componente durante el build
+      props: { producto },
+    };
+  });
+}
+
+// Rescatamos los datos del producto específico inyectados por getStaticPaths
+const { producto } = Astro.props;
+---
+
+<!-- Envolvemos el contenido en el Layout.
+     Pasamos título y descripción dinámicos usando las propiedades del JSON para SEO On-Page impecable -->
+<Layout 
+  title={`${producto.nombre} - KalidaPresio`} 
+  description={`Análisis técnico profundo y mejor precio actual en MXN para ${producto.nombre}. ${producto.opiniones_sentimiento.pros[0]}`}
+>
+  <article class="producto-layout">
+    <!-- Cumplimiento SEO: Un único h1 semántico por página -->
+    <h1 class="producto-titulo">{producto.nombre}</h1>
+    
+    <div class="producto-grid">
+      <!-- Columna 1 (Móvil Superior, Escritorio Izquierda): Visual y Acción Principal -->
+      <div class="producto-visual">
+        <div class="imagen-contenedor">
+          <!-- La etiqueta img incluye un alt mandatorio usando el nombre del producto, esencial para accesibilidad y rastreo de imágenes.
+               Usamos un placeholder generado con los colores del logo como marcador por ahora -->
+          <img 
+            src={`https://via.placeholder.com/800x600/150833/0ce289?text=${encodeURIComponent(producto.nombre)}`} 
+            alt={producto.nombre} 
+            loading="lazy"
+            class="imagen-producto"
+          />
+        </div>
+        
+        <div class="precio-destacado-container">
+          <p class="precio-etiqueta">Mejor Precio Localizado:</p>
+          <p class="precio-valor">
+            {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(producto.precio_mxn)}
+          </p>
+        </div>
+        
+        <!-- Primer CTA de alta conversión posicionado "Above the Fold" o inmediatamente visible en móvil -->
+        <BotonCTA id={producto.id} enlace={producto.enlace_afiliado} />
+      </div>
+      
+      <!-- Columna 2 (Móvil Inferior, Escritorio Derecha): Datos Técnicos y Análisis -->
+      <div class="producto-datos">
+        <!-- Renderizado de la tabla técnica semántica mapeando la rama 'especificaciones' del JSON -->
+        <FichaTecnica especificaciones={producto.especificaciones} />
+        
+        <!-- Renderizado de los Pros y Contras semánticos mapeando la rama 'opiniones_sentimiento' del JSON -->
+        <BloqueResenas opiniones_sentimiento={producto.opiniones_sentimiento} />
+      </div>
+    </div>
+    
+    <!-- Duplicación estratégica del CTA para maximizar el flujo transaccional tras leer todo el contenido -->
+    <div class="cta-inferior">
+      <h3 class="cta-inferior-titulo">¿Convencido de la calidad técnica?</h3>
+      <BotonCTA id={producto.id} enlace={producto.enlace_afiliado} />
+    </div>
+  </article>
+</Layout>
+
+<style>
+  /* Aislamos los estilos estructurales propios de la plantilla dinámica de productos */
+  .producto-titulo {
+    font-size: 1.8rem;
+    color: var(--color-primary); /* Cyan brillante del logo */
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+  }
+  
+  @media (min-width: 768px) {
+    .producto-titulo {
+      font-size: 2.2rem;
+      text-align: left;
+    }
+  }
+
+  .producto-grid {
+    display: grid;
+    grid-template-columns: 1fr; /* Mobile First: flujo vertical nativo */
+    gap: var(--spacing-lg);
+  }
+
+  /* Modificador de grid para escritorio: Reparto de peso asimétrico (Imagen/Precio | Datos) */
+  @media (min-width: 992px) {
+    .producto-grid {
+      grid-template-columns: 1fr 1.5fr;
+      gap: var(--spacing-xl);
+    }
+  }
+
+  .imagen-contenedor {
+    background-color: var(--color-surface); /* Contenedor con fondo oscuro para separar del bg principal */
+    border-radius: var(--border-radius);
+    padding: var(--spacing-sm);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2); /* Sombra suave para dar profundidad */
+    margin-bottom: var(--spacing-md);
+  }
+
+  .imagen-producto {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    display: block; /* Elimina espacio inferior del baseline inline */
+  }
+
+  .precio-destacado-container {
+    text-align: center;
+    margin-bottom: var(--spacing-md);
+    background: rgba(12, 226, 137, 0.05); /* Tinte muy transparente del cyan base */
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(12, 226, 137, 0.2); /* Borde sutil del mismo tono cyan */
+  }
+
+  .precio-etiqueta {
+    font-size: 0.85rem;
+    color: var(--color-text-muted); /* Texto secundario para jerarquía baja */
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+
+  .precio-valor {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #ffffff; /* Contraste total en el precio numérico */
+    margin: 0;
+  }
+
+  .cta-inferior {
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-lg);
+    border-top: 1px dashed var(--color-text-muted); /* Separador visual sutil */
+    text-align: center;
+  }
+
+  .cta-inferior-titulo {
+    color: var(--color-text);
+    margin-bottom: var(--spacing-sm);
+    font-size: 1.3rem;
+  }
+</style>
+
+</archivo>
+
+<archivo ruta="src\scripts\generadorRedirects.js">
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// 1. Configuración nativa de rutas para Node.js (ES Modules)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Definimos de forma estricta las rutas absolutas para lectura y escritura
+const dataPath = path.resolve(__dirname, '../data/productos.json');
+const outputDir = path.resolve(__dirname, '../../public');
+const outputPath = path.resolve(outputDir, '_redirects');
+
+// 2. Proceso Seguro en Build-Time: Leemos el JSON como Fuente Única de Verdad
+try {
+  // Verificamos y leemos el archivo
+  const rawData = fs.readFileSync(dataPath, 'utf-8');
+  const productos = JSON.parse(rawData);
+
+  // Inicializamos el contenido del archivo de Cloudflare
+  let redirectsContent = '# Redirecciones Perimetrales Automáticas - KalidaPresio\n';
+  redirectsContent += '# Generado en Build-Time. No editar manualmente.\n\n';
+
+  // 3. Iteración algorítmica sobre el catálogo de hardware
+  productos.forEach(producto => {
+    // Validamos que los datos necesarios existan antes de escribir
+    if (producto.id && producto.enlace_afiliado) {
+      // Estándar Cloudflare Pages: /ruta_origen  URL_destino  código_HTTP
+      // Usamos 302 porque el enlace de afiliado puede cambiar en el futuro (ej. campañas temporales)
+      redirectsContent += `/recomienda/${producto.id}  ${producto.enlace_afiliado}  302\n`;
+    }
+  });
+
+  // 4 y 5. Escritura segura con sobrescritura automática
+  // Si la carpeta public no existe, la creamos primero
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  // Sobrescribimos o creamos el archivo con codificación UTF-8
+  fs.writeFileSync(outputPath, redirectsContent, 'utf-8');
+  
+  console.log(`\n✅ [KalidaPresio] Archivo _redirects inyectado en /public exitosamente.`);
+  console.log(`✅ ${productos.length} rutas de afiliación protegidas (Cloaking Nativo).\n`);
+
+} catch (error) {
+  console.error('❌ [KalidaPresio] Error crítico al generar las redirecciones:', error.message);
+  // Hacemos fallar el build si el archivo de datos no existe o está corrupto
+  process.exit(1); 
+}
+
+</archivo>
+
+<archivo ruta="src\styles\global.css">
+:root {
+  /* Identidad visual extraída de las imágenes de KalidaPresio */
+  --color-bg: #150833; /* Fondo ultra oscuro basado en el morado de la marca */
+  --color-surface: #1e0b4b; /* Color de superficie principal (Tarjetas, Header) */
+  --color-primary: #0ce289; /* Acento verde/cyan brillante del logo */
+  --color-secondary: #0aab68; /* Tono secundario para hover del primary */
+  --color-text: #f8f9fa; /* Texto claro para legibilidad sobre fondo oscuro */
+  --color-text-muted: #b0a8c2; /* Texto secundario apagado */
+  
+  /* Sistema de fuentes: Nativas para TBT 0ms, geométricas y modernas */
+  --font-main: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  
+  /* Utilidades compartidas */
+  --border-radius: 8px;
+  --radius-xl: 24px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 1rem;
+  --spacing-md: 1.5rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 3rem;
+}
+
+/* Reset semántico */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Micro-interacciones globales */
+a, button, input, select {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Tipografía base */
+h1, h2, h3 {
+  line-height: 1.3;
+  margin-bottom: var(--spacing-sm);
+  color: #ffffff;
+  /* Emulando el peso fuerte y cuadriculado del logo KalidaPresio */
+  font-weight: 800; 
+  letter-spacing: -0.02em;
+}
+
+p {
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Tablas Semánticas (Reutilizadas en FichaTécnica) */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--color-surface);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+th, td {
+  padding: var(--spacing-sm);
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+th {
+  background-color: rgba(12, 226, 137, 0.1);
+  color: var(--color-primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+</archivo>
+
+<archivo ruta="tsconfig.json">
+{
+  "extends": "astro/tsconfigs/strict",
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["dist"]
+}
+
+</archivo>
+

@@ -1,0 +1,351 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import FichaTecnica from '../../components/FichaTecnica.astro';
+import BloqueResenas from '../../components/BloqueResenas.astro';
+import BotonCTA from '../../components/BotonCTA.astro';
+import productosData from '../../data/productos.json';
+
+export async function getStaticPaths() {
+  return productosData.map((producto) => {
+    const slug = producto.nombre
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-");
+
+    return {
+      params: { producto: slug },
+      props: { producto },
+    };
+  });
+}
+
+const { producto } = Astro.props;
+---
+
+<Layout
+  title={`${producto.nombre} - KalidaPresio`}
+  description={`Análisis técnico y mejor precio para ${producto.nombre}. ${producto.opiniones_sentimiento.pros[0]}`}
+  ogImage={`https://via.placeholder.com/1200x630/150833/0ce289?text=${encodeURIComponent(producto.nombre)}`}
+  ogType="product"
+  productData={{
+    precio: producto.precio_mxn,
+    nombre: producto.nombre,
+    pros: producto.opiniones_sentimiento.pros
+  }}
+>
+  <article class="producto-layout">
+
+    <!-- Breadcrumb de navegación + SEO -->
+    <nav class="breadcrumb" aria-label="Ruta de navegación">
+      <a href="/" class="breadcrumb-link">Inicio</a>
+      <span class="breadcrumb-sep" aria-hidden="true">›</span>
+      <a href="/" class="breadcrumb-link">{producto.categoria}</a>
+      <span class="breadcrumb-sep" aria-hidden="true">›</span>
+      <span class="breadcrumb-current" aria-current="page">
+        {producto.nombre.substring(0, 40)}...
+      </span>
+    </nav>
+
+    <h1 class="producto-titulo">{producto.nombre}</h1>
+
+    <div class="producto-grid">
+      <!-- Columna 1: Visual y Acción Principal -->
+      <div class="producto-visual">
+        <div class="imagen-contenedor">
+          <img
+            src={`https://via.placeholder.com/800x600/150833/0ce289?text=${encodeURIComponent(producto.nombre)}`}
+            alt={producto.nombre}
+            loading="lazy"
+            class="imagen-producto"
+          />
+        </div>
+
+        <div class="precio-destacado-container">
+          <p class="precio-etiqueta">Mejor Precio Localizado:</p>
+          <p class="precio-valor">
+            {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(producto.precio_mxn)}
+          </p>
+          <p class="precio-disclaimer">
+            Precio estimado al {new Date(producto.updated_at).toLocaleDateString('es-MX', {
+              year: 'numeric', month: 'long', day: 'numeric'
+            })}. Verifica disponibilidad en Mercado Libre.
+          </p>
+        </div>
+
+        <!-- Primer CTA — Above the fold -->
+        <BotonCTA id={producto.id} texto="Ver Precio Actual en Mercado Libre" />
+      </div>
+
+      <!-- Columna 2: Datos Técnicos y Análisis -->
+      <div class="producto-datos">
+        <FichaTecnica especificaciones={producto.especificaciones} />
+        <BloqueResenas opiniones_sentimiento={producto.opiniones_sentimiento} />
+      </div>
+    </div>
+
+    <!-- CTA final contextual -->
+    <div class="cta-inferior">
+      <h3 class="cta-inferior-titulo">¿Convencido de la calidad técnica?</h3>
+      <BotonCTA id={producto.id} texto={`Comprar ${producto.nombre.split(' ').slice(0,3).join(' ')} →`} />
+    </div>
+
+    <!-- Sticky CTA Bar — Solo visible en móvil -->
+    <div class="sticky-cta-bar" id="sticky-cta" aria-hidden="true">
+      <div class="sticky-cta-inner">
+        <div class="sticky-cta-info">
+          <span class="sticky-cta-nombre">{producto.nombre.substring(0, 35)}...</span>
+          <span class="sticky-cta-precio">
+            {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(producto.precio_mxn)}
+          </span>
+        </div>
+        <a
+          href={`/recomienda/${producto.id}`}
+          rel="nofollow noopener noreferrer"
+          target="_blank"
+          class="sticky-cta-btn"
+        >
+          Ver Oferta
+        </a>
+      </div>
+    </div>
+  </article>
+</Layout>
+
+<script>
+  (function() {
+    const stickyCta = document.getElementById('sticky-cta');
+    const imagenProducto = document.querySelector('.imagen-contenedor');
+    if (!stickyCta || !imagenProducto) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) {
+          stickyCta.classList.add('visible');
+          stickyCta.setAttribute('aria-hidden', 'false');
+        } else {
+          stickyCta.classList.remove('visible');
+          stickyCta.setAttribute('aria-hidden', 'true');
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(imagenProducto);
+  })();
+</script>
+
+<style>
+  /* Breadcrumb */
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-md);
+    font-size: 0.8rem;
+  }
+
+  .breadcrumb-link {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .breadcrumb-link:hover { color: var(--color-primary); }
+
+  .breadcrumb-sep { color: rgba(255,255,255,0.2); }
+
+  .breadcrumb-current {
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  /* Título */
+  .producto-titulo {
+    font-size: 1.8rem;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+  }
+
+  @media (min-width: 768px) {
+    .producto-titulo {
+      font-size: 2.2rem;
+      text-align: left;
+    }
+  }
+
+  /* Grid */
+  .producto-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+  }
+
+  @media (min-width: 992px) {
+    .producto-grid {
+      grid-template-columns: 1fr 1.5fr;
+      gap: var(--spacing-xl);
+    }
+  }
+
+  /* Imagen */
+  .imagen-contenedor {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
+    box-shadow: var(--shadow-md);
+    margin-bottom: var(--spacing-md);
+    border: 1px solid var(--color-primary-border);
+  }
+
+  .imagen-producto {
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-xs);
+    display: block;
+  }
+
+  /* Precio — Premium Container */
+  .precio-destacado-container {
+    text-align: center;
+    margin-bottom: var(--spacing-md);
+    background: linear-gradient(
+      135deg,
+      rgba(12, 226, 137, 0.07) 0%,
+      rgba(12, 226, 137, 0.03) 100%
+    );
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-primary-border);
+    box-shadow: var(--glow-primary-sm), inset 0 1px 0 rgba(12,226,137,0.1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .precio-destacado-container::after {
+    content: '';
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 80px; height: 80px;
+    background: radial-gradient(circle at bottom right, rgba(12,226,137,0.12), transparent 70%);
+    pointer-events: none;
+  }
+
+  .precio-etiqueta {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+
+  .precio-valor {
+    font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 900;
+    color: #ffffff;
+    margin: 0;
+    letter-spacing: -0.02em;
+    position: relative;
+    z-index: 1;
+  }
+
+  .precio-disclaimer {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    text-align: center;
+    margin-top: 0.35rem;
+    margin-bottom: 0;
+    font-style: italic;
+    opacity: 0.8;
+  }
+
+  /* CTA Inferior */
+  .cta-inferior {
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-lg);
+    border-top: 1px dashed var(--color-text-muted);
+    text-align: center;
+  }
+
+  .cta-inferior-titulo {
+    color: var(--color-text);
+    margin-bottom: var(--spacing-sm);
+    font-size: 1.3rem;
+  }
+
+  /* Sticky CTA Bar */
+  .sticky-cta-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-primary-border);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.4), 0 -1px 0 var(--color-primary-border);
+    padding: var(--spacing-sm) var(--spacing-md);
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: none;
+  }
+
+  @media (max-width: 767px) {
+    .sticky-cta-bar { display: block; }
+  }
+
+  .sticky-cta-bar.visible { transform: translateY(0); }
+
+  .sticky-cta-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .sticky-cta-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+  }
+
+  .sticky-cta-nombre {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sticky-cta-precio {
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    white-space: nowrap;
+  }
+
+  .sticky-cta-btn {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: var(--color-bg);
+    font-weight: 800;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--radius-pill);
+    box-shadow: var(--glow-primary-sm);
+    letter-spacing: 0.03em;
+    transition: var(--transition-fast);
+  }
+
+  .sticky-cta-btn:hover {
+    box-shadow: var(--glow-primary-md);
+    transform: scale(1.04);
+  }
+</style>

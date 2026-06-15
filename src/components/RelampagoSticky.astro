@@ -1,0 +1,302 @@
+---
+/**
+ * RelampagoSticky — Carrusel de ofertas relámpago, doble modo:
+ *   · modo="rail"  → franja VERTICAL STICKY (desktop, vive en el aside).
+ *                    Loop de cola con GSAP: cada ~4.5 s el item de arriba
+ *                    sube y sale, entra el siguiente; pausa al hover.
+ *   · modo="strip" → franja HORIZONTAL COLAPSABLE (móvil): <details> nativo,
+ *                    un tap revela la fila deslizable (equivalente táctil
+ *                    sin JS extra).
+ *
+ * AUTO-RETIRO (cliente): initRelampago() en Layout compara data-fin contra
+ * new Date() — vencida → el <li> se retira del DOM (sin CLS: el loop solo
+ * mueve transform). Countdown "Termina en 2h 15m" se refresca cada minuto.
+ * Si todo expira → copy fijo: "Próximamente más ofertas relámpago ⚡…".
+ */
+export interface Props {
+  ofertas: any[];
+  modo: 'rail' | 'strip';
+}
+const { ofertas, modo } = Astro.props;
+
+const fmt = (n: number) =>
+  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
+
+// Tiempo restante legible ("2h 15m") calculado también en build para que el
+// primer paint ya traiga texto (el cliente lo re-calcula al minuto).
+const restante = (iso: string | null) => {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return null;
+  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60);
+  return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m % 60}m` : `${m % 60}m`;
+};
+---
+
+{modo === 'rail' ? (
+  <aside class="rs-rail" aria-label="Ofertas relámpago" data-relampago-zona data-rs-queue>
+    <div class="rs-head"><span class="rs-bolt" aria-hidden="true">⚡</span> Relámpago <span class="rs-n" data-rs-contador>{ofertas.length}</span></div>
+    <div class="rs-viewport">
+      <ul class="rs-track" data-rs-track>
+        {ofertas.map((o) => (
+          <li class="rs-item" data-fin={o.fin_oferta}>
+            <article class="rs-card">
+              <div class="rs-media">
+                {o.imagen
+                  ? <img src={o.imagen} alt={o.titulo} loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
+                  : null}
+                <span class="rs-img-fallback" style={o.imagen ? 'display:none' : ''} aria-hidden="true">⚡</span>
+                {o.descuento > 0 && <span class="rs-desc">-{Math.round(o.descuento)}%</span>}
+                <span class="rs-kp" title="Sello Kalidad-Precio: combina la calidad real según los compradores con el descuento real. Mientras más alto, mejor es la compra.">
+                  <strong>{Math.round(o.score_kalidad_presio ?? 0)}</strong><em>K-P</em>
+                </span>
+              </div>
+              {o.fin_oferta && (
+                <span class="rs-count">⏱ Termina en <strong data-rs-count data-fin={o.fin_oferta}>{restante(o.fin_oferta) ?? '—'}</strong></span>
+              )}
+              <h3 class="rs-titulo">{o.titulo}</h3>
+              <div class="rs-precios">
+                <span class="rs-precio">{fmt(o.precio_actual)}</span>
+                {o.descuento > 0 && <em class="rs-ahorro">-{Math.round(o.descuento)}%</em>}
+              </div>
+              <a class="rs-cta" href={o.link_afiliado} target="_blank" rel="nofollow sponsored noopener noreferrer">Ver oferta →</a>
+            </article>
+          </li>
+        ))}
+      </ul>
+    </div>
+    <p class="rs-vacio" data-rs-vacio hidden={ofertas.length > 0}>Próximamente más ofertas relámpago ⚡ Vuelve pronto.</p>
+  </aside>
+) : (
+  <details class="rs-strip" data-relampago-zona>
+    <summary class="rs-strip-head">
+      <span class="rs-bolt" aria-hidden="true">⚡</span>
+      Ofertas relámpago <span class="rs-n" data-rs-contador>{ofertas.length}</span>
+      <span class="rs-strip-hint" aria-hidden="true">tocar para ver <span class="rs-chev">▾</span></span>
+    </summary>
+    <ul class="rs-fila">
+      {ofertas.map((o) => (
+        <li class="rs-fila-item" data-fin={o.fin_oferta}>
+          <a class="rs-mini" href={o.link_afiliado} target="_blank" rel="nofollow sponsored noopener noreferrer">
+            <span class="rs-mini-media">
+              {o.imagen
+                ? <img src={o.imagen} alt={o.titulo} loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
+                : null}
+              <span class="rs-img-fallback" style={o.imagen ? 'display:none' : ''} aria-hidden="true">⚡</span>
+            </span>
+            <span class="rs-mini-info">
+              <span class="rs-mini-titulo">{o.titulo}</span>
+              <span class="rs-mini-fila">
+                <strong class="rs-precio">{fmt(o.precio_actual)}</strong>
+                {o.descuento > 0 && <em class="rs-ahorro">-{Math.round(o.descuento)}%</em>}
+              </span>
+              {o.fin_oferta && (
+                <span class="rs-count">⏱ <strong data-rs-count data-fin={o.fin_oferta}>{restante(o.fin_oferta) ?? '—'}</strong></span>
+              )}
+            </span>
+            <span class="rs-mini-cta" aria-hidden="true">Ver oferta →</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+    <p class="rs-vacio" data-rs-vacio hidden={ofertas.length > 0}>Próximamente más ofertas relámpago ⚡ Vuelve pronto.</p>
+  </details>
+)}
+
+<style>
+  /* ════════ Compartido ════════ */
+  .rs-head, .rs-strip-head {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--color-accent);
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .rs-bolt { animation: kp-pulse-soft 1.8s ease-in-out infinite; }
+  .rs-n {
+    font-size: 0.72rem;
+    color: var(--color-accent-ink);
+    background: var(--color-accent);
+    border-radius: var(--radius-pill);
+    padding: 0.05rem 0.5rem;
+  }
+
+  .rs-img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
+  /* Placeholder de imagen: violeta de marca + rayo (edge case sin foto) */
+  .rs-img-fallback {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 2rem;
+    background: var(--color-violet);
+  }
+
+  .rs-desc {
+    position: absolute; top: 6px; left: 6px;
+    background: var(--color-error); color: #fff;
+    font-size: 0.68rem; font-weight: 900; padding: 2px 7px; border-radius: var(--radius-xs);
+  }
+  .rs-kp {
+    position: absolute; bottom: 6px; right: 6px;
+    display: inline-flex; align-items: baseline; gap: 3px;
+    padding: 3px 7px; border-radius: var(--radius-pill);
+    background: var(--overlay-ink); border: 1px solid var(--color-primary-border);
+  }
+  .rs-kp strong { color: var(--color-primary); font-size: 0.8rem; font-weight: 900; line-height: 1; }
+  .rs-kp em { color: var(--color-text-muted); font-style: normal; font-size: 0.52rem; font-weight: 700; letter-spacing: 0.1em; }
+
+  .rs-count {
+    display: inline-flex; align-items: center; gap: 0.3rem; align-self: flex-start;
+    background: rgba(246, 209, 79, 0.1); border: 1px solid rgba(246, 209, 79, 0.3);
+    color: var(--color-accent); border-radius: var(--radius-pill);
+    padding: 0.12rem 0.55rem; font-size: 0.7rem; font-weight: 600;
+  }
+  .rs-count strong { font-variant-numeric: tabular-nums; }
+
+  .rs-precio { font-family: var(--font-display); font-weight: 700; color: #fff; }
+  .rs-ahorro {
+    font-style: normal; font-size: 0.7rem; font-weight: 800;
+    color: #2ee6a4; background: rgba(31, 210, 142, 0.12);
+    padding: 0.05rem 0.4rem; border-radius: var(--radius-xs);
+  }
+
+  .rs-vacio {
+    margin: 0; padding: var(--spacing-md) var(--spacing-sm);
+    text-align: center; color: var(--color-text-muted); font-size: 0.84rem; line-height: 1.5;
+    border: 1px dashed var(--color-warm-border); border-radius: var(--radius-md);
+    background: var(--color-warm-bg);
+  }
+
+  /* ════════ Modo RAIL (desktop, sticky vertical) ════════ */
+  .rs-rail {
+    width: 100%;
+    padding: 0.85rem;
+    border-radius: var(--radius-lg);
+    background: var(--glass-bg);
+    border: 1px solid rgba(246, 209, 79, 0.24);
+    box-shadow: var(--shadow-lg);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    backdrop-filter: blur(10px) saturate(120%);
+  }
+  .rs-rail .rs-head { font-size: 0.9rem; margin-bottom: 0.6rem; }
+
+  /* Viewport alto y vertical: ~2-3 tarjetas visibles a la vez. La cola GSAP
+     re-encola lo que sale por arriba; la máscara desvanece bordes. */
+  .rs-viewport {
+    position: relative;
+    height: 620px;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(transparent, #000 5%, #000 95%, transparent);
+    mask-image: linear-gradient(transparent, #000 5%, #000 95%, transparent);
+  }
+  .rs-track {
+    list-style: none; margin: 0; padding: 0;
+    display: flex; flex-direction: column;
+    will-change: transform; /* el loop de cola solo anima translateY */
+  }
+  .rs-item { flex: 0 0 auto; margin-bottom: 0.7rem; }
+
+  .rs-card {
+    display: flex; flex-direction: column; gap: 0.45rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: var(--radius-md);
+    padding: 0.55rem;
+    transition: border-color var(--dur-fast) var(--ease-soft);
+  }
+  .rs-card:hover { border-color: rgba(246, 209, 79, 0.4); }
+  .rs-card:hover .rs-cta { color: var(--color-primary); transform: translateX(2px); }
+
+  .rs-media {
+    position: relative;
+    /* 16/10 (no 1/1): tarjetas más compactas → caben 2-3 en el rail alto.
+       object-fit: contain sigue mostrando la foto completa, sin recorte. */
+    aspect-ratio: 16 / 10;
+    background: #fff;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .rs-titulo {
+    font-size: 0.8rem; color: #fff; font-weight: 600; line-height: 1.3; margin: 0;
+    display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .rs-precios { display: flex; align-items: baseline; gap: 0.45rem; }
+  .rs-rail .rs-precio { font-size: 1.1rem; }
+  .rs-cta {
+    font-size: 0.76rem; font-weight: 700; color: var(--color-text-muted); text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-soft), transform var(--dur-fast) var(--ease-soft);
+  }
+
+  /* ════════ Modo STRIP (móvil, colapsable nativa) ════════ */
+  .rs-strip {
+    border: 1px solid rgba(246, 209, 79, 0.24);
+    border-radius: var(--radius-lg);
+    background: var(--glass-bg);
+    padding: 0.6rem 0.85rem;
+    margin-bottom: var(--spacing-xl);
+  }
+  .rs-strip-head {
+    font-size: 0.85rem;
+    cursor: pointer;
+    list-style: none; /* sin el triángulo nativo: el hint hace de affordance */
+  }
+  .rs-strip-head::-webkit-details-marker { display: none; }
+  .rs-strip-hint {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    font-size: 0.66rem; font-weight: 600; letter-spacing: 0.04em;
+    color: var(--color-text-muted); text-transform: none;
+  }
+  /* Solo la flecha rota (antes giraba todo el texto y quedaba al revés) */
+  .rs-chev { display: inline-block; transition: transform var(--dur-fast) var(--ease-soft); }
+  .rs-strip[open] .rs-chev { transform: rotate(180deg); }
+
+  .rs-fila {
+    list-style: none; margin: 0.7rem 0 0; padding: 0 0 0.3rem;
+    display: flex; gap: 0.6rem;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .rs-fila-item { flex: 0 0 auto; scroll-snap-align: start; }
+  .rs-mini {
+    display: flex; align-items: center; gap: 0.55rem;
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: var(--radius-md);
+    padding: 0.4rem 0.6rem 0.4rem 0.4rem;
+  }
+  .rs-mini:active { border-color: rgba(246, 209, 79, 0.45); }
+  .rs-mini-media {
+    position: relative; flex-shrink: 0;
+    width: 52px; height: 52px;
+    border-radius: var(--radius-sm); background: #fff; overflow: hidden;
+  }
+  .rs-mini-media .rs-img-fallback { font-size: 1.3rem; }
+  .rs-mini-info { display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; }
+  .rs-mini-titulo {
+    max-width: 170px; color: var(--color-text);
+    font-size: 0.74rem; font-weight: 600; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rs-mini-fila { display: flex; align-items: baseline; gap: 0.4rem; }
+  .rs-mini .rs-precio { font-size: 0.92rem; }
+  .rs-mini .rs-count { padding: 0.06rem 0.4rem; font-size: 0.62rem; }
+  .rs-mini-cta {
+    flex-shrink: 0; font-size: 0.7rem; font-weight: 700;
+    color: var(--color-text-muted); white-space: nowrap;
+  }
+  .rs-strip .rs-vacio { margin-top: 0.7rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rs-bolt { animation: none; }
+    /* Sin loop automático: el rail se vuelve lista scrolleable manual */
+    .rs-viewport { overflow-y: auto; }
+  }
+</style>

@@ -1,0 +1,537 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SelloKP from '../components/SelloKP.astro';
+---
+<Layout
+  title="Quiénes somos — KalidaPresio"
+  description="Cómo construimos el Sello K-P: ofertas reales de Mercado Libre, opiniones verificadas ponderadas y una fórmula pública. Sin ranking pagado."
+  ogType="website"
+>
+
+  <div class="sobre-mi-page">
+
+    <section class="autor-section">
+      <!-- Logo COMPLETO de la marca sobre su violeta (#280455), como el original -->
+      <div class="autor-logo" aria-hidden="true">
+        <svg viewBox="0 0 48 44" fill="none" xmlns="http://www.w3.org/2000/svg" class="al-mark">
+          <g stroke="var(--color-secondary)" stroke-width="2.4" stroke-linecap="round" opacity="0.6">
+            <line x1="33" y1="9"  x2="28" y2="23" />
+            <line x1="41" y1="17" x2="28" y2="23" />
+            <line x1="28" y1="23" x2="41" y2="31" />
+            <line x1="28" y1="23" x2="32" y2="37" />
+            <line x1="41" y1="17" x2="41" y2="31" />
+          </g>
+          <g fill="var(--color-primary)">
+            <rect x="29" y="5"  width="8"  height="8"  rx="2.5" />
+            <rect x="37" y="13" width="9"  height="9"  rx="2.6" />
+            <rect x="21" y="17" width="13" height="13" rx="3.4" />
+            <rect x="37" y="27" width="9"  height="9"  rx="2.6" />
+            <rect x="28" y="33" width="8"  height="8"  rx="2.5" />
+          </g>
+        </svg>
+        <span class="al-words">
+          <span class="al-kalida">KALIDA</span>
+          <span class="al-presio">PRESIO</span>
+          <span class="al-tag">Productos Comerciales</span>
+        </span>
+      </div>
+      <div class="autor-info">
+        <span class="autor-badge">Inteligencia de Precios · Mercado Libre MX</span>
+        <h1 class="autor-nombre">KalidaPresio</h1>
+        <p class="autor-bio">
+          Somos un proyecto independiente que rastrea ofertas reales en Mercado Libre México y las
+          ordena con un único criterio: la relación calidad-precio. No recibimos pago por aparecer,
+          no vendemos posiciones y nuestras comisiones de afiliado son las estándar del programa
+          oficial de Mercado Libre — idénticas para todos los productos que mostramos.
+        </p>
+      </div>
+    </section>
+
+    <section class="metodologia-section">
+      <h2 class="section-titulo">¿Cómo calculamos el Sello K-P?</h2>
+      <p class="section-intro">
+        Nuestra garantía no es una opinión: es un algoritmo público y verificable. Estos son los
+        cuatro principios que aplica el sistema a <strong>cada</strong> oferta, exactamente igual.
+      </p>
+
+      <div class="criterios-grid">
+        <article class="criterio-card">
+          <div class="criterio-icono" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <circle cx="14" cy="14" r="9" stroke="currentColor" stroke-width="1.5"/>
+              <line x1="21" y1="21" x2="27" y2="27" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3 class="criterio-titulo">1. Ofertas reales, no inventario inventado</h3>
+          <p class="criterio-desc">
+            Capturamos ofertas activas directamente del catálogo de Mercado Libre mediante un rastreo
+            automatizado. No escribimos fichas a mano ni listamos productos fantasma: si aparece aquí,
+            está vivo en Mercado Libre al momento de actualizar el feed.
+          </p>
+        </article>
+
+        <article class="criterio-card">
+          <div class="criterio-icono" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M16 4l3.3 7 7.7 .9-5.7 5.2 1.6 7.6L16 28l-6.9 3.7 1.6-7.6L5 18.9l7.7-.9z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="criterio-titulo">2. La calificación manda (65%)</h3>
+          <p class="criterio-desc">
+            La opinión real de los compradores es el factor dominante del sello: vale el 65% del puntaje.
+            Un producto sin reseñas (calificación 0) ni siquiera entra. Premiamos lo que la gente ya
+            comprobó, no las promesas del listado.
+          </p>
+        </article>
+
+        <article class="criterio-card">
+          <div class="criterio-icono" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <polyline points="4,24 12,14 18,20 28,8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="28" cy="8" r="2" fill="currentColor"/>
+            </svg>
+          </div>
+          <h3 class="criterio-titulo">3. El descuento suma, no domina (20%)</h3>
+          <p class="criterio-desc">
+            El descuento aporta hasta un 20% del puntaje, con un tope al 40%: así un “precio tachado”
+            inflado no compra una mejor posición. Una rebaja enorme sobre un mal producto sigue siendo
+            una mala compra.
+          </p>
+        </article>
+
+        <article class="criterio-card">
+          <div class="criterio-icono" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M6 26V14M14 26V8M22 26V18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3 class="criterio-titulo">4. El volumen da confianza (15%)</h3>
+          <p class="criterio-desc">
+            La cantidad de opiniones suma hasta un 15%, considerando hasta 500 reseñas. Mil compradores
+            satisfechos dan más certeza que tres. Y la fórmula es pública e idéntica para todos: no
+            vendemos posiciones ni aceptamos pago por aparecer mejor.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="sello-section">
+      <h2 class="section-titulo">Qué significa el sello que ves en cada oferta</h2>
+      <p class="section-intro">
+        Cada producto lleva un anillo con su puntaje de 0 a 100. El color te dice, de un vistazo, si
+        vale la pena mirar más de cerca.
+      </p>
+
+      <div class="tiers-grid">
+        <div class="tier-card">
+          <SelloKP score={88} size={92} />
+          <h3 class="tier-titulo">75 – 100 · Excelente</h3>
+          <p class="tier-desc">Relación calidad-precio sobresaliente. Suele ser nuestra recomendación.</p>
+        </div>
+        <div class="tier-card">
+          <SelloKP score={72} size={92} />
+          <h3 class="tier-titulo">70 – 74 · Buena</h3>
+          <p class="tier-desc">Cumple y entra a la lista, pero revisa los detalles antes de decidir.</p>
+        </div>
+        <div class="tier-card">
+          <SelloKP score={58} size={92} />
+          <h3 class="tier-titulo">Menos de 70 · Descartada</h3>
+          <p class="tier-desc">No la publicamos: no alcanza el mínimo de calidad-precio que exigimos.</p>
+        </div>
+      </div>
+
+      <div class="formula-box">
+        <h3 class="formula-titulo">La fórmula, sin letra chica</h3>
+        <p class="formula-linea">
+          <span class="formula-tag">Calificación (65%)</span>
+          (rating / 5) × 65. El factor dominante.
+        </p>
+        <p class="formula-linea">
+          <span class="formula-tag">Descuento (20%)</span>
+          (mín(descuento, 40) / 40) × 20. Suma, pero con tope.
+        </p>
+        <p class="formula-linea">
+          <span class="formula-tag">Volumen (15%)</span>
+          mín((opiniones / 500) × 15, 15). Confianza por cantidad de reseñas.
+        </p>
+        <p class="formula-codigo">
+          score = redondear( calificación + descuento + volumen )  →  0 a 100
+        </p>
+        <p class="formula-linea" style="margin-top: var(--spacing-sm);">
+          <span class="formula-tag">Filtros</span>
+          solo mostramos ofertas con precio ≥ $200 MXN, con calificación real, y score ≥ 70.
+        </p>
+      </div>
+    </section>
+
+    <section class="confianza-section">
+      <h2 class="section-titulo">Y además, ¿qué tan respaldada está?</h2>
+      <p class="section-intro">
+        El Sello K-P dice si la oferta es buena. Por separado medimos cuánta evidencia la respalda
+        —sin inventar reseñas, solo con datos objetivos que Mercado Libre ya muestra—. Lo llamamos
+        <strong>Confianza</strong> y aparece en cada oferta.
+      </p>
+
+      <div class="conf-grid">
+        <div class="conf-card">
+          <span class="conf-peso">40%</span>
+          <h3 class="conf-titulo">“Más vendido” de Mercado Libre</h3>
+          <p class="conf-desc">La etiqueta de ML: mucha gente ya lo compró. Es la gente votando con su dinero — la señal más difícil de fingir.</p>
+        </div>
+        <div class="conf-card">
+          <span class="conf-peso">35%</span>
+          <h3 class="conf-titulo">Volumen de opiniones</h3>
+          <p class="conf-desc">Mil compradores que califican dan más certeza que tres. Cuenta hasta 500 reseñas.</p>
+        </div>
+        <div class="conf-card">
+          <span class="conf-peso">25%</span>
+          <h3 class="conf-titulo">Vendedor reputado</h3>
+          <p class="conf-desc">Vendedores con escarapela (MercadoLíder o superior): trayectoria comprobada.</p>
+        </div>
+      </div>
+
+      <p class="section-intro" style="margin-bottom: var(--spacing-md);">
+        Marcamos <strong>Confianza Alta</strong> solo a partir de 80 puntos: pide ser best-seller
+        <em>y</em> tener reputación <em>y</em> reseñas. Es una etiqueta exigente, para que signifique algo.
+      </p>
+
+      <p class="conf-niveles">
+        Lo resumimos en un nivel visible:
+        <span class="conf-pill pill-alta">Confianza Alta</span>
+        <span class="conf-pill pill-media">Media</span>
+        <span class="conf-pill pill-basica">Básica</span>
+      </p>
+      <p class="section-intro" style="margin-top: var(--spacing-md);">
+        La <strong>marca</strong> no entra al cálculo: un producto sin marca famosa puede ser una gran
+        compra KalidaPresio. Solo pesa la reputación del <em>vendedor</em>, que sí es objetiva. Y ante
+        dos ofertas igual de buenas, mostramos primero la de mayor confianza.
+      </p>
+    </section>
+
+    <section class="aviso-afiliados">
+      <h2>Divulgación de Afiliados (FTC Compliance)</h2>
+      <p>
+        KalidaPresio participa en el Programa de Afiliados de Mercado Libre México. Cuando haces clic
+        en un enlace y realizas una compra, podemos recibir una comisión sin costo adicional para ti.
+        Esta comisión es idéntica para todas las ofertas y no influye en el orden ni en el puntaje del
+        Sello K-P. Nunca alteramos una recomendación a cambio de compensación de vendedores o marcas.
+      </p>
+    </section>
+
+  </div>
+
+</Layout>
+
+<style>
+  .sobre-mi-page {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+    padding: var(--spacing-lg) 0;
+  }
+
+  .autor-section {
+    display: flex;
+    gap: var(--spacing-xl);
+    align-items: center;
+    background: linear-gradient(135deg, var(--color-surface-raised), var(--color-surface));
+    border: 1px solid var(--color-primary-border);
+    border-radius: var(--radius-lg);
+    padding: clamp(1.5rem, 5vw, 3rem);
+    box-shadow: var(--shadow-md), var(--glow-primary-sm);
+  }
+
+  @media (max-width: 600px) {
+    .autor-section { flex-direction: column; text-align: center; }
+  }
+
+  /* Lockup del logo: panel en el violeta exacto de la marca */
+  .autor-logo {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    background: var(--color-violet);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+  }
+
+  .al-mark { width: 72px; height: 66px; }
+
+  .al-words {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 0.95;
+  }
+  .al-kalida, .al-presio {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .al-presio { color: var(--color-primary); }
+  .al-tag {
+    margin-top: 6px;
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.65);
+  }
+
+  .autor-badge {
+    display: inline-block;
+    background-color: rgba(12,226,137,0.1);
+    border: 1px solid var(--color-primary-border);
+    color: var(--color-primary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.8rem;
+    border-radius: var(--radius-pill);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .autor-nombre {
+    font-size: 1.8rem;
+    color: #fff;
+    margin-bottom: var(--spacing-sm);
+    font-weight: 900;
+  }
+
+  .autor-bio {
+    color: var(--color-text-muted);
+    line-height: 1.7;
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  .section-titulo {
+    font-size: clamp(1.4rem, 3vw, 1.8rem);
+    color: #fff;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .section-intro {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    margin-bottom: var(--spacing-lg);
+    max-width: 640px;
+  }
+
+  .criterios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .criterio-card {
+    background-color: var(--color-surface-raised);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    transition: var(--transition-base);
+  }
+
+  .criterio-card:hover {
+    border-color: var(--color-primary-border);
+    box-shadow: var(--glow-primary-sm);
+    transform: translateY(-2px);
+  }
+
+  .criterio-icono {
+    width: 40px; height: 40px;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .criterio-icono svg { width: 100%; height: 100%; }
+
+  .criterio-titulo {
+    font-size: 1rem;
+    color: #fff;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .criterio-desc {
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+    line-height: 1.65;
+    margin: 0;
+  }
+
+  /* === Tiers del sello === */
+  .tiers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .tier-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--spacing-xs);
+    background-color: var(--color-surface-raised);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
+
+  .tier-titulo {
+    font-size: 0.95rem;
+    color: #fff;
+    margin: var(--spacing-xs) 0 0;
+  }
+
+  .tier-desc {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* === Caja de fórmula === */
+  .formula-box {
+    background-color: rgba(0,0,0,0.25);
+    border: 1px solid var(--color-primary-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    box-shadow: var(--glow-primary-sm);
+  }
+
+  .formula-titulo {
+    font-size: 1rem;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .formula-linea {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .formula-tag {
+    display: inline-block;
+    color: var(--color-text);
+    font-weight: 700;
+    margin-right: 0.4rem;
+  }
+
+  .formula-codigo {
+    margin: var(--spacing-sm) 0 0;
+    padding: var(--spacing-sm);
+    background-color: var(--color-bg);
+    border-radius: var(--radius-sm);
+    color: var(--color-primary);
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    overflow-x: auto;
+  }
+
+  /* === Sección Confianza === */
+  .conf-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .conf-card {
+    background-color: var(--color-surface-raised);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+  }
+
+  .conf-peso {
+    display: inline-block;
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .conf-titulo {
+    font-size: 0.98rem;
+    color: #fff;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .conf-desc {
+    color: var(--color-text-muted);
+    font-size: 0.86rem;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .conf-niveles {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+  }
+
+  .conf-pill {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.7rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .pill-alta {
+    color: var(--color-primary);
+    background-color: rgba(12, 226, 137, 0.12);
+    border-color: var(--color-primary-border);
+  }
+
+  .pill-media {
+    color: var(--color-warm);
+    background-color: var(--color-warm-bg);
+    border-color: var(--color-warm-border);
+  }
+
+  .pill-basica {
+    color: var(--color-text-muted);
+    background-color: rgba(255,255,255,0.04);
+  }
+
+  .aviso-afiliados {
+    background-color: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+  }
+
+  .aviso-afiliados h2 {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--spacing-sm);
+    font-weight: 700;
+  }
+
+  .aviso-afiliados p {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    line-height: 1.7;
+    margin: 0;
+  }
+</style>

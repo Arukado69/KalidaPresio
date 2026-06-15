@@ -1,0 +1,82 @@
+---
+export interface Props {
+  especificaciones: Record<string, string>;
+}
+
+const { especificaciones } = Astro.props;
+---
+<section class="ficha-tecnica-section">
+  <h2 class="section-title">Especificaciones Técnicas</h2>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Característica</th>
+          <th scope="col">Detalle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {Object.entries(especificaciones).map(([clave, valor]) => (
+          <tr>
+            <td class="spec-key">{clave.replace(/_/g, ' ')}</td>
+            <td class="spec-value">
+              {(!valor || valor === 'N/A') ? (
+                <span class="empty-spec">—</span>
+              ) : (
+                valor
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+  .ficha-tecnica-section {
+    margin: var(--spacing-lg) 0;
+  }
+
+  .section-title {
+    color: var(--color-primary);
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-sm);
+    display: inline-block;
+  }
+
+  .table-container {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  tr:nth-child(even) td {
+    background-color: rgba(255,255,255,0.025);
+  }
+
+  tr:hover td {
+    background-color: rgba(12, 226, 137, 0.04);
+    transition: background-color 0.15s ease;
+  }
+
+  .spec-key {
+    font-weight: 600;
+    color: var(--color-text-muted);
+    width: 42%;
+    font-size: 0.88rem;
+    text-transform: capitalize;
+    letter-spacing: 0.01em;
+  }
+
+  .spec-value {
+    font-weight: 500;
+    color: var(--color-text);
+    font-size: 0.95rem;
+  }
+
+  .empty-spec {
+    opacity: 0.4;
+    font-weight: 700;
+  }
+</style>

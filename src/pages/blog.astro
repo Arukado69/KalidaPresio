@@ -1,0 +1,275 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SelloKP from '../components/SelloKP.astro';
+
+const reglas = [
+  {
+    titulo: "Mira el sello antes que el precio",
+    desc: "Un precio bajo no es una buena compra si el producto decepciona. El Sello K-P ya combina la calidad real con el descuento; úsalo como primer filtro.",
+  },
+  {
+    titulo: "Revisa la reputación del vendedor",
+    desc: "En la ficha de Mercado Libre, prioriza vendedores MercadoLíder o con reputación verde. Una gran oferta de un vendedor sin historial es un riesgo, no una ganga.",
+  },
+  {
+    titulo: "Lee las opiniones recientes, no solo el promedio",
+    desc: "Un 4.6★ de hace dos años puede esconder fallas nuevas de lote. Ordena las reseñas por fecha y busca patrones repetidos en las negativas.",
+  },
+  {
+    titulo: "Desconfía del descuento gigante",
+    desc: "Un “60% OFF” muchas veces parte de un precio inflado días antes del evento. Compara contra el precio típico del producto, no contra el “precio anterior” que marca la oferta.",
+  },
+  {
+    titulo: "Verifica envío, garantía y devolución",
+    desc: "Antes de pagar confirma costo y tiempo de envío, garantía del vendedor o fabricante y la política de devolución. Eso define si una oferta es realmente conveniente.",
+  },
+];
+---
+<Layout
+  title="Cómo aprovechar al máximo las ofertas — KalidaPresio"
+  description="Aprende a leer el Sello K-P y aplica 5 reglas prácticas para aprovechar las ofertas de Mercado Libre sin caer en precios inflados."
+  ogType="website"
+>
+  <div class="blog-page">
+
+    <div class="blog-header">
+      <span class="blog-eyebrow">Guía de Compra Inteligente</span>
+      <h1 class="blog-titulo">Cómo aprovechar al máximo las ofertas</h1>
+      <p class="blog-subtitulo">
+        No necesitas ser experto para evitar una mala compra. Te enseñamos a leer nuestro Sello K-P
+        y a aplicar cinco reglas que funcionan para cualquier producto en Mercado Libre México.
+      </p>
+    </div>
+
+    <!-- El sello en 10 segundos -->
+    <section class="sello-rapido">
+      <h2 class="bloque-titulo">El Sello K-P en 10 segundos</h2>
+      <p class="bloque-intro">
+        Cada oferta lleva un anillo con un puntaje de 0 a 100. El color es tu semáforo de
+        relación calidad-precio:
+      </p>
+      <div class="semaforo-grid">
+        <div class="semaforo-card">
+          <SelloKP score={88} size={84} />
+          <p class="semaforo-txt"><strong>75 +</strong> · Excelente. Vale la pena mirarlo.</p>
+        </div>
+        <div class="semaforo-card">
+          <SelloKP score={72} size={84} />
+          <p class="semaforo-txt"><strong>70 – 74</strong> · Buena. Revisa los detalles.</p>
+        </div>
+        <div class="semaforo-card">
+          <SelloKP score={58} size={84} />
+          <p class="semaforo-txt"><strong>Menos de 70</strong> · No la publicamos.</p>
+        </div>
+      </div>
+      <p class="bloque-nota">
+        ¿Quieres ver cómo se calcula, paso a paso? Está todo público en
+        <a href="/sobre-mi">cómo calculamos el Sello K-P</a>.
+      </p>
+    </section>
+
+    <!-- 5 reglas -->
+    <section class="reglas-section">
+      <h2 class="bloque-titulo">5 reglas para no equivocarte</h2>
+      <ol class="reglas-grid">
+        {reglas.map((regla, i) => (
+          <li class="regla-card">
+            <span class="regla-num" aria-hidden="true">{i + 1}</span>
+            <div class="regla-info">
+              <h3 class="regla-titulo">{regla.titulo}</h3>
+              <p class="regla-desc">{regla.desc}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <div class="blog-cta-retorno">
+      <p>Ya sabes leer las ofertas. Mira las mejores de hoy, ordenadas por su Sello K-P.</p>
+      <a href="/" class="btn-retorno">Ver las ofertas del día →</a>
+    </div>
+
+  </div>
+</Layout>
+
+<style>
+  .blog-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--spacing-lg) 0;
+  }
+
+  .blog-header {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .blog-eyebrow {
+    display: inline-block;
+    color: var(--color-primary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .blog-titulo {
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    color: #fff;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .blog-subtitulo {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    max-width: 580px;
+  }
+
+  .bloque-titulo {
+    font-size: clamp(1.3rem, 3vw, 1.7rem);
+    color: #fff;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .bloque-intro {
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-lg);
+    max-width: 600px;
+  }
+
+  /* === Semáforo del sello === */
+  .sello-rapido {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .semaforo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .semaforo-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    background-color: var(--color-surface-raised);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+  }
+
+  .semaforo-txt {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .semaforo-txt strong { color: var(--color-text); }
+
+  .bloque-nota {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  .bloque-nota a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .bloque-nota a:hover { text-decoration: underline; }
+
+  /* === 5 reglas === */
+  .reglas-section {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .reglas-grid {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .regla-card {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+    background: linear-gradient(135deg, var(--color-surface-raised), var(--color-surface));
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-md);
+    padding: clamp(1.25rem, 3vw, 1.75rem);
+    transition: var(--transition-base);
+  }
+
+  .regla-card:hover {
+    border-color: var(--color-primary-border);
+    box-shadow: var(--shadow-md), var(--glow-primary-sm);
+    transform: translateX(4px);
+  }
+
+  .regla-num {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-pill);
+    background-color: rgba(12,226,137,0.1);
+    border: 1px solid var(--color-primary-border);
+    color: var(--color-primary);
+    font-weight: 900;
+    font-size: 1.1rem;
+  }
+
+  .regla-titulo {
+    font-size: 1.05rem;
+    color: #fff;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .regla-desc {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.65;
+    margin: 0;
+  }
+
+  /* === CTA de retorno === */
+  .blog-cta-retorno {
+    text-align: center;
+    padding: var(--spacing-xl);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-primary-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--glow-primary-sm);
+  }
+
+  .blog-cta-retorno p {
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .btn-retorno {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: var(--color-bg);
+    font-weight: 800;
+    font-size: 1rem;
+    text-decoration: none;
+    padding: 0.85rem 2rem;
+    border-radius: var(--radius-md);
+    transition: var(--transition-fast);
+    box-shadow: var(--glow-primary-sm);
+  }
+
+  .btn-retorno:hover {
+    box-shadow: var(--glow-primary-md);
+    transform: translateY(-2px);
+  }
+</style>

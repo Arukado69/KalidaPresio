@@ -1,0 +1,21 @@
+{
+  "name": "kalidapresio2.0",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "obtener-ofertas": "node src/scripts/importarOfertas.js",
+    "obtener-datos": "node src/scripts/importarMercadoLibre.js",
+    "build": "node src/scripts/generadorRedirects.js && astro build",
+    "build:completo": "node src/scripts/importarOfertas.js && node src/scripts/generadorRedirects.js && astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "astro": "^6.4.2",
+    "gsap": "^3.15.0"
+  }
+}

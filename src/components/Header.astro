@@ -1,0 +1,239 @@
+---
+import '../styles/global.css';
+---
+<header class="site-header">
+  <div class="ftc-compliance">
+    <p>Al comprar mediante los enlaces de este sitio, apoyas su mantenimiento sin ningún costo extra para ti.</p>
+  </div>
+  <nav class="main-nav">
+    <a href="/" class="logo" aria-label="KalidaPresio — Inicio">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 48 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g class="logo-links" stroke="var(--color-secondary)" stroke-width="2.4" stroke-linecap="round">
+            <line x1="33" y1="9"  x2="28" y2="23" />
+            <line x1="41" y1="17" x2="28" y2="23" />
+            <line x1="28" y1="23" x2="41" y2="31" />
+            <line x1="28" y1="23" x2="32" y2="37" />
+            <line x1="41" y1="17" x2="41" y2="31" />
+          </g>
+          <g class="logo-nodes" fill="var(--color-primary)">
+            <rect class="n1" x="29" y="5"  width="8"  height="8"  rx="2.5" />
+            <rect class="n2" x="37" y="13" width="9"  height="9"  rx="2.6" />
+            <rect class="n3" x="21" y="17" width="13" height="13" rx="3.4" />
+            <rect class="n4" x="37" y="27" width="9"  height="9"  rx="2.6" />
+            <rect class="n5" x="28" y="33" width="8"  height="8"  rx="2.5" />
+          </g>
+        </svg>
+      </span>
+      <span class="logo-words">
+        <span class="logo-text-kalida">KALIDA</span>
+        <span class="logo-text-presio">PRESIO</span>
+        <span class="logo-tagline">Productos Comerciales</span>
+      </span>
+    </a>
+
+    <!-- Hamburger toggle (CSS puro, sin JS de hidratación) -->
+    <input type="checkbox" id="nav-toggle" class="nav-toggle-input" aria-label="Abrir menú de navegación" />
+    <label for="nav-toggle" class="nav-toggle-label" aria-hidden="true">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </label>
+
+    <ul class="nav-links">
+      <li><a href="/" class="nav-link">Inicio</a></li>
+      <li><a href="/blog" class="nav-link">Guía de compra</a></li>
+      <li><a href="/sobre-mi" class="nav-link">Quiénes somos</a></li>
+      <li><a href="/contacto" class="nav-link">Contacto</a></li>
+    </ul>
+  </nav>
+</header>
+
+<style>
+  .site-header {
+    background-color: var(--color-surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-md);
+  }
+
+  .ftc-compliance {
+    background-color: var(--color-bg);
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    text-align: center;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .ftc-compliance p { margin: 0; }
+
+  .main-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: var(--spacing-sm);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    text-decoration: none;
+    font-family: var(--font-main);
+    animation: kp-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .logo-mark {
+    flex-shrink: 0;
+    width: 40px;
+    height: 38px;
+    display: block;
+    filter: drop-shadow(0 0 8px var(--color-primary-glow));
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .logo-mark svg { width: 100%; height: 100%; display: block; }
+
+  .logo:hover .logo-mark { transform: rotate(-6deg) scale(1.06); }
+
+  /* Nodos con pulso suave escalonado */
+  .logo-nodes rect {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: kp-pulse-soft 3.2s ease-in-out infinite;
+  }
+  .logo-nodes .n1 { animation-delay: 0s; }
+  .logo-nodes .n2 { animation-delay: 0.3s; }
+  .logo-nodes .n3 { animation-delay: 0.6s; }
+  .logo-nodes .n4 { animation-delay: 0.9s; }
+  .logo-nodes .n5 { animation-delay: 1.2s; }
+  .logo-links { opacity: 0.6; }
+
+  .logo-words {
+    display: flex;
+    flex-direction: column;
+    line-height: 0.92;
+  }
+
+  .logo-text-kalida, .logo-text-presio {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .logo-text-presio { color: var(--color-primary); }
+
+  .logo-tagline {
+    font-size: 0.52rem;
+    font-weight: 700;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-top: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .logo-nodes rect { animation: none; }
+  }
+
+  /* Hamburger toggle — CSS puro (checkbox hack) */
+  .nav-toggle-input {
+    display: none;
+  }
+
+  .nav-toggle-label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    cursor: pointer;
+    padding: 8px;
+    margin-left: auto;
+  }
+
+  .hamburger-line {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background-color: var(--color-text);
+    border-radius: 2px;
+    transition: var(--transition-fast);
+  }
+
+  /* Animación de hamburguesa a X */
+  .nav-toggle-input:checked ~ .nav-toggle-label .hamburger-line:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+  }
+  .nav-toggle-input:checked ~ .nav-toggle-label .hamburger-line:nth-child(2) {
+    opacity: 0;
+  }
+  .nav-toggle-input:checked ~ .nav-toggle-label .hamburger-line:nth-child(3) {
+    transform: rotate(-45deg) translate(5px, -5px);
+  }
+
+  /* Nav links */
+  .nav-links {
+    list-style: none;
+    display: flex;
+    gap: var(--spacing-md);
+    padding: 0;
+    margin: 0;
+    align-items: center;
+  }
+
+  .nav-link {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+    border: 1px solid transparent;
+  }
+
+  .nav-link:hover,
+  .nav-link.active {
+    color: var(--color-primary);
+    border-color: var(--color-primary-border);
+    background-color: rgba(12, 226, 137, 0.06);
+  }
+
+  /* Desktop: hamburger oculto, nav visible */
+  @media (min-width: 768px) {
+    .nav-toggle-label { display: none; }
+    .nav-links {
+      margin-left: auto;
+    }
+  }
+
+  /* Móvil: nav colapsada, controlada por checkbox */
+  @media (max-width: 767px) {
+    .nav-links {
+      display: none;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+      width: 100%;
+      padding-top: var(--spacing-xs);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      margin-top: var(--spacing-xs);
+      order: 3;
+    }
+
+    .nav-toggle-input:checked ~ .nav-links {
+      display: flex;
+    }
+
+    .nav-link {
+      display: block;
+      text-align: center;
+      padding: 0.6rem 1rem;
+    }
+  }
+</style>

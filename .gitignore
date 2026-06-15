@@ -1,0 +1,18 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno sensibles
+.env
+
+# Caché de sesión OAuth — contiene access_token y refresh_token activos
+src/scripts/.ml_token_cache.json
+
+# Catálogo editorial — activo de negocio, no código público
+src/data/ids_curados.json
+
+# Output de compilación
+dist/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

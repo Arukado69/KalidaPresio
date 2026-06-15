@@ -1,0 +1,407 @@
+---
+import productos from '../data/productos.json';
+---
+<section class="comparador-section">
+  <div class="comparador-controles">
+    <div class="selector-grupo">
+      <label for="producto-1" class="selector-label">Equipo 1</label>
+      <select id="producto-1" class="kp-select">
+        <option value="" disabled selected>Selecciona un dispositivo...</option>
+        {productos.map((prod) => (
+          <option value={prod.id}>{prod.nombre}</option>
+        ))}
+      </select>
+    </div>
+
+    <div class="selector-grupo vs-badge-container">
+      <span class="vs-badge">VS</span>
+    </div>
+
+    <div class="selector-grupo">
+      <label for="producto-2" class="selector-label">Equipo 2</label>
+      <select id="producto-2" class="kp-select">
+        <option value="" disabled selected>Selecciona un dispositivo...</option>
+        {productos.map((prod) => (
+          <option value={prod.id}>{prod.nombre}</option>
+        ))}
+      </select>
+    </div>
+  </div>
+
+  <div id="tabla-comparativa" class="tabla-comparativa-container">
+    <div class="mensaje-vacio">Selecciona dos productos para revelar la comparativa técnica.</div>
+  </div>
+</section>
+
+<script define:vars={{ productosCliente: productos }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const select1 = document.getElementById('producto-1');
+    const select2 = document.getElementById('producto-2');
+    const contenedorTabla = document.getElementById('tabla-comparativa');
+
+    function formatearPrecio(precio) {
+      return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(precio);
+    }
+
+    function vaciarContenedor(el) {
+      while (el.firstChild) {
+        el.removeChild(el.firstChild);
+      }
+    }
+
+    function crearCeldaValor(valor) {
+      const td = document.createElement('td');
+      const esVacio = !valor || valor === 'N/A' || valor === 'No especificado' || valor.trim() === '';
+      if (esVacio) {
+        const span = document.createElement('span');
+        span.textContent = '—';
+        span.className = 'empty-spec';
+        td.appendChild(span);
+      } else {
+        td.textContent = valor;
+      }
+      return td;
+    }
+
+    function renderizarComparacion() {
+      const id1 = select1.value;
+      const id2 = select2.value;
+      if (!id1 || !id2) return;
+
+      // Feedback visual inmediato — estado de carga
+      contenedorTabla.style.opacity = '0.4';
+      contenedorTabla.style.transition = 'opacity 0.15s ease';
+
+      requestAnimationFrame(() => {
+        const p1 = productosCliente.find(p => p.id === id1);
+        const p2 = productosCliente.find(p => p.id === id2);
+        if (!p1 || !p2) return;
+
+        vaciarContenedor(contenedorTabla);
+
+        const specsKeys = [...new Set([
+          ...Object.keys(p1.especificaciones),
+          ...Object.keys(p2.especificaciones)
+        ])];
+
+        const scrollDiv = document.createElement('div');
+        scrollDiv.className = 'tabla-scroll';
+
+        const table = document.createElement('table');
+        table.className = 'kp-tabla-comparativa';
+
+        // THEAD
+        const thead = document.createElement('thead');
+        const headRow = document.createElement('tr');
+
+        const thMetrica = document.createElement('th');
+        thMetrica.setAttribute('scope', 'col');
+        thMetrica.style.width = '30%';
+        thMetrica.textContent = 'Métrica';
+        headRow.appendChild(thMetrica);
+
+        const thP1 = document.createElement('th');
+        thP1.setAttribute('scope', 'col');
+        thP1.style.width = '35%';
+        thP1.textContent = p1.nombre;
+        headRow.appendChild(thP1);
+
+        const thP2 = document.createElement('th');
+        thP2.setAttribute('scope', 'col');
+        thP2.style.width = '35%';
+        thP2.textContent = p2.nombre;
+        headRow.appendChild(thP2);
+
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        // TBODY
+        const tbody = document.createElement('tbody');
+
+        // Fila de precio
+        const precioRow = document.createElement('tr');
+        precioRow.className = 'fila-destacada';
+
+        const tdPrecioLabel = document.createElement('td');
+        tdPrecioLabel.className = 'spec-label';
+        tdPrecioLabel.textContent = 'Precio Transaccional';
+        precioRow.appendChild(tdPrecioLabel);
+
+        const tdPrecio1 = document.createElement('td');
+        tdPrecio1.className = 'precio-celda';
+        tdPrecio1.textContent = formatearPrecio(p1.precio_mxn);
+        precioRow.appendChild(tdPrecio1);
+
+        const tdPrecio2 = document.createElement('td');
+        tdPrecio2.className = 'precio-celda';
+        tdPrecio2.textContent = formatearPrecio(p2.precio_mxn);
+        precioRow.appendChild(tdPrecio2);
+
+        tbody.appendChild(precioRow);
+
+        // Filas de specs
+        specsKeys.forEach(key => {
+          const row = document.createElement('tr');
+          const tdLabel = document.createElement('td');
+          tdLabel.className = 'spec-label';
+          tdLabel.textContent = key.replace(/_/g, ' ');
+          row.appendChild(tdLabel);
+          row.appendChild(crearCeldaValor(p1.especificaciones[key]));
+          row.appendChild(crearCeldaValor(p2.especificaciones[key]));
+          tbody.appendChild(row);
+        });
+
+        // Fila CTA
+        const ctaRow = document.createElement('tr');
+        ctaRow.className = 'fila-cta';
+        const ctaEmpty = document.createElement('td');
+        ctaRow.appendChild(ctaEmpty);
+
+        [p1, p2].forEach(prod => {
+          const ctaTd = document.createElement('td');
+          const ctaLink = document.createElement('a');
+          ctaLink.setAttribute('href', '/recomienda/' + prod.id);
+          ctaLink.setAttribute('rel', 'nofollow noopener noreferrer');
+          ctaLink.setAttribute('target', '_blank');
+          ctaLink.className = 'cta-comparador';
+          ctaLink.textContent = 'Ver Disponibilidad';
+          ctaTd.appendChild(ctaLink);
+          ctaRow.appendChild(ctaTd);
+        });
+
+        tbody.appendChild(ctaRow);
+        table.appendChild(tbody);
+        scrollDiv.appendChild(table);
+        contenedorTabla.appendChild(scrollDiv);
+
+        // Restaurar opacidad — fin del estado de carga
+        contenedorTabla.style.opacity = '1';
+      });
+    }
+
+    select1.addEventListener('change', renderizarComparacion);
+    select2.addEventListener('change', renderizarComparacion);
+  });
+</script>
+
+<style>
+  .comparador-section {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-lg), var(--glow-primary-sm);
+    border: 1px solid var(--color-primary-border);
+    margin: var(--spacing-xl) 0;
+  }
+
+  @media (min-width: 768px) {
+    .comparador-section { padding: var(--spacing-xl); }
+  }
+
+  .comparador-controles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  @media (min-width: 768px) {
+    .comparador-controles {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  .selector-grupo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .vs-badge-container {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 0;
+  }
+
+  .vs-badge {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: var(--color-bg);
+    font-weight: 900;
+    font-size: 1rem;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    line-height: 1;
+    box-shadow: var(--glow-primary-sm);
+    animation: vs-pulse 4s ease-in-out infinite;
+    letter-spacing: 0.05em;
+  }
+
+  @keyframes vs-pulse {
+    0%, 70%, 100% {
+      box-shadow: var(--glow-primary-sm);
+      transform: scale(1);
+    }
+    35% {
+      box-shadow: var(--glow-primary-md);
+      transform: scale(1.06);
+    }
+  }
+
+  .selector-label {
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-xs);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .kp-select {
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--color-text);
+    font-family: var(--font-main);
+    font-size: 1rem;
+    outline: none;
+    transition: var(--transition-base);
+    cursor: pointer;
+  }
+
+  .kp-select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(12, 226, 137, 0.2);
+  }
+
+  .kp-select option {
+    background-color: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  .tabla-comparativa-container {
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: opacity 0.15s ease;
+  }
+
+  .mensaje-vacio {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-style: italic;
+    padding: var(--spacing-xl) 0;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+  }
+
+  :global(.empty-spec) {
+    opacity: 0.4;
+    font-weight: 700;
+  }
+
+  :global(.tabla-scroll) {
+    width: 100%;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-primary-border) transparent;
+    border-radius: var(--radius-md);
+  }
+
+  :global(.tabla-scroll::-webkit-scrollbar) { height: 4px; }
+  :global(.tabla-scroll::-webkit-scrollbar-track) { background: transparent; }
+  :global(.tabla-scroll::-webkit-scrollbar-thumb) {
+    background-color: var(--color-primary-border);
+    border-radius: var(--radius-pill);
+  }
+
+  :global(.kp-tabla-comparativa) {
+    width: 100%;
+    min-width: 600px;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--color-primary-border);
+  }
+
+  :global(.kp-tabla-comparativa thead th) {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: rgba(26, 9, 64, 0.97);
+    color: var(--color-primary);
+    padding: var(--spacing-md);
+    text-align: center;
+    border-bottom: 2px solid var(--color-primary);
+    font-size: 1.1rem;
+    line-height: 1.3;
+  }
+
+  :global(.kp-tabla-comparativa td) {
+    padding: var(--spacing-md);
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    vertical-align: middle;
+  }
+
+  :global(.kp-tabla-comparativa tr:nth-child(even) td) {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
+
+  :global(.spec-label) {
+    font-weight: 700;
+    color: var(--color-text-muted) !important;
+    text-transform: capitalize;
+    text-align: right !important;
+    background-color: rgba(0,0,0,0.2);
+    border-right: 1px solid rgba(255,255,255,0.05);
+  }
+
+  :global(.fila-destacada td) {
+    background-color: rgba(12, 226, 137, 0.05);
+  }
+
+  :global(.precio-celda) {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #ffffff;
+  }
+
+  :global(.fila-cta td) {
+    border-bottom: none;
+    padding-top: var(--spacing-lg);
+    background-color: transparent;
+  }
+
+  :global(.cta-comparador) {
+    display: inline-block;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: var(--color-bg);
+    text-decoration: none;
+    font-weight: 800;
+    border-radius: var(--radius-md);
+    text-transform: uppercase;
+    font-size: 0.95rem;
+    transition: var(--transition-base);
+    box-shadow: var(--glow-primary-sm);
+  }
+
+  :global(.cta-comparador:hover) {
+    box-shadow: var(--glow-primary-md);
+    transform: translateY(-2px);
+  }
+
+  :global(.cta-comparador:active) {
+    transform: translateY(1px) scale(0.98);
+  }
+</style>

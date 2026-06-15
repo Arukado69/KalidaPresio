@@ -1,0 +1,117 @@
+---
+export interface Props {
+  id: string;
+  enlace?: string;
+  texto?: string;
+  /** CTA principal: el botón "imanta" hacia el cursor (bindMagnetic en Layout).
+      Solo para los CTA protagonistas (showpiece/bento hero), no para listas. */
+  magnetic?: boolean;
+}
+
+// "Ver oferta" + icono flecha = el "Ver oferta →" del copy fijo.
+const { id, enlace, texto = 'Ver oferta', magnetic = false } = Astro.props;
+// Enlace directo al permalink de afiliado que SÍ registra métricas (igual que en
+// Facebook). Si no se pasa `enlace`, se usa el cloaking /recomienda/{id} como respaldo.
+const destino = enlace ?? `/recomienda/${id}`;
+---
+<div class="cta-wrapper" data-magnetic={magnetic ? '' : undefined}>
+  <a
+    href={destino}
+    rel="nofollow sponsored noopener noreferrer"
+    target="_blank"
+    class="cta-button"
+    data-ripple
+  >
+    <span class="cta-text">{texto}</span>
+    <svg class="cta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+      <polyline points="12 5 19 12 12 19"></polyline>
+    </svg>
+  </a>
+</div>
+
+<style>
+  .cta-wrapper {
+    display: flex;
+    justify-content: center;
+    margin: var(--spacing-lg) 0;
+    width: 100%;
+  }
+
+  .cta-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: #0b231a; /* tinta oscura legible sobre el verde */
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    padding: 0.9rem 1.8rem;
+    border-radius: var(--radius-md);
+    width: 100%;
+    max-width: 450px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), var(--shadow-sm);
+    border: none;
+    transition: var(--transition-base);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  /* Glow perpetuo: capa con sombra ESTÁTICA cuya opacidad pulsa en loop
+     (animar opacity = compositor; animar box-shadow sería repaint). */
+  .cta-button::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 22px rgba(31, 210, 142, 0.45);
+    opacity: 0.2;
+    pointer-events: none;
+    animation: kp-glow-pulse 3.6s var(--ease-soft) infinite;
+  }
+
+  /* Barrido de luz al hover */
+  .cta-button::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 45%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    transform: translateX(-150%) skewX(-18deg);
+    pointer-events: none;
+  }
+
+  .cta-button:hover::after {
+    animation: kp-sheen 0.85s ease;
+  }
+
+  .cta-button:hover, .cta-button:focus {
+    background: linear-gradient(135deg, #2ee3a0, var(--color-primary));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), var(--glow-primary-md);
+    transform: translateY(-2px);
+    outline: none;
+  }
+
+  .cta-button:active {
+    transform: translateY(1px) scale(0.98);
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.2), var(--shadow-sm);
+  }
+
+  .cta-icon {
+    width: 24px;
+    height: 24px;
+    transition: var(--transition-fast);
+  }
+
+  .cta-button:hover .cta-icon {
+    transform: translateX(4px);
+  }
+</style>

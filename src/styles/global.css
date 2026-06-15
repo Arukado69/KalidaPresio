@@ -1,0 +1,373 @@
+:root {
+  /* === PALETA "VIOLETA DE MARCA, SUAVIZADO" ===
+     Base alineada al logo: violeta profundo #280455 llevado a tonos de
+     fondo desaturados (violeta-noche, no morado eléctrico). El verde del
+     logo sigue siendo ACENTO PUNTUAL (CTA, K-P alto, detalles). */
+  --color-bg: #140e1f;
+  --color-surface: #1d1530;
+  --color-surface-raised: #261c3f;
+  --color-violet: #280455;                       /* violeta exacto del logo */
+  --color-violet-border: rgba(151, 120, 235, 0.18);
+  --color-primary: #1fd28e;
+  --color-primary-glow: rgba(31, 210, 142, 0.14);
+  --color-primary-border: rgba(31, 210, 142, 0.18);
+  --color-secondary: #15a06c;
+  --color-text: #f0eef8;
+  --color-text-muted: #a59cc4;
+  --color-error: #ff5d76;
+
+  /* === ACENTO CÁLIDO (nuevo) ===
+     Ámbar/dorado suave: humaniza y transmite confianza. Sustituye al
+     amarillo neón de ML como color "relámpago" y aparece en detalles. */
+  --color-warm: #e9b86d;
+  --color-warm-ink: #3c2d10;
+  --color-warm-border: rgba(233, 184, 109, 0.28);
+  --color-warm-bg: rgba(233, 184, 109, 0.08);
+
+  /* Relámpago: AMARILLO de marca (más vivo que el dorado, sin llegar a neón) */
+  --color-accent: #f6d14f;
+  --color-accent-ink: #3a2f08;
+  --glow-accent: 0 0 14px rgba(246, 209, 79, 0.22);
+
+  /* === TIPOGRAFÍA ===
+     Dirección editorial: Bricolage Grotesque (humanista, con carácter)
+     para titulares/precios/score; Inter para cuerpo. Menos "techy". */
+  --font-main: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Bricolage Grotesque", var(--font-main); /* titulares, precios, score */
+  --font-body: "Inter", var(--font-main);                  /* cuerpo legible */
+
+  /* Escala modular fluida (ratio ~1.25, clamp para mobile→desktop) */
+  --fs-xs:    clamp(0.72rem, 0.70rem + 0.10vw, 0.78rem);
+  --fs-sm:    clamp(0.82rem, 0.79rem + 0.15vw, 0.90rem);
+  --fs-base:  clamp(0.95rem, 0.92rem + 0.18vw, 1.02rem);
+  --fs-md:    clamp(1.10rem, 1.02rem + 0.40vw, 1.35rem);
+  --fs-lg:    clamp(1.40rem, 1.22rem + 0.85vw, 1.95rem);
+  --fs-xl:    clamp(1.85rem, 1.50rem + 1.70vw, 2.80rem);
+  --fs-2xl:   clamp(2.40rem, 1.85rem + 2.70vw, 3.80rem);
+  --fs-display: clamp(2.80rem, 1.90rem + 4.40vw, 5.20rem);
+
+  /* === SISTEMA DE RADIO (BORDES SUAVIZADOS — UNIFICADO) === */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* === SISTEMA DE SOMBRAS / PROFUNDIDAD ===
+     El glow ya NO es ambiente: queda reservado a héroe, sello K-P y CTA,
+     y con la mitad de intensidad que antes. */
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.5);
+  --glow-primary-sm: 0 0 10px var(--color-primary-glow);
+  --glow-primary-md: 0 0 18px rgba(31, 210, 142, 0.18);
+  --glow-primary-lg: 0 0 30px rgba(31, 210, 142, 0.22);
+
+  /* === ESPACIADO (más aire entre secciones) === */
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 1rem;
+  --spacing-md: 1.5rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 3rem;
+  --spacing-2xl: 4.5rem;
+
+  /* === TRANSICIONES === */
+  --transition-fast: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* === SISTEMA DE MOVIMIENTO (nuevos tokens) === */
+  /* Easings con carácter — nada de 'ease' genérico */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);   /* entradas amplias y suaves */
+  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1); /* pequeño rebote (pops) */
+  --ease-soft:     cubic-bezier(0.45, 0, 0.15, 1);    /* hover/press contenido */
+  /* Duraciones */
+  --dur-fast: 160ms;
+  --dur-med:  320ms;
+  --dur-slow: 560ms;
+  /* Elevaciones para hover premium de tarjetas */
+  --elev-card:       0 6px 22px -10px rgba(0, 0, 0, 0.55);
+  --elev-card-hover: 0 18px 46px -14px rgba(0, 0, 0, 0.65);
+
+  /* === GLASS (superficies esmeriladas, violeta-noche) === */
+  --glass-bg:     linear-gradient(160deg, rgba(48, 34, 84, 0.55), rgba(24, 16, 42, 0.5));
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur:   blur(12px) saturate(120%);
+
+  /* Superficie de tarjeta (sin backdrop-filter, violeta profunda) */
+  --card-bg: linear-gradient(160deg, rgba(46, 32, 80, 0.6), rgba(25, 17, 44, 0.85));
+  /* Overlay oscuro para chips sobre imagen (sello K-P, descuentos) */
+  --overlay-ink: rgba(20, 12, 36, 0.82);
+}
+
+/* Reset semántico */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Textura sutil de puntos + halos MUY tenues (el glow fuerte vive solo en
+   héroe, K-P y CTA; el fondo ya no compite) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(31, 210, 142, 0.035), transparent 34%),
+    radial-gradient(circle at 88% 6%, rgba(120, 80, 255, 0.06), transparent 40%),
+    radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 22px 22px;
+}
+
+/* Grano fino encima del fondo (textura premium, no compite con el texto) */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Micro-interacciones globales */
+a, button, input, select {
+  transition: var(--transition-base);
+}
+
+/* Tipografía base (Bricolage no necesita tracking tan apretado) */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  line-height: 1.15;
+  margin-bottom: var(--spacing-sm);
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+p {
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Tablas Semánticas (Reutilizadas en FichaTécnica) */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+th, td {
+  padding: var(--spacing-sm);
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+th {
+  background-color: rgba(255, 255, 255, 0.04);
+  color: var(--color-text);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+/* =====================================================================
+   SISTEMA DE ANIMACIONES — KalidaPresio
+   GPU-friendly (transform/opacity). Respeta prefers-reduced-motion.
+   ===================================================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* --- Keyframes --- */
+/* fade-up con un micro-scale: los elementos "asientan" al entrar (no solo suben) */
+@keyframes kp-fade-up {
+  from { opacity: 0; transform: translateY(22px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes kp-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes kp-pop {
+  0%   { opacity: 0; transform: scale(0.85); }
+  60%  { transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes kp-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+
+@keyframes kp-aurora {
+  0%   { transform: translate3d(-6%, -4%, 0) rotate(0deg); }
+  50%  { transform: translate3d(6%, 4%, 0) rotate(8deg); }
+  100% { transform: translate3d(-6%, -4%, 0) rotate(0deg); }
+}
+
+@keyframes kp-sheen {
+  0%   { transform: translateX(-120%) skewX(-18deg); }
+  100% { transform: translateX(220%) skewX(-18deg); }
+}
+
+@keyframes kp-pulse-soft {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.18); }
+}
+
+@keyframes kp-shimmer-bg {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* Pulso de glow perpetuo (CTA, halo del showpiece): SOLO opacity.
+   El reduce global ya lo apaga (animation-duration 0.001ms). */
+@keyframes kp-glow-pulse {
+  0%, 100% { opacity: 0.2; }
+  50%      { opacity: 0.6; }
+}
+
+/* Re-entrada animada de tarjetas al filtrar (la aplica initFiltros a las
+   .oferta-card — vive en global porque cruza scopes de componentes) */
+.filter-in {
+  animation: kp-fade-up var(--dur-med) var(--ease-out-expo) both;
+}
+
+/* --- Reveal on scroll (lo anima GSAP/ScrollTrigger desde Layout) ---
+   Aquí solo el estado INICIAL oculto; GSAP interpola hasta el natural.
+   Sin `transition` (pelearía con los ticks de GSAP). `.is-visible` queda
+   como red de seguridad instantánea (reduced-motion / fallback sin GSAP). */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(34px) scale(0.98);
+  will-change: opacity, transform;
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* =====================================================================
+   Ripple — feedback táctil al tocar/clic (CTA, tiles, chips).
+   Lo genera initRipple() en Layout; solo transform/opacity. El "premio"
+   visual de cada interacción invita a repetir la acción.
+   ===================================================================== */
+[data-ripple] { position: relative; overflow: hidden; }
+
+.kp-ripple {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+  transform: translate(-50%, -50%) scale(0);
+  mix-blend-mode: screen; /* solo aclara, nunca ensucia el color del botón */
+  z-index: 5;
+  animation: kp-ripple 600ms var(--ease-out-expo) forwards;
+}
+@keyframes kp-ripple {
+  0%   { transform: translate(-50%, -50%) scale(0);  opacity: 0.65; }
+  100% { transform: translate(-50%, -50%) scale(30); opacity: 0; }
+}
+
+/* =====================================================================
+   Tilt 3D sutil — el elemento se inclina hacia el cursor (solo desktop).
+   bindTilt() en Layout pone el transform; aquí solo el suavizado de
+   seguimiento/regreso. Reservado al héroe del bento (foco premium).
+   ===================================================================== */
+[data-tilt] {
+  transition: transform var(--dur-fast) var(--ease-soft);
+  transform-style: preserve-3d;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-tilt] { transform: none !important; }
+}
+
+/* --- Borde cian que "respira" (usado en hover de tarjetas) --- */
+@keyframes kp-breathe {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+
+/* --- Spotlight que sigue el cursor (las coords --mx/--my las pone el JS).
+       Ahora es luz NEUTRA (blanca, sutil): el verde queda para los acentos. --- */
+[data-spotlight]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background: radial-gradient(
+    220px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.08),
+    transparent 55%
+  );
+  opacity: 0;
+  mix-blend-mode: screen; /* solo ilumina, nunca oscurece el contenido */
+  pointer-events: none;
+  transition: opacity var(--dur-med) var(--ease-soft);
+}
+[data-spotlight]:hover::before { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  [data-spotlight]::before { display: none; }
+}
+
+/* --- Accesibilidad: foco visible consistente en todo lo interactivo --- */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: var(--radius-xs);
+}
+/* No mostramos el outline cuando el foco llega por mouse/touch */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* --- Utilidades de entrada --- */
+.kp-anim-fade-up { animation: kp-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.kp-anim-fade-in { animation: kp-fade-in 0.9s ease both; }
+.kp-anim-pop     { animation: kp-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+/* Cadencia un poco más espaciada → el héroe se "construye" en secuencia */
+.kp-delay-1 { animation-delay: 0.10s; }
+.kp-delay-2 { animation-delay: 0.24s; }
+.kp-delay-3 { animation-delay: 0.40s; }
+.kp-delay-4 { animation-delay: 0.56s; }
+.kp-delay-5 { animation-delay: 0.72s; }
+
+/* --- Accesibilidad: si el usuario pide menos movimiento, todo se calma --- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  [data-reveal] { opacity: 1 !important; transform: none !important; }
+}

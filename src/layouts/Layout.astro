@@ -1,0 +1,705 @@
+---
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import { ClientRouter } from 'astro:transitions';
+
+export interface Props {
+  title: string;
+  description: string;
+  ogImage?: string;
+  ogType?: string;
+  productData?: {
+    precio: number;
+    nombre: string;
+    pros: string[];
+  };
+}
+
+const {
+  title,
+  description,
+  ogImage = '/og-default.jpg',
+  ogType = 'website',
+  productData
+} = Astro.props;
+
+const metaTitle = title.length > 60 ? title.substring(0, 57) + '...' : title;
+const metaDescription = description.length > 160 ? description.substring(0, 157) + '...' : description;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- Tipografía editorial: Bricolage Grotesque (display) + Inter (cuerpo).
+         swap = sin bloqueo de render, cero impacto en LCP -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Navegación tipo app (View Transitions). Degrada a navegación normal
+         en navegadores sin la API; Astro provee fallback de animación. -->
+    <ClientRouter />
+
+    <title>{metaTitle}</title>
+    <meta name="description" content={metaDescription} />
+
+    <!-- Open Graph Protocol -->
+    <meta property="og:title" content={metaTitle} />
+    <meta property="og:description" content={metaDescription} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content="KalidaPresio" />
+    <meta property="og:locale" content="es_MX" />
+
+    <!-- Twitter/X Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={metaTitle} />
+    <meta name="twitter:description" content={metaDescription} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href={Astro.url.href} />
+
+    <!-- Schema.org Product JSON-LD (solo páginas de producto) -->
+    {productData && (
+      <script type="application/ld+json" set:html={JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": productData.nombre,
+        "description": productData.pros[0] ?? metaDescription,
+        "image": ogImage,
+        "brand": { "@type": "Brand", "name": "KalidaPresio" },
+        "offers": {
+          "@type": "Offer",
+          "priceCurrency": "MXN",
+          "price": productData.precio,
+          "availability": "https://schema.org/InStock",
+          "seller": { "@type": "Organization", "name": "Mercado Libre México" }
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.5",
+          "reviewCount": productData.pros.length + 2
+        }
+      })} />
+    )}
+  </head>
+  <body>
+    <Header transition:persist />
+
+    <main class="kp-container">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-content">
+        <nav class="footer-nav" aria-label="Navegación de pie de página">
+          <a href="/">Inicio</a>
+          <a href="/blog">Cómo aprovechar al máximo las ofertas</a>
+          <a href="/sobre-mi">Quiénes somos</a>
+          <a href="/contacto">Contacto</a>
+        </nav>
+        <p class="footer-disclaimer">
+          Al comprar mediante los enlaces de este sitio, apoyas su mantenimiento
+          sin ningún costo extra para ti.
+        </p>
+        <p class="footer-copy">&copy; {new Date().getFullYear()} KalidaPresio. Todos los derechos reservados.</p>
+      </div>
+    </footer>
+
+    <script>
+      import { gsap } from 'gsap';
+      import { ScrollTrigger } from 'gsap/ScrollTrigger';
+      gsap.registerPlugin(ScrollTrigger);
+
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const W = window as any;
+
+      // ════════════════════════════════════════════════════════════════
+      // ANIMACIONES (GSAP) — entrada del hero, reveals en scroll, parallax.
+      // Con prefers-reduced-motion TODO se salta y el contenido aparece
+      // visible al instante (el CSS de [data-reveal].is-visible lo garantiza).
+      // ════════════════════════════════════════════════════════════════
+      function initAnims() {
+        // Mata triggers Y loops de la página anterior (View Transitions
+        // re-monta el DOM: sin esto, los tweens viejos quedarían latiendo
+        // sobre nodos muertos).
+        ScrollTrigger.getAll().forEach((t) => t.kill());
+        (W.__kpLoops || []).forEach((t: any) => t.kill());
+        W.__kpLoops = [];
+
+        if (reduce) {
+          document.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-visible'));
+          return;
+        }
+
+        // --- Reveals en scroll: lotes con stagger, una sola vez ---
+        const reveals = gsap.utils.toArray('[data-reveal]:not(.is-visible)') as HTMLElement[];
+        if (reveals.length) {
+          ScrollTrigger.batch(reveals, {
+            start: 'top 88%',
+            once: true,
+            onEnter: (batch) =>
+              gsap.to(batch, {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                duration: 0.9,
+                ease: 'expo.out',
+                stagger: 0.09,
+                overwrite: true,
+                onComplete: () => batch.forEach((el) => (el as HTMLElement).classList.add('is-visible')),
+              }),
+          });
+        }
+
+        // --- Entrada del hero: líneas del título desde su máscara + cascada,
+        //     y el showpiece (Producto del día) entra desde la derecha con
+        //     pop del sello K-P. La media solo TRASLADA (sin opacity): así
+        //     la imagen LCP pinta de inmediato y la métrica no sufre. ---
+        const hero = document.querySelector('.hero-content:not([data-animado])') as HTMLElement | null;
+        if (hero) {
+          hero.setAttribute('data-animado', '');
+          const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
+          tl.from(hero.querySelector('.hero-badge'), { y: 22, opacity: 0, duration: 0.6 })
+            .from(hero.querySelectorAll('.hero-line'), { yPercent: 115, duration: 0.95, stagger: 0.14 }, '-=0.35')
+            .from(hero.querySelector('.hero-subtitulo'), { y: 18, opacity: 0, duration: 0.7 }, '-=0.55')
+            .from(hero.querySelectorAll('.hero-pill'), { y: 14, opacity: 0, duration: 0.5, stagger: 0.08 }, '-=0.5')
+            .from(hero.querySelector('.hero-stats'), { y: 16, opacity: 0, duration: 0.6 }, '-=0.35');
+
+          const show = document.querySelector('.hero-show');
+          if (show) {
+            tl.from(show.querySelector('.hs-media'), { x: 48, duration: 0.9 }, 0.25)
+              .from(show.querySelector('.hs-kp'), { scale: 0.4, opacity: 0, duration: 0.55, ease: 'back.out(1.8)' }, '-=0.45')
+              .from(show.querySelectorAll('.hs-datos > *'), { y: 14, opacity: 0, duration: 0.5, stagger: 0.07 }, '-=0.35');
+          }
+        }
+
+        // ── PERPETUAS (viven todo el tiempo, no solo al entrar) ──────────
+
+        // Idle: el producto del día flota lento (senoidal, yoyo infinito)
+        const hsImg = document.querySelector('.hs-img');
+        if (hsImg) {
+          W.__kpLoops.push(
+            gsap.to(hsImg, { y: -9, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: -1 })
+          );
+        }
+
+        // Parallax de mouse del showpiece: quickTo cacheado por página
+        const hsMedia = document.querySelector('.hs-media') as HTMLElement | null;
+        W.__hsQuick = hsMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches
+          ? {
+              x: gsap.quickTo(hsMedia, 'x', { duration: 0.6, ease: 'power3' }),
+              y: gsap.quickTo(hsMedia, 'y', { duration: 0.6, ease: 'power3' }),
+            }
+          : null;
+
+        // Scroll-linked: capas que "responden" al scroll (scrub), con
+        // restraint — solo bento (5 imágenes) y títulos de sección, no las
+        // 40+ del catálogo (sería ruido visual y costo en móvil).
+        const bhImg = document.querySelector('.bh-img');
+        if (bhImg) {
+          gsap.to(bhImg, {
+            yPercent: -7,
+            ease: 'none',
+            scrollTrigger: { trigger: '.bento-hero', start: 'top bottom', end: 'bottom top', scrub: 0.6 },
+          });
+        }
+        gsap.utils.toArray('.bt-img').forEach((img: any) => {
+          gsap.fromTo(img, { y: 8 }, {
+            y: -8,
+            ease: 'none',
+            scrollTrigger: { trigger: img.closest('.bento-tile'), start: 'top bottom', end: 'bottom top', scrub: 0.8 },
+          });
+        });
+        gsap.utils.toArray('.titulo-seccion').forEach((t: any) => {
+          gsap.fromTo(t, { y: 18 }, {
+            y: -6,
+            ease: 'none',
+            scrollTrigger: { trigger: t, start: 'top bottom', end: 'top 30%', scrub: 0.7 },
+          });
+        });
+      }
+
+      // --- Parallax de mouse (showpiece): un único pointermove delegado ---
+      function bindShowParallax() {
+        if (W.__kpShowPar || reduce) return;
+        W.__kpShowPar = true;
+        document.addEventListener('pointermove', (e) => {
+          const q = W.__hsQuick;
+          if (!q) return;
+          // Solo reacciona con el cursor dentro del hero (no en toda la página)
+          if (!(e.target as HTMLElement).closest?.('.banner-estacional')) { q.x(0); q.y(0); return; }
+          q.x((e.clientX / window.innerWidth - 0.5) * 14);
+          q.y((e.clientY / window.innerHeight - 0.5) * 10);
+        }, { passive: true });
+      }
+
+      // --- Magnetic buttons: el CTA principal sigue ligeramente al cursor ---
+      function bindMagnetic() {
+        if (W.__kpMag || reduce) return;
+        if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+        W.__kpMag = true;
+        let activo: HTMLElement | null = null;
+        const soltar = (el: HTMLElement) =>
+          gsap.to(el, { x: 0, y: 0, duration: 0.5, ease: 'elastic.out(1, 0.45)' });
+        document.addEventListener('pointermove', (e) => {
+          const el = (e.target as HTMLElement).closest?.('[data-magnetic]') as HTMLElement | null;
+          if (activo && activo !== el) { soltar(activo); activo = null; }
+          if (!el) return;
+          activo = el;
+          const r = el.getBoundingClientRect();
+          // Atracción suave hacia el cursor, con tope (nunca "persigue")
+          const dx = (e.clientX - (r.left + r.width / 2)) * 0.22;
+          const dy = (e.clientY - (r.top + r.height / 2)) * 0.22;
+          gsap.to(el, {
+            x: Math.max(-8, Math.min(8, dx)),
+            y: Math.max(-6, Math.min(6, dy)),
+            duration: 0.35,
+            ease: 'power3.out',
+          });
+        }, { passive: true });
+        document.addEventListener('pointerleave', () => { if (activo) { soltar(activo); activo = null; } }, true);
+      }
+
+      // --- Reseña K-P: revela el panel sobre la imagen de cada card.
+      //     Desktop: hover. Móvil/táctil: tap sobre la imagen (delegado).
+      //     El panel es absoluto → CERO layout shift. ---
+      function toggleResena(card: HTMLElement, abrir: boolean) {
+        const panel = card.querySelector('[data-resena]') as HTMLElement | null;
+        if (!panel) return;
+        card.toggleAttribute('data-resena-open', abrir);
+        if (reduce) {
+          // Sin animación: aparece/desaparece al instante
+          panel.style.opacity = abrir ? '1' : '0';
+          panel.style.visibility = abrir ? 'visible' : 'hidden';
+          panel.style.transform = 'none';
+          return;
+        }
+        if (abrir) {
+          // fromTo: fija el punto de partida en píxeles (slide+fade desde abajo)
+          gsap.fromTo(panel,
+            { autoAlpha: 0, y: 18 },
+            { autoAlpha: 1, y: 0, duration: 0.45, ease: 'expo.out', overwrite: true });
+        } else {
+          gsap.to(panel, { autoAlpha: 0, y: 18, duration: 0.28, ease: 'power2.in', overwrite: true });
+        }
+      }
+
+      function initResenas() {
+        const conHover = window.matchMedia('(hover: hover)').matches;
+        document.querySelectorAll('.oferta-card:not([data-resena-bound])').forEach((el) => {
+          const card = el as HTMLElement;
+          if (!card.querySelector('[data-resena]')) return;
+          card.setAttribute('data-resena-bound', '');
+          if (conHover && !reduce) {
+            card.addEventListener('mouseenter', () => toggleResena(card, true));
+            card.addEventListener('mouseleave', () => toggleResena(card, false));
+          }
+        });
+      }
+
+      // Equivalente táctil: tap en la IMAGEN alterna el panel (los enlaces,
+      // botones y el sello K-P conservan su gesto propio).
+      function bindResenaTap() {
+        if (W.__kpResTap) return;
+        W.__kpResTap = true;
+        document.addEventListener('click', (e) => {
+          const t = e.target as HTMLElement;
+          if (t.closest('a, button, [data-kp-tip]')) return;
+          const media = t.closest('.oferta-media');
+          const card = media?.closest('.oferta-card') as HTMLElement | null;
+          if (!card || !card.querySelector('[data-resena]')) return;
+          const abierto = card.hasAttribute('data-resena-open');
+          // Cierra cualquier otra reseña abierta antes de abrir esta
+          document.querySelectorAll('.oferta-card[data-resena-open]').forEach((c) => {
+            if (c !== card) toggleResena(c as HTMLElement, false);
+          });
+          toggleResena(card, !abierto);
+        });
+      }
+
+      // --- Pestaña oculta: pausa TODO el movimiento GSAP (batería/CPU) ---
+      function bindVisibility() {
+        if (W.__kpVis) return;
+        W.__kpVis = true;
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) gsap.globalTimeline.pause();
+          else gsap.globalTimeline.resume();
+        });
+      }
+
+      // --- Conteo animado de números (hero) ---
+      function initCountUp() {
+        document.querySelectorAll('[data-countup]:not([data-done])').forEach((el) => {
+          const node = el as HTMLElement;
+          node.setAttribute('data-done', '');
+          const target = parseFloat(node.getAttribute('data-countup') || '0') || 0;
+          const suffix = node.getAttribute('data-suffix') || '';
+          if (reduce) { node.textContent = target.toLocaleString('es-MX') + suffix; return; }
+          const io = new IntersectionObserver((entries, obs) => {
+            entries.forEach((e) => {
+              if (!e.isIntersecting) return;
+              obs.unobserve(node);
+              const dur = 1100, t0 = performance.now();
+              const tick = (now: number) => {
+                const p = Math.min((now - t0) / dur, 1);
+                const eased = 1 - Math.pow(1 - p, 3);
+                node.textContent = Math.round(target * eased).toLocaleString('es-MX') + suffix;
+                if (p < 1) requestAnimationFrame(tick);
+              };
+              requestAnimationFrame(tick);
+            });
+          }, { threshold: 0.5 });
+          io.observe(node);
+        });
+      }
+
+      // --- Cuenta regresiva de ofertas relámpago (un único intervalo global) ---
+      function initCountdowns() {
+        if (W.__kpTimer) { clearInterval(W.__kpTimer); W.__kpTimer = null; }
+        const els = Array.from(document.querySelectorAll('[data-countdown]')) as HTMLElement[];
+        if (!els.length) return;
+        const p2 = (n: number) => String(n).padStart(2, '0');
+        const fmt = (ms: number) => {
+          if (ms <= 0) return null;
+          const s = Math.floor(ms / 1000);
+          const d = Math.floor(s / 86400);
+          const h = Math.floor((s % 86400) / 3600);
+          const m = Math.floor((s % 3600) / 60);
+          return d > 0 ? `${d}d ${p2(h)}:${p2(m)}:${p2(s % 60)}` : `${p2(h)}:${p2(m)}:${p2(s % 60)}`;
+        };
+        const update = () => {
+          const now = Date.now();
+          els.forEach((el) => {
+            const txt = fmt(new Date(el.getAttribute('data-fin') || '').getTime() - now);
+            if (txt === null) {
+              // La oferta expirada se RETIRA (nunca se queda como "Finalizada");
+              // del ticker la saca initRail en su siguiente rebuild.
+              const card = el.closest('.oferta-card') as HTMLElement | null;
+              if (card) card.style.display = 'none';
+            } else {
+              el.textContent = txt;
+            }
+          });
+        };
+        update();
+        W.__kpTimer = setInterval(update, 1000);
+      }
+
+      // --- Leyenda del Sello K-P: equivalente táctil del hover ---
+      // Delegado en document: sobrevive a View Transitions y a re-renders del rail.
+      function bindKpTips() {
+        if (W.__kpTips) return;
+        W.__kpTips = true;
+        const cerrar = (excepto?: Element | null) => {
+          document.querySelectorAll('[data-kp-tip].is-open').forEach((el) => {
+            if (el !== excepto) { el.classList.remove('is-open'); el.setAttribute('aria-expanded', 'false'); }
+          });
+        };
+        document.addEventListener('click', (e) => {
+          const tip = (e.target as HTMLElement).closest('[data-kp-tip]');
+          cerrar(tip); // tocar fuera (o en otro sello) cierra el resto
+          if (tip) {
+            const abierto = tip.classList.toggle('is-open');
+            tip.setAttribute('aria-expanded', String(abierto));
+          }
+        });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') { cerrar(); return; }
+          // Enter/Espacio sobre el sello enfocado = mismo toggle que el tap
+          if ((e.key === 'Enter' || e.key === ' ') && (document.activeElement as HTMLElement)?.hasAttribute?.('data-kp-tip')) {
+            e.preventDefault();
+            (document.activeElement as HTMLElement).click();
+          }
+        });
+      }
+
+      // --- Link activo del nav (el header se persiste entre navegaciones) ---
+      function initNavActive() {
+        const path = location.pathname.replace(/\/$/, '') || '/';
+        document.querySelectorAll('.nav-link').forEach((a) => {
+          const href = ((a as HTMLAnchorElement).getAttribute('href') || '').replace(/\/$/, '') || '/';
+          a.classList.toggle('active', href === path);
+        });
+      }
+
+      // ════════════════════════════════════════════════════════════════
+      // RELÁMPAGO (RelampagoSticky): auto-retiro + countdown + cola GSAP.
+      //  · purgar(): por item compara data-fin (ISO) contra new Date(); si
+      //    venció, el <li> se RETIRA del DOM (cero CLS: nada se reacomoda
+      //    con animación de layout, el loop solo usa transform). Actualiza
+      //    el "Termina en 2h 15m" y el contador de la cabecera. Corre al
+      //    cargar, cada minuto y antes de cada paso del loop.
+      //  · Loop de cola (solo rail desktop): cada ~4.6 s el item de arriba
+      //    sube y sale, se re-encola al final; pausa al hover y con la
+      //    pestaña oculta; apagado con prefers-reduced-motion.
+      // ════════════════════════════════════════════════════════════════
+      function initRelampago() {
+        // Limpia timers de la página anterior (View Transitions re-monta el DOM)
+        if (W.__rsMin) { clearInterval(W.__rsMin); W.__rsMin = null; }
+        if (W.__rsStep) { clearTimeout(W.__rsStep); W.__rsStep = null; }
+        const zonas = Array.from(document.querySelectorAll('[data-relampago-zona]')) as HTMLElement[];
+        if (!zonas.length) return;
+
+        // La franja móvil arranca SIEMPRE colapsada (tap revela); solo en la
+        // primera init por página — los toggles del usuario se respetan.
+        zonas.forEach((z) => {
+          if (z instanceof HTMLDetailsElement && !z.hasAttribute('data-rs-norm')) {
+            z.setAttribute('data-rs-norm', '');
+            z.open = false;
+          }
+        });
+
+        // "Termina en 2h 15m" — legible, se refresca por minuto
+        const fmtRest = (ms: number) => {
+          const m = Math.floor(ms / 60000);
+          const d = Math.floor(m / 1440);
+          const h = Math.floor((m % 1440) / 60);
+          return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m % 60}m` : `${Math.max(m, 1)}m`;
+        };
+
+        const purgar = () => {
+          const now = Date.now();
+          zonas.forEach((zona) => {
+            let vivos = 0;
+            // Solo los <li> de oferta (el <strong> del countdown también lleva
+            // data-fin para initCountdowns: no debe contarse ni retirarse solo)
+            zona.querySelectorAll('li[data-fin]').forEach((el) => {
+              const li = el as HTMLElement;
+              const fin = new Date(li.getAttribute('data-fin') || '').getTime();
+              if (!fin || Number.isNaN(fin)) { vivos++; return; } // sin fin → vive
+              if (fin <= now) { li.remove(); return; }            // vencida → fuera
+              vivos++;
+              const c = li.querySelector('[data-rs-count]');
+              if (c) c.textContent = fmtRest(fin - now);
+            });
+            // Contador dinámico de la cabecera + estado vacío (copy fijo)
+            const contador = zona.querySelector('[data-rs-contador]');
+            if (contador) contador.textContent = String(vivos);
+            const vacio = zona.querySelector('[data-rs-vacio]') as HTMLElement | null;
+            if (vacio) vacio.hidden = vivos > 0;
+            const lista = zona.querySelector('.rs-viewport, .rs-fila') as HTMLElement | null;
+            if (lista) lista.style.display = vivos > 0 ? '' : 'none';
+          });
+        };
+        purgar();
+        W.__rsMin = setInterval(purgar, 60000);
+
+        // ── Loop de cola (solo el rail vertical, solo con movimiento permitido)
+        const rail = document.querySelector('[data-rs-queue]') as HTMLElement | null;
+        if (!rail || reduce) return;
+        const track = rail.querySelector('[data-rs-track]') as HTMLElement | null;
+        if (!track) return;
+
+        let pausado = false;
+        rail.addEventListener('mouseenter', () => { pausado = true; });
+        rail.addEventListener('mouseleave', () => { pausado = false; });
+
+        const programar = () => { W.__rsStep = setTimeout(paso, 4600); };
+        const paso = () => {
+          purgar(); // si algo venció a mitad de ciclo, se salta sin esperar al minuto
+          const items = Array.from(track.children) as HTMLElement[];
+          if (document.hidden || pausado || items.length < 2) { programar(); return; }
+          const primero = items[0];
+          const salto = primero.offsetHeight + parseFloat(getComputedStyle(primero).marginBottom || '0');
+          gsap.to(track, {
+            y: -salto,
+            duration: 0.75,
+            ease: 'power3.inOut',
+            onComplete: () => {
+              track.appendChild(primero); // el de arriba pasa al final de la cola
+              gsap.set(track, { y: 0 });
+              programar();
+            },
+          });
+        };
+        programar();
+      }
+
+      // --- Spotlight: el glow sigue el cursor sobre cualquier [data-spotlight] ---
+      function bindSpotlight() {
+        if (W.__kpSpot || reduce) return;
+        W.__kpSpot = true;
+        document.addEventListener('pointermove', (e) => {
+          const el = (e.target as HTMLElement).closest('[data-spotlight]') as HTMLElement | null;
+          if (!el) return;
+          const r = el.getBoundingClientRect();
+          el.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
+          el.style.setProperty('--my', `${((e.clientY - r.top) / r.height) * 100}%`);
+        }, { passive: true });
+      }
+
+      // --- Ripple: círculo de luz desde el punto de contacto (tap o clic) ---
+      // Delegado y único; pointerdown cubre mouse + touch con feedback inmediato.
+      function bindRipple() {
+        if (W.__kpRipple || reduce) return;
+        W.__kpRipple = true;
+        document.addEventListener('pointerdown', (e) => {
+          const host = (e.target as HTMLElement).closest('[data-ripple]') as HTMLElement | null;
+          if (!host) return;
+          const r = host.getBoundingClientRect();
+          const ripple = document.createElement('span');
+          ripple.className = 'kp-ripple';
+          ripple.style.left = `${(e as PointerEvent).clientX - r.left}px`;
+          ripple.style.top = `${(e as PointerEvent).clientY - r.top}px`;
+          host.appendChild(ripple);
+          ripple.addEventListener('animationend', () => ripple.remove());
+        }, { passive: true });
+      }
+
+      // --- Tilt 3D: el elemento se inclina hacia el cursor (solo puntero fino) ---
+      // Un único pointermove delegado; se resetea al salir. Máx 4° → premium, no mareo.
+      function bindTilt() {
+        if (W.__kpTilt || reduce) return;
+        if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+        W.__kpTilt = true;
+        let active: HTMLElement | null = null;
+        const reset = (el: HTMLElement) => { el.style.transform = ''; };
+        document.addEventListener('pointermove', (e) => {
+          const el = (e.target as HTMLElement).closest('[data-tilt]') as HTMLElement | null;
+          if (active && active !== el) { reset(active); active = null; }
+          if (!el) return;
+          active = el;
+          const r = el.getBoundingClientRect();
+          const px = (e.clientX - r.left) / r.width;   // 0..1
+          const py = (e.clientY - r.top) / r.height;   // 0..1
+          const max = 4;                               // grados máximos
+          const ry = (px - 0.5) * max * 2;             // giro horizontal
+          const rx = (0.5 - py) * max * 2;             // giro vertical
+          el.style.transform = `perspective(900px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
+        }, { passive: true });
+        // Si el puntero sale de la ventana, deshace la inclinación
+        document.addEventListener('pointerleave', () => { if (active) { reset(active); active = null; } }, true);
+      }
+
+      // --- Filtros por categoría (chips que reordenan el grid con animación) ---
+      function initFiltros() {
+        const grid = document.querySelector('[data-grid-filtrable]');
+        if (!grid) return;
+        const chips = Array.from(document.querySelectorAll('[data-filter]')) as HTMLElement[];
+        const cards = Array.from(grid.children) as HTMLElement[];
+        if (!chips.length) return;
+
+        const apply = (f: string | null) => {
+          let shown = 0;
+          cards.forEach((card) => {
+            const match = f === '*' || card.getAttribute('data-cat') === f;
+            if (match) {
+              card.style.display = '';
+              if (!reduce) {
+                card.style.animationDelay = `${(shown % 8) * 45}ms`;
+                card.classList.remove('filter-in');
+                void card.offsetWidth; // reinicia la animación
+                card.classList.add('filter-in');
+              }
+              shown++;
+            } else {
+              card.style.display = 'none';
+              card.classList.remove('filter-in');
+            }
+          });
+        };
+
+        chips.forEach((chip) => {
+          chip.addEventListener('click', () => {
+            chips.forEach((c) => { c.classList.remove('is-active'); c.setAttribute('aria-selected', 'false'); });
+            chip.classList.add('is-active');
+            chip.setAttribute('aria-selected', 'true');
+            apply(chip.getAttribute('data-filter'));
+          });
+        });
+      }
+
+      // initPage es idempotente (los selectores filtran lo ya inicializado),
+      // así que es seguro llamarlo más de una vez.
+      function initPage() { initAnims(); initResenas(); initCountUp(); initCountdowns(); initNavActive(); initRelampago(); initFiltros(); }
+
+      // Listeners de documento: se atan una vez y sobreviven a las View Transitions.
+      bindSpotlight();
+      bindKpTips();
+      bindRipple();
+      bindTilt();
+      bindShowParallax();
+      bindMagnetic();
+      bindResenaTap();
+      bindVisibility();
+      // astro:page-load dispara en la carga inicial Y tras cada navegación con ClientRouter.
+      document.addEventListener('astro:page-load', initPage);
+      // Respaldo: si el navegador no soporta View Transitions o el evento ya disparó.
+      if (document.readyState !== 'loading') initPage();
+      else document.addEventListener('DOMContentLoaded', initPage);
+    </script>
+  </body>
+</html>
+
+<style>
+  .kp-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-md);
+    min-height: calc(100vh - 200px);
+  }
+
+  .site-footer {
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-primary-border);
+    margin-top: var(--spacing-xl);
+    padding: var(--spacing-xl) var(--spacing-md);
+  }
+
+  .footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+    text-align: center;
+  }
+
+  .footer-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-md);
+  }
+
+  .footer-nav a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: var(--transition-fast);
+  }
+
+  .footer-nav a:hover { color: var(--color-primary); }
+
+  .footer-disclaimer {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    max-width: 600px;
+    line-height: 1.6;
+    padding: var(--spacing-sm);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-sm);
+    background-color: rgba(0,0,0,0.2);
+    margin: 0;
+  }
+
+  .footer-copy {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    opacity: 0.6;
+    margin: 0;
+  }
+</style>

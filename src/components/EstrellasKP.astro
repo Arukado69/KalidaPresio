@@ -1,0 +1,65 @@
+---
+/**
+ * EstrellasKP — 5 estrellas SVG con relleno por medias (llena/media/vacía).
+ * Técnica: dos filas superpuestas (track apagado + relleno recortado por
+ * width = valor/5). Como `valor` ya viene redondeado a medias por resenaKP,
+ * el corte siempre cae en estrella llena o exactamente media.
+ */
+export interface Props {
+  /** 0–5 en pasos de 0.5 (lo garantiza resenaKP). */
+  valor: number;
+  size?: number;
+  /** Color del relleno (token CSS). Verde para el K-P global, ámbar para subs. */
+  color?: string;
+  label?: string;
+}
+
+const { valor, size = 14, color = 'var(--color-warm)', label } = Astro.props;
+const v = Math.max(0, Math.min(5, valor));
+const pct = (v / 5) * 100;
+
+// Estrella de 5 puntas en viewBox 16x16 (paths idénticos en ambas filas)
+const star = 'M8 1.4l2.05 4.15 4.58.67-3.31 3.23.78 4.56L8 11.86l-4.1 2.15.78-4.56-3.31-3.23 4.58-.67z';
+---
+
+<span
+  class="ekp"
+  style={`--ekp-s:${size}px; --ekp-fill:${pct}%; --ekp-c:${color};`}
+  role="img"
+  aria-label={label ?? `${v} de 5 estrellas`}
+>
+  <span class="ekp-row ekp-bg" aria-hidden="true">
+    {[0, 1, 2, 3, 4].map(() => (
+      <svg viewBox="0 0 16 16" width={size} height={size}><path d={star} /></svg>
+    ))}
+  </span>
+  <span class="ekp-row ekp-fg" aria-hidden="true">
+    {[0, 1, 2, 3, 4].map(() => (
+      <svg viewBox="0 0 16 16" width={size} height={size}><path d={star} /></svg>
+    ))}
+  </span>
+</span>
+
+<style>
+  .ekp {
+    position: relative;
+    display: inline-flex;
+    line-height: 0;
+  }
+  .ekp-row {
+    display: inline-flex;
+    gap: 2px;
+    white-space: nowrap;
+  }
+  .ekp-bg svg path { fill: rgba(255, 255, 255, 0.16); }
+  /* Fila de relleno: recortada al porcentaje exacto (cae en llena o media) */
+  .ekp-fg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--ekp-fill);
+    overflow: hidden;
+  }
+  .ekp-fg svg { flex-shrink: 0; }
+  .ekp-fg svg path { fill: var(--ekp-c); }
+</style>

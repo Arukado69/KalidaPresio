@@ -1,0 +1,55 @@
+name: Actualizar feed de ofertas
+
+# Refresca src/data/ofertas.json cada 3 horas (imita el ciclo de tu n8n).
+# Cloudflare Pages despliega solo cuando este workflow hace push del cambio.
+on:
+  schedule:
+    - cron: '0 */3 * * *' # cada 3 horas (UTC)
+  workflow_dispatch: {}     # permite ejecutarlo a mano desde la pestaña Actions
+
+# Necesario para que el bot pueda commitear el JSON actualizado
+permissions:
+  contents: write
+
+# Evita solapamientos si una corrida tarda más de lo previsto
+concurrency:
+  group: actualizar-ofertas
+  cancel-in-progress: false
+
+jobs:
+  refrescar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repo
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Si el scraper falla (ML cambió el HTML o bloqueó la IP), el step falla
+      # y NO se commitea nada: la web conserva el último feed bueno.
+      - name: Descargar y puntuar ofertas
+        env:
+          ML_MATT_TOOL: ${{ secrets.ML_MATT_TOOL }}
+          ML_MATT_WORD: ${{ secrets.ML_MATT_WORD }}
+        run: |
+          node src/scripts/importarOfertas.js
+          node src/scripts/generadorRedirects.js
+
+      - name: Commit y push si hubo cambios
+        run: |
+          git config user.name  "kalidapresio-bot"
+          git config user.email "bot@users.noreply.github.com"
+          if [ -n "$(git status --porcelain src/data/ofertas.json public/_redirects)" ]; then
+            git add src/data/ofertas.json public/_redirects
+            git commit -m "chore: actualización automática del feed de ofertas"
+            git push
+            echo "Feed actualizado y enviado."
+          else
+            echo "Sin cambios en el feed; no se hace push."
+          fi

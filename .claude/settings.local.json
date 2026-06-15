@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node src/scripts/generadorRedirects.js)",
+      "Bash(grep -qi \"ready\\\\|localhost:4321\\\\|error\" dev.log)",
+      "Bash(break)",
+      "Bash(curl -s -o /dev/null http://localhost:4321/)",
+      "PowerShell($conn = Get-NetTCPConnection -LocalPort 4322 -State Listen -ErrorAction SilentlyContinue; if \\($conn\\) { $conn | ForEach-Object { try { Stop-Process -Id $_.OwningProcess -Force -ErrorAction Stop; \"Detenido PID $\\($_.OwningProcess\\)\" } catch {} } } else { \"No hay proceso escuchando en 4322\" }; Remove-Item -Path \"C:\\\\Users\\\\Arukado69\\\\Documents\\\\kalidapresio2.0\\\\dev.log\",\"C:\\\\Users\\\\Arukado69\\\\Documents\\\\kalidapresio2.0\\\\page.html\" -Force -ErrorAction SilentlyContinue; \"Limpieza de temporales OK\")",
+      "Bash(curl -s http://localhost:4321/ -o index.html)",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/124.0 Safari/537.36\" -H \"Accept-Language: es-MX,es;q=0.9\" \"https://www.mercadolibre.com.mx/ofertas\" -o ml_ofertas.html -w \"HTTP %{http_code} | bytes %{size_download}\\\\n\" --max-time 30)",
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(node src/scripts/importarOfertas.js)",
+      "Bash(node --input-type=module -e 'import {readFileSync} from \"node:fs\"; const d=JSON.parse\\(readFileSync\\(\"src/data/ofertas.json\",\"utf-8\"\\)\\); console.log\\(\"total:\", d.length\\); d.slice\\(0,3\\).forEach\\(o=>console.log\\(`  [${o.score_kalidad_presio}] $${o.precio_actual} ${o.rating}★\\(${o.opiniones}\\) -${o.descuento}% | ${o.titulo?.slice\\(0,45\\)}`\\)\\); console.log\\(\"campos:\", Object.keys\\(d[0]\\).join\\(\", \"\\)\\);')",
+      "Bash(rm -f ml_ofertas.html)",
+      "Bash(npm run *)",
+      "Bash(rm -f prod1.html)",
+      "Bash(ls -la src/scripts/.ml_token_cache.json)",
+      "Bash(rm -f ml.html)",
+      "Bash(node --input-type=module -e 'import {readFileSync} from \"node:fs\"; const d=JSON.parse\\(readFileSync\\(\"src/data/ofertas.json\",\"utf-8\"\\)\\); console.log\\(\"total:\",d.length,\"| campos:\",Object.keys\\(d[0]\\).join\\(\", \"\\)\\); console.log\\(\"con MÁS VENDIDO:\", d.filter\\(o=>o.mas_vendido\\).length, \"| vendedor reputado:\", d.filter\\(o=>o.vendedor_confiable\\).length\\); d.slice\\(0,4\\).forEach\\(o=>console.log\\(`  KP${o.score_kalidad_presio} Conf${o.confianza} ${o.rating}★\\(${o.opiniones}\\) ${o.mas_vendido?\"[MÁS VENDIDO]\":\"\"} ${o.vendedor_confiable?\"[rep]\":\"\"} | ${o.titulo?.slice\\(0,40\\)}`\\)\\);')",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(ls .github/workflows)",
+      "Bash(node --input-type=module -e 'import {readFileSync} from \"node:fs\"; const d=JSON.parse\\(readFileSync\\(\"src/data/ofertas.json\",\"utf-8\"\\)\\); d.slice\\(0,5\\).forEach\\(\\(o,i\\)=>console.log\\(`  #${i+1} KP${o.score_kalidad_presio} Conf${o.confianza} ${o.mas_vendido?\"[VENDIDO]\":\"\"} ${o.vendedor_confiable?\"[rep]\":\"\"} | ${o.titulo?.slice\\(0,42\\)}`\\)\\);')",
+      "Bash(rm -f dev.log i.html s.html b.html)",
+      "Bash(rm -f dev.log)",
+      "Bash(node --input-type=module -e 'import {generarVeredicto} from \"./src/utils/veredicto.js\"; import {readFileSync} from \"node:fs\"; const d=JSON.parse\\(readFileSync\\(\"src/data/ofertas.json\",\"utf-8\"\\)\\); d.slice\\(0,5\\).forEach\\(o=>console.log\\(\"•\",generarVeredicto\\(o\\)\\)\\);')",
+      "PowerShell(npm run build)",
+      "PowerShell($h = Get-Content \"C:\\\\Users\\\\Arukado69\\\\Documents\\\\kalidapresio2.0\\\\dist\\\\index.html\" -Raw -Encoding UTF8; @\\('Sello Kalidad-Precio: combina', 'data-kp-tip', 'Ver oferta', 'Próximamente más ofertas relámpago', 'Quiénes somos', 'apoyas su mantenimiento', 'Bricolage'\\) | ForEach-Object { \"{0,-50} -> {1}\" -f $_, \\([regex]::Matches\\($h, [regex]::Escape\\($_\\)\\).Count\\) })",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:60150/)",
+      "Bash(curl -s http://localhost:4321/)",
+      "Bash(curl -s http://localhost:4322/)",
+      "PowerShell($p = \\(Get-NetTCPConnection -LocalPort 4321 -State Listen -ErrorAction SilentlyContinue\\).OwningProcess; if \\($p\\) { $proc = Get-Process -Id $p -ErrorAction SilentlyContinue; \"Port 4321 -> PID $p \\($\\($proc.ProcessName\\)\\), started $\\($proc.StartTime\\)\" } else { \"4321 free\" })",
+      "PowerShell($env:SKIP_EXTRACCION = 'true'; npm run build 2>&1 | Select-String -Pattern \"omitido|Complete|error\" | Select-Object -First 4)"
+    ]
+  }
+}

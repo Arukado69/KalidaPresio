@@ -1,0 +1,137 @@
+---
+export interface Props {
+  opiniones_sentimiento: {
+    pros: string[];
+    contras: string[];
+  };
+}
+
+const { opiniones_sentimiento } = Astro.props;
+const { pros, contras } = opiniones_sentimiento;
+---
+<section class="resenas-section">
+  <h2 class="section-title">Análisis de Ingeniería</h2>
+
+  <div class="columnas-grid">
+    <!-- Columna Semántica: Pros -->
+    <div class="columna-pros">
+      <h3 class="columna-titulo pros-titulo">Ventajas Destacadas</h3>
+      <ul class="lista-pros">
+        {pros.map((pro) => (
+          <li>
+            <svg class="icono-pro" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+              <polyline points="4.5,8 7,10.5 11.5,5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            {pro}
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <!-- Columna Semántica: Contras -->
+    <div class="columna-contras">
+      <h3 class="columna-titulo contras-titulo">Puntos a Considerar</h3>
+      <ul class="lista-contras">
+        {contras.map((contra) => (
+          <li>
+            <svg class="icono-contra" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+              <line x1="5.5" y1="5.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <line x1="10.5" y1="5.5" x2="5.5" y2="10.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            {contra}
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<style>
+  .resenas-section {
+    margin: var(--spacing-lg) 0;
+  }
+
+  .section-title {
+    color: var(--color-primary);
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .columnas-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+
+  @media (min-width: 768px) {
+    .columnas-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .columna-pros, .columna-contras {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-md);
+    border-top: 4px solid transparent;
+  }
+
+  .columna-pros { border-top-color: var(--color-primary); }
+  .pros-titulo { color: var(--color-primary); }
+
+  .columna-contras { border-top-color: var(--color-error); }
+  .contras-titulo { color: var(--color-error); }
+
+  .columna-titulo {
+    font-size: 1.25rem;
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  li {
+    position: relative;
+    padding-left: 2rem;
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-text);
+    line-height: 1.55;
+    font-size: 0.95rem;
+    transition: var(--transition-fast);
+  }
+
+  li:hover {
+    color: #fff;
+    padding-left: 2.2rem;
+  }
+
+  li:last-child { margin-bottom: 0; }
+
+  .icono-pro {
+    position: absolute;
+    left: 0;
+    top: 0.1em;
+    width: 18px;
+    height: 18px;
+    color: var(--color-primary);
+    flex-shrink: 0;
+  }
+
+  .icono-contra {
+    position: absolute;
+    left: 0;
+    top: 0.1em;
+    width: 18px;
+    height: 18px;
+    color: var(--color-error);
+    flex-shrink: 0;
+  }
+</style>

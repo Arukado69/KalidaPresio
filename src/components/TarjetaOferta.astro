@@ -1,0 +1,609 @@
+---
+import SelloKP from './SelloKP.astro';
+import Estrellas from './Estrellas.astro';
+import EstrellasKP from './EstrellasKP.astro';
+import BotonCTA from './BotonCTA.astro';
+import { generarVeredicto } from '../utils/veredicto.js';
+import { resenaKP } from '../utils/resenaKP.js';
+
+export interface Oferta {
+  id: string;
+  titulo: string;
+  precio_actual: number;
+  precio_previo?: number | null;
+  descuento: number;
+  rating: number;
+  opiniones: number;
+  score_kalidad_presio?: number;
+  link_afiliado: string;
+  imagen: string;
+  // Capa de confianza + temporal (opcional)
+  marca?: string | null;
+  destacado?: string | null;
+  mas_vendido?: boolean;
+  oferta_relampago?: boolean;
+  relampago_fin?: string | null;
+  vendedor?: string | null;
+  vendedor_confiable?: boolean;
+  envio_gratis?: boolean;
+  confianza?: number;
+  // Opcional (esquema propuesto): resumen de reseñas curado.
+  // Si falta, el panel se arma con señales objetivas; si no hay rating ni
+  // opiniones, el panel se oculta por completo.
+  opiniones_sentimiento?: {
+    resumen?: string;
+    puntos_clave?: string[];
+  } | null;
+}
+
+export interface Props {
+  oferta: Oferta;
+  /** Score 0..100. Si no se pasa, usa score_kalidad_presio del feed. */
+  score?: number;
+  /** Índice en el grid, para escalonar la animación de entrada. */
+  indice?: number;
+  /** Categoría para el filtro (se expone como data-cat). */
+  categoria?: string;
+  /** Layout: 'grid' (vertical, por defecto) o 'deal' (horizontal). */
+  variant?: 'grid' | 'deal';
+}
+
+const { oferta, score, indice = 0, categoria, variant = 'grid' } = Astro.props;
+
+const score100 = Math.round(score ?? oferta.score_kalidad_presio ?? 0);
+
+const inicial = (oferta.titulo?.trim()?.charAt(0) ?? '?').toUpperCase();
+
+const descuento = Math.round(oferta.descuento ?? 0);
+const precioOriginal =
+  oferta.precio_previo ??
+  (descuento > 0 ? Math.round(oferta.precio_actual / (1 - descuento / 100)) : null);
+
+// Nivel de confianza para el chip (umbral Alta exigente: 80)
+const confianza = oferta.confianza ?? 0;
+const confNivel = confianza >= 80 ? 'Alta' : confianza >= 50 ? 'Media' : 'Básica';
+const confClase = confianza >= 80 ? 'alta' : confianza >= 50 ? 'media' : 'basica';
+
+const revealDelay = (indice % 8) * 70;
+
+// Veredicto editorial (solo se muestra en la variante 'deal', que tiene espacio)
+const veredictoTxt = generarVeredicto(oferta);
+
+// "Segunda reseña" K-P: estrellas DETERMINISTAS derivadas de datos reales
+// (score/rating/opiniones/descuento). Se calcula en build — el panel es
+// estático; el cliente solo anima el revelado (hover/tap).
+const resena = resenaKP(oferta, score100);
+
+const fmt = (n: number) =>
+  new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    maximumFractionDigits: 0,
+  }).format(n);
+---
+
+<article class={`oferta-card${variant === 'deal' ? ' is-deal' : ''}`} data-spotlight data-reveal data-cat={categoria} style={`--reveal-delay:${revealDelay}ms`}>
+  <div class="oferta-media">
+    <img
+      src={oferta.imagen}
+      alt={oferta.titulo}
+      loading="lazy"
+      class="oferta-img"
+      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+    />
+    <span class="oferta-img-fallback" aria-hidden="true">{inicial}</span>
+
+    {oferta.oferta_relampago ? (
+      <span class="oferta-badge badge-relampago">⚡ RELÁMPAGO</span>
+    ) : oferta.mas_vendido ? (
+      <span class="oferta-badge badge-vendido">★ MÁS VENDIDO</span>
+    ) : descuento > 0 ? (
+      <span class="oferta-badge">-{descuento}%</span>
+    ) : null}
+
+    <div class="oferta-sello">
+      <!-- tooltip: leyenda K-P al hover + tap (queja #1 del piloto).
+           En la variante deal la burbuja abre hacia la derecha (sobre el
+           cuerpo de la tarjeta) para no recortarse contra el borde. -->
+      <SelloKP score={score100} size={60} tooltip tipAlign={variant === 'deal' ? 'start' : 'end'} />
+    </div>
+
+    <!-- Reseña K-P: overlay ABSOLUTO sobre la imagen (cero CLS). El grid
+         no se mueve un píxel. Lo revela GSAP: hover (desktop) / tap en la
+         imagen (móvil) — initResenas() en Layout. -->
+    {resena && (
+      <div class="resena-panel" data-resena>
+        <div class="rp-head">
+          <EstrellasKP valor={resena.global} size={17} color="var(--color-primary)" label={`Evaluación K-P: ${resena.global} de 5`} />
+          <strong class="rp-num">{resena.global.toFixed(1)}</strong>
+          <span class="rp-kp">K-P</span>
+        </div>
+        {resena.subs.length > 0 && (
+          <ul class="rp-subs">
+            {resena.subs.map((s) => (
+              <li class="rp-sub">
+                <span class="rp-label">{s.label}</span>
+                <EstrellasKP valor={s.estrellas} size={11} />
+              </li>
+            ))}
+          </ul>
+        )}
+        <p class="rp-context">Evaluación Kalidad-Precio: combina tu opinión (la de los compradores) con nuestro análisis del descuento real.</p>
+      </div>
+    )}
+  </div>
+
+  <div class="oferta-body">
+    {oferta.oferta_relampago && oferta.relampago_fin && (
+      <div class="oferta-countdown">
+        <span class="oc-bolt" aria-hidden="true">⚡</span>
+        <span class="oc-label">Termina en</span>
+        <span class="oc-time" data-countdown data-fin={oferta.relampago_fin}>—</span>
+      </div>
+    )}
+
+    <h3 class="oferta-titulo">{oferta.titulo}</h3>
+
+    {variant === 'deal' && veredictoTxt && (
+      <p class="oferta-veredicto">{veredictoTxt}</p>
+    )}
+
+    <div class="oferta-precios">
+      <span class="oferta-precio">{fmt(oferta.precio_actual)}</span>
+      {precioOriginal && <span class="oferta-precio-original">{fmt(precioOriginal)}</span>}
+      {descuento > 0 && <span class="oferta-descuento">-{descuento}%</span>}
+    </div>
+
+    <div class="oferta-rating">
+      <Estrellas rating={oferta.rating} size={15} />
+      <span class="oferta-rating-num">{oferta.rating?.toFixed(1)}</span>
+      <span class="oferta-opiniones">({oferta.opiniones?.toLocaleString('es-MX')})</span>
+    </div>
+
+    <div class="oferta-confianza">
+      <span class={`conf-chip conf-${confClase}`} title="Qué tan respaldada está la compra (opiniones, ventas y reputación del vendedor)">
+        Confianza: {confNivel}
+      </span>
+      {oferta.envio_gratis && <span class="meta-chip">Envío gratis</span>}
+      {oferta.vendedor_confiable && <span class="meta-chip" title={oferta.vendedor ?? ''}>Vendedor reputado</span>}
+    </div>
+
+    <div class="oferta-cta">
+      <!-- CTA fijo del piloto: "Ver oferta →" (la flecha la pone el icono del botón) -->
+      <BotonCTA id={oferta.id} enlace={oferta.link_afiliado} texto="Ver oferta" />
+    </div>
+  </div>
+</article>
+
+<style>
+  .oferta-card {
+    /* Superficie neutra (azul-grisáceo) SIN backdrop-filter: no castiga el scroll */
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, var(--elev-card);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    /* Solo animamos transform/box-shadow/border-color (compositor, sin reflow) */
+    transition: transform var(--dur-med) var(--ease-out-expo),
+                box-shadow var(--dur-med) var(--ease-out-expo),
+                border-color var(--dur-med) var(--ease-out-expo);
+  }
+
+  /* Elevación + scale en hover y en focus (teclado). El brillo de borde
+     verde es el "detalle puntual" permitido; el glow grande ya no. */
+  .oferta-card:hover,
+  .oferta-card:focus-within {
+    transform: translateY(-6px) scale(1.02);
+    border-color: rgba(31, 210, 142, 0.32);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.04) inset,
+      var(--elev-card-hover);
+  }
+
+  .oferta-card:active {
+    transform: translateY(-2px) scale(0.998);
+    transition-duration: var(--dur-fast);
+  }
+
+  /* Brillo extra solo con puntero fino (en táctil :hover se queda pegado) */
+  @media (hover: hover) {
+    .oferta-card { transition: transform var(--dur-med) var(--ease-out-expo),
+                               box-shadow var(--dur-med) var(--ease-out-expo),
+                               border-color var(--dur-med) var(--ease-out-expo),
+                               filter var(--dur-med) var(--ease-out-expo); }
+    .oferta-card:hover { filter: brightness(1.04); }
+  }
+
+  /* Borde cian que "respira" sobre la tarjeta activa */
+  .oferta-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid var(--color-primary);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .oferta-card:hover::after,
+  .oferta-card:focus-within::after {
+    animation: kp-breathe 2.4s var(--ease-soft) infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .oferta-card:hover::after,
+    .oferta-card:focus-within::after { animation: none; opacity: 0.5; }
+  }
+
+  /* === Variante DEAL (horizontal): miniatura CUADRADA flotante a la izquierda
+     (patrón lista de la app de ML) + datos a la derecha. Se mantiene
+     horizontal también en móvil: más densidad y la foto nunca se recorta. === */
+  .oferta-card.is-deal {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .oferta-card.is-deal .oferta-media {
+    /* Cuadrado 1:1 como la foto de ML, centrado verticalmente */
+    flex: 0 0 clamp(118px, 26vw, 200px);
+    aspect-ratio: 1 / 1;
+    align-self: center;
+    margin: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    /* La miniatura es chica: deja salir la burbuja de la leyenda K-P */
+    overflow: visible;
+  }
+  /* Sin zoom de imagen en deal (la media ya no recorta el desborde) */
+  .oferta-card.is-deal:hover .oferta-img { transform: none; }
+  .oferta-card.is-deal .oferta-body {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-width: 0;
+  }
+  .oferta-card.is-deal .oferta-titulo {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    font-size: 1.05rem;
+  }
+  @media (min-width: 700px) {
+    .oferta-card.is-deal .oferta-precio { font-size: 1.9rem; }
+  }
+  @media (max-width: 639px) {
+    .oferta-card.is-deal .oferta-titulo { font-size: 0.92rem; }
+    .oferta-card.is-deal .oferta-body { padding: var(--spacing-sm); }
+  }
+
+  /* === Media: marco CUADRADO 1:1 — formato nativo de la foto de ML,
+     así nunca parece recorte. container-type: el panel de reseña adapta
+     su contenido al ancho REAL del marco (deal = miniatura chica). === */
+  .oferta-media {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background-color: var(--color-bg);
+    overflow: hidden;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    container-type: inline-size;
+  }
+
+  /* === Panel "Reseña K-P" (overlay sobre la imagen, sin tocar el layout) === */
+  .resena-panel {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit; /* respeta las esquinas de la miniatura deal */
+    z-index: 4; /* sobre el sello: el panel ES la explicación expandida */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: clamp(0.6rem, 6cqw, 1.1rem);
+    background: linear-gradient(170deg, rgba(40, 4, 85, 0.94), rgba(20, 12, 36, 0.96));
+    /* Oculto por defecto; GSAP lo revela (autoAlpha + y en px — el offset
+       de entrada lo pone el fromTo de toggleResena, NO este CSS, para que
+       GSAP controle el transform completo sin residuos). */
+    opacity: 0;
+    visibility: hidden;
+    will-change: transform, opacity;
+  }
+
+  .rp-head {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .rp-num {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    color: #fff;
+    line-height: 1;
+  }
+  .rp-kp {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: var(--color-primary);
+  }
+
+  .rp-subs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .rp-sub {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .rp-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+
+  .rp-context {
+    margin: 0;
+    font-size: 0.64rem;
+    line-height: 1.45;
+    color: var(--color-text-muted);
+  }
+
+  /* Marcos angostos: el panel degrada por niveles según el ancho REAL
+     del marco (container query), sin falsear ni apretar nada.
+     160–219px (miniatura deal): sub-stats apiladas, sin línea de contexto. */
+  @container (max-width: 219px) {
+    .rp-context { display: none; }
+    .rp-sub {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.1rem;
+    }
+    .rp-label { font-size: 0.62rem; }
+    .resena-panel { gap: 0.4rem; }
+  }
+  /* <160px (miniatura deal en móvil): solo la calificación global */
+  @container (max-width: 159px) {
+    .rp-subs { display: none; }
+    .resena-panel { justify-content: flex-end; padding: 0.55rem; }
+  }
+
+  .oferta-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: var(--spacing-sm);
+    transition: transform var(--dur-slow) var(--ease-out-expo);
+  }
+
+  .oferta-card:hover .oferta-img {
+    transform: scale(1.04);
+  }
+
+  /* Fallback (oculto hasta que el <img> dispare onerror) */
+  .oferta-img-fallback {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(3rem, 12vw, 5rem);
+    font-weight: 900;
+    color: var(--color-primary);
+    background: radial-gradient(circle at center, rgba(31, 210, 142, 0.06), transparent 70%);
+    letter-spacing: -0.04em;
+  }
+
+  /* === Badge de descuento === */
+  .oferta-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background-color: var(--color-error);
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-weight: 900;
+    padding: 5px 11px;
+    border-radius: var(--radius-xs);
+    letter-spacing: 0.02em;
+    box-shadow: var(--shadow-sm);
+    z-index: 2;
+  }
+
+  /* === Sello KP sobrepuesto ===
+     overflow visible aquí: la burbuja de la leyenda se despliega hacia
+     arriba DENTRO del marco cuadrado de la imagen (no se recorta). */
+  .oferta-sello {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    z-index: 3;
+    padding: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--overlay-ink);
+    backdrop-filter: blur(4px);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* === Body === */
+  .oferta-body {
+    padding: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  .oferta-titulo {
+    font-size: 1rem;
+    line-height: 1.35;
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-text);
+    font-weight: 700;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.7em;
+  }
+
+  /* Veredicto editorial (variante deal) */
+  .oferta-veredicto {
+    font-size: var(--fs-sm);
+    color: var(--color-text-muted);
+    line-height: 1.4;
+    margin: 0 0 var(--spacing-sm);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .oferta-precios {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
+    margin-bottom: 0.4rem;
+  }
+
+  /* Precio en blanco: el verde queda para CTA y K-P (menos look "cripto") */
+  .oferta-precio {
+    font-family: var(--font-display);
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+  }
+
+  .oferta-precio-original {
+    font-size: 0.95rem;
+    color: var(--color-text-muted);
+    text-decoration: line-through;
+    text-decoration-color: rgba(255, 77, 109, 0.7);
+  }
+
+  .oferta-descuento {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: #00d26a;
+    background-color: rgba(0, 166, 80, 0.14);
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-xs);
+  }
+
+  .oferta-rating {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .oferta-rating-num {
+    color: var(--color-text);
+    font-weight: 700;
+  }
+
+  /* Badge "MÁS VENDIDO" (sobre el rojo de descuento) */
+  .badge-vendido {
+    background-color: var(--color-primary);
+    color: var(--color-bg);
+  }
+
+  /* Badge "RELÁMPAGO" — amarillo Mercado Libre */
+  .badge-relampago {
+    background-color: var(--color-accent);
+    color: var(--color-accent-ink);
+    box-shadow: var(--glow-accent);
+    animation: kp-pulse-soft 2.4s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .badge-relampago { animation: none; }
+  }
+
+  /* Cuenta regresiva de la oferta relámpago (dorado suave, no neón) */
+  .oferta-countdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    align-self: flex-start;
+    background-color: rgba(243, 200, 75, 0.1);
+    border: 1px solid rgba(243, 200, 75, 0.3);
+    color: var(--color-accent);
+    border-radius: var(--radius-pill);
+    padding: 0.22rem 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .oc-label { color: var(--color-text-muted); font-weight: 600; }
+  .oc-time { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+  .oc-bolt { line-height: 1; }
+  .countdown-fin { color: var(--color-text-muted); }
+
+  /* Fila de confianza + meta */
+  .oferta-confianza {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .conf-chip,
+  .meta-chip {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+  }
+
+  .meta-chip {
+    color: var(--color-text-muted);
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .conf-alta {
+    color: var(--color-primary);
+    background-color: rgba(31, 210, 142, 0.1);
+    border-color: var(--color-primary-border);
+  }
+
+  .conf-media {
+    color: var(--color-warm);
+    background-color: var(--color-warm-bg);
+    border-color: var(--color-warm-border);
+  }
+
+  .conf-basica {
+    color: var(--color-text-muted);
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .oferta-cta {
+    margin-top: auto;
+  }
+
+  /* BotonCTA a ancho completo dentro de la tarjeta */
+  .oferta-cta :global(.cta-wrapper) {
+    margin: 0;
+  }
+
+  .oferta-cta :global(.cta-button) {
+    padding: 0.8rem 1rem;
+    font-size: 1rem;
+    width: 100%;
+    max-width: 100%;
+  }
+</style>

@@ -1,0 +1,110 @@
+---
+/**
+ * ImbatiblesGrid — Catálogo principal de la sección IMBATIBLES.
+ * Sustituye al viejo "Más ofertas destacadas" (que leía ofertas.json).
+ *
+ *  · Items: secciones.includes('imbatibles'), YA ordenados por score_seccion
+ *    DESC (el recalibrado 65/10/25 lo aplica src/data/secciones.js).
+ *  · Grid 3 col (desktop) / 2 (tablet) / 1 (móvil) con TarjetaOferta vertical:
+ *    foto cuadrada ML, título clamp 2 líneas, K-P con tooltip, reseña al
+ *    hover/tap y CTA "Ver oferta →" — todo ya vive en la tarjeta.
+ *  · Filtros por categoría derivada del título (chips; initFiltros en Layout).
+ */
+import TarjetaOferta from './TarjetaOferta.astro';
+import { categorizar, ORDEN_CATEGORIAS } from '../utils/categorias.js';
+
+export interface Props {
+  productos: any[];
+}
+const { productos } = Astro.props;
+
+const conCategoria = productos.map((o) => ({ ...o, categoria: o.categoria ?? categorizar(o.titulo) }));
+const presentes = new Set(conCategoria.map((o) => o.categoria));
+const categorias = ORDEN_CATEGORIAS.filter((c) => presentes.has(c));
+---
+
+{conCategoria.length > 0 && (
+  <section class="seccion-estructural imbatibles" data-reveal>
+    <h2 class="titulo-seccion">💪 Precios imbatibles</h2>
+    <!-- Stats de sección: tamaño real del catálogo, arriba y visible -->
+    <p class="imb-stats">
+      <strong>{conCategoria.length}</strong> productos imbatibles · precio permanente bajo, ordenados por calidad real
+    </p>
+
+    {categorias.length > 1 && (
+      <div class="filtros" role="tablist" aria-label="Filtrar por categoría">
+        <button class="chip is-active" type="button" data-filter="*" data-ripple role="tab" aria-selected="true">Todas</button>
+        {categorias.map((c) => (
+          <button class="chip" type="button" data-filter={c} data-ripple role="tab" aria-selected="false">{c}</button>
+        ))}
+      </div>
+    )}
+
+    <div class="imb-grid" data-grid-filtrable>
+      {conCategoria.map((o, i) => (
+        <TarjetaOferta oferta={o} score={o.score_seccion ?? o.score_kalidad_presio} indice={i} categoria={o.categoria} />
+      ))}
+    </div>
+  </section>
+)}
+
+<style>
+  .imb-stats {
+    margin: calc(-1 * var(--spacing-sm)) 0 var(--spacing-md);
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+  .imb-stats strong {
+    color: var(--color-primary);
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+  }
+
+  /* Grid 1 → 2 → 3 columnas (la tarjeta vertical con foto cuadrada manda) */
+  .imb-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+  @media (min-width: 640px) {
+    .imb-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1024px) {
+    .imb-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* Chips de filtro (estilos propios: el scoping de Astro no hereda los de index) */
+  .filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: var(--spacing-lg);
+  }
+  .chip {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.45rem 1.05rem;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color var(--dur-fast) var(--ease-soft),
+                border-color var(--dur-fast) var(--ease-soft),
+                background-color var(--dur-fast) var(--ease-soft),
+                transform var(--dur-fast) var(--ease-soft);
+  }
+  .chip:hover {
+    color: var(--color-text);
+    border-color: var(--color-primary-border);
+    transform: translateY(-1px);
+  }
+  .chip.is-active {
+    color: #0b231a;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    border-color: transparent;
+    box-shadow: var(--glow-primary-sm);
+  }
+</style>
