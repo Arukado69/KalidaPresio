@@ -8,102 +8,64 @@
  *                    un tap revela la fila deslizable (equivalente táctil
  *                    sin JS extra).
  *
- * AUTO-RETIRO (cliente): initRelampago() en Layout compara data-fin contra
- * new Date() — vencida → el <li> se retira del DOM (sin CLS: el loop solo
- * mueve transform). Countdown "Termina en 2h 15m" se refresca cada minuto.
- * Si todo expira → copy fijo: "Próximamente más ofertas relámpago ⚡…".
+ * DATOS EN RUNTIME (Bloque B / KP-005): este componente solo renderiza el
+ * SHELL + un skeleton. initRelampagoFetch() en Layout descarga el JSON desde
+ * PUBLIC_RELAMPAGO_URL en el cliente, filtra las vencidas (endsAt < now),
+ * pinta las cards con ESTE mismo markup (ver template en Layout) y luego
+ * llama a initRelampago() — que conserva countdown + loop GSAP + auto-retiro.
+ * Así, cuando un sistema externo actualiza esa fuente, el sitio refleja los
+ * cambios SIN rebuild. (Imbatibles sigue en build-time, intacto.)
  */
 export interface Props {
-  ofertas: any[];
   modo: 'rail' | 'strip';
 }
-const { ofertas, modo } = Astro.props;
+const { modo } = Astro.props;
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
-
-// Tiempo restante legible ("2h 15m") calculado también en build para que el
-// primer paint ya traiga texto (el cliente lo re-calcula al minuto).
-const restante = (iso: string | null) => {
-  if (!iso) return null;
-  const ms = new Date(iso).getTime() - Date.now();
-  if (ms <= 0) return null;
-  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60);
-  return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m % 60}m` : `${m % 60}m`;
-};
+// URL configurable (PUBLIC_ = visible en el navegador). Default: placeholder
+// local servido desde /public/data/relampago.json.
+const RELAMPAGO_URL = import.meta.env.PUBLIC_RELAMPAGO_URL || '/data/relampago.json';
 ---
 
 {modo === 'rail' ? (
-  <aside class="rs-rail" aria-label="Ofertas relámpago" data-relampago-zona data-rs-queue>
-    <div class="rs-head"><span class="rs-bolt" aria-hidden="true">⚡</span> Relámpago <span class="rs-n" data-rs-contador>{ofertas.length}</span></div>
+  <aside class="rs-rail" aria-label="Ofertas relámpago" data-relampago-zona data-rs-queue data-rs-mode="rail" data-rs-url={RELAMPAGO_URL}>
+    <div class="rs-head"><span class="rs-bolt" aria-hidden="true">⚡</span> Relámpago <span class="rs-n" data-rs-contador hidden></span></div>
     <div class="rs-viewport">
-      <ul class="rs-track" data-rs-track>
-        {ofertas.map((o) => (
-          <li class="rs-item" data-fin={o.fin_oferta}>
-            <article class="rs-card">
-              <div class="rs-media">
-                {o.imagen
-                  ? <img src={o.imagen} alt={o.titulo} loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
-                  : null}
-                <span class="rs-img-fallback" style={o.imagen ? 'display:none' : ''} aria-hidden="true">⚡</span>
-                {o.descuento > 0 && <span class="rs-desc">-{Math.round(o.descuento)}%</span>}
-                <span class="rs-kp" title="Sello Kalidad-Precio: combina la calidad real según los compradores con el descuento real. Mientras más alto, mejor es la compra.">
-                  <strong>{Math.round(o.score_kalidad_presio ?? 0)}</strong><em>K-P</em>
-                </span>
-              </div>
-              {o.fin_oferta && (
-                <span class="rs-count">⏱ Termina en <strong data-rs-count data-fin={o.fin_oferta}>{restante(o.fin_oferta) ?? '—'}</strong></span>
-              )}
-              <h3 class="rs-titulo">{o.titulo}</h3>
-              <div class="rs-precios">
-                <span class="rs-precio">{fmt(o.precio_actual)}</span>
-                {o.descuento > 0 && <em class="rs-ahorro">-{Math.round(o.descuento)}%</em>}
-              </div>
-              <a class="rs-cta" href={o.link_afiliado} target="_blank" rel="nofollow sponsored noopener noreferrer">Ver oferta →</a>
-            </article>
-          </li>
+      <!-- Skeleton de carga (coherente con el design system; lo oculta el JS) -->
+      <div class="rs-skel" data-rs-skel aria-hidden="true">
+        {Array.from({ length: 3 }).map(() => (
+          <div class="rs-skel-card"><div class="rs-skel-media"></div><div class="rs-skel-line lg"></div><div class="rs-skel-line"></div></div>
         ))}
-      </ul>
+      </div>
+      <!-- El JS inyecta aquí los <li class="rs-item"> -->
+      <ul class="rs-track" data-rs-track hidden></ul>
     </div>
-    <p class="rs-vacio" data-rs-vacio hidden={ofertas.length > 0}>Próximamente más ofertas relámpago ⚡ Vuelve pronto.</p>
+    <p class="rs-detectado" data-rs-detectado hidden></p>
+    <p class="rs-vacio" data-rs-vacio hidden>No hay ofertas relámpago activas ahora mismo. Vuelve pronto.</p>
   </aside>
 ) : (
-  <details class="rs-strip" data-relampago-zona>
+  <details class="rs-strip" data-relampago-zona data-rs-mode="strip" data-rs-url={RELAMPAGO_URL}>
     <summary class="rs-strip-head">
       <span class="rs-bolt" aria-hidden="true">⚡</span>
-      Ofertas relámpago <span class="rs-n" data-rs-contador>{ofertas.length}</span>
+      Ofertas relámpago <span class="rs-n" data-rs-contador hidden></span>
       <span class="rs-strip-hint" aria-hidden="true">tocar para ver <span class="rs-chev">▾</span></span>
     </summary>
-    <ul class="rs-fila">
-      {ofertas.map((o) => (
-        <li class="rs-fila-item" data-fin={o.fin_oferta}>
-          <a class="rs-mini" href={o.link_afiliado} target="_blank" rel="nofollow sponsored noopener noreferrer">
-            <span class="rs-mini-media">
-              {o.imagen
-                ? <img src={o.imagen} alt={o.titulo} loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
-                : null}
-              <span class="rs-img-fallback" style={o.imagen ? 'display:none' : ''} aria-hidden="true">⚡</span>
-            </span>
-            <span class="rs-mini-info">
-              <span class="rs-mini-titulo">{o.titulo}</span>
-              <span class="rs-mini-fila">
-                <strong class="rs-precio">{fmt(o.precio_actual)}</strong>
-                {o.descuento > 0 && <em class="rs-ahorro">-{Math.round(o.descuento)}%</em>}
-              </span>
-              {o.fin_oferta && (
-                <span class="rs-count">⏱ <strong data-rs-count data-fin={o.fin_oferta}>{restante(o.fin_oferta) ?? '—'}</strong></span>
-              )}
-            </span>
-            <span class="rs-mini-cta" aria-hidden="true">Ver oferta →</span>
-          </a>
-        </li>
+    <div class="rs-skel rs-skel-strip" data-rs-skel aria-hidden="true">
+      {Array.from({ length: 3 }).map(() => (
+        <div class="rs-skel-mini"><div class="rs-skel-media"></div><div class="rs-skel-mini-body"><div class="rs-skel-line"></div><div class="rs-skel-line sm"></div></div></div>
       ))}
-    </ul>
-    <p class="rs-vacio" data-rs-vacio hidden={ofertas.length > 0}>Próximamente más ofertas relámpago ⚡ Vuelve pronto.</p>
+    </div>
+    <!-- El JS inyecta aquí los <li class="rs-fila-item"> -->
+    <ul class="rs-fila" data-rs-track hidden></ul>
+    <p class="rs-detectado" data-rs-detectado hidden></p>
+    <p class="rs-vacio" data-rs-vacio hidden>No hay ofertas relámpago activas ahora mismo. Vuelve pronto.</p>
   </details>
 )}
 
-<style>
+<!-- is:global OBLIGATORIO: las cards relámpago se inyectan en runtime vía
+     innerHTML (Layout → initRelampagoFetch) y NO llevan el hash de scope de
+     Astro. Con estilos scoped saldrían sin formato. Todas las clases van
+     prefijadas `rs-`, así que globalizarlas no colisiona. -->
+<style is:global>
   /* ════════ Compartido ════════ */
   .rs-head, .rs-strip-head {
     display: flex;
@@ -294,8 +256,44 @@ const restante = (iso: string | null) => {
   }
   .rs-strip .rs-vacio { margin-top: 0.7rem; }
 
+  /* ════════ "Precios detectados el…" (timestamp del lote) ════════ */
+  .rs-detectado {
+    margin: 0.7rem 0 0;
+    font-size: 0.66rem;
+    line-height: 1.4;
+    color: var(--color-text-muted);
+    opacity: 0.8;
+    text-align: center;
+  }
+  .rs-strip .rs-detectado { text-align: left; }
+
+  /* ════════ Skeleton de carga (solo opacity → sin reflow) ════════ */
+  .rs-skel { display: flex; flex-direction: column; gap: 0.7rem; }
+  .rs-skel-strip { flex-direction: row; gap: 0.6rem; margin-top: 0.7rem; }
+  .rs-skel-card {
+    display: flex; flex-direction: column; gap: 0.45rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md); padding: 0.55rem;
+    animation: rs-skel-pulse 1.4s var(--ease-soft) infinite;
+  }
+  .rs-skel-media { aspect-ratio: 16 / 10; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.07); }
+  .rs-skel-line { height: 0.7rem; border-radius: var(--radius-xs); background: rgba(255, 255, 255, 0.07); }
+  .rs-skel-line.lg { height: 0.95rem; width: 70%; }
+  .rs-skel-line.sm { width: 45%; }
+  .rs-skel-mini {
+    display: flex; align-items: center; gap: 0.55rem; flex: 0 0 auto;
+    background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md); padding: 0.4rem 0.6rem 0.4rem 0.4rem;
+    animation: rs-skel-pulse 1.4s var(--ease-soft) infinite;
+  }
+  .rs-skel-mini .rs-skel-media { width: 52px; height: 52px; aspect-ratio: auto; flex-shrink: 0; }
+  .rs-skel-mini-body { display: flex; flex-direction: column; gap: 0.3rem; width: 120px; }
+  @keyframes rs-skel-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
   @media (prefers-reduced-motion: reduce) {
     .rs-bolt { animation: none; }
+    .rs-skel-card, .rs-skel-mini { animation: none; }
     /* Sin loop automático: el rail se vuelve lista scrolleable manual */
     .rs-viewport { overflow-y: auto; }
   }

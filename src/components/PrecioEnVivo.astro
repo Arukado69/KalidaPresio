@@ -1,0 +1,258 @@
+---
+/**
+ * PrecioEnVivo — Componente de hidratación dinámica de precios.
+ *
+ * CÓMO FUNCIONA:
+ * 1. Escanea el DOM en busca de elementos con [data-ml-id] y [data-build-price].
+ * 2. Usa IntersectionObserver para consultar el precio SOLO cuando la tarjeta
+ *    entra al viewport (ahorro de red + respeta rate-limit de ML).
+ * 3. Fetch asíncrono a la API pública de ML (sin auth, datos públicos).
+ * 4. Si el precio bajó: anima el cambio + inyecta badge "¡Bajó de precio!".
+ * 5. Si el precio subió: badge informativo sutil.
+ * 6. Si fetch falla: silencio total (Graceful Degradation).
+ *
+ * RENDIMIENTO:
+ * - Cero dependencias externas. Vanilla JS puro.
+ * - Delay aleatorio 0-600ms entre peticiones (distribuye rate-limit).
+ * - Caché en sessionStorage (30 min TTL, sobrevive View Transitions).
+ * - Deduplicación de IDs (un producto puede aparecer en home + colección).
+ * - Solo transform/opacity (compositor GPU, sin reflow).
+ *
+ * INTEGRACIÓN:
+ * - Se importa UNA vez en Layout.astro (cerca del cierre de body).
+ * - Se re-inicializa automáticamente con astro:page-load (View Transitions).
+ * - Las tarjetas deben exponer data-ml-id, data-build-price y [data-precio-display].
+ */
+---
+
+<script>
+  // ════════════════════════════════════════════════════════
+  // KalidaPresio — Motor de Precios en Vivo v1.0
+  // API Pública ML: https://api.mercadolibre.com/items/{ID}
+  // ════════════════════════════════════════════════════════
+
+  const API_BASE = 'https://api.mercadolibre.com/items/';
+  const CACHE_KEY = 'kp_precios_vivos';
+  const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutos
+  const FETCH_TIMEOUT_MS = 8000;
+  const DELAY_MAX_MS = 600; // Delay aleatorio máximo entre peticiones
+
+  // ── Caché en sessionStorage ─────────────────────────────────────────────────
+  // Persiste dentro de la sesión del navegador (sobrevive View Transitions
+  // y navegación SPA). Se invalida a los 30 min o al cerrar la pestaña.
+
+  /** @returns {Record<string, number>} */
+  function leerCache() {
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (!raw) return {};
+      const data = JSON.parse(raw);
+      if (Date.now() - (data._ts ?? 0) > CACHE_TTL_MS) {
+        sessionStorage.removeItem(CACHE_KEY);
+        return {};
+      }
+      return data;
+    } catch {
+      return {};
+    }
+  }
+
+  /** @param {Record<string, number>} cache */
+  function guardarCache(cache) {
+    try {
+      cache._ts = Date.now();
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch {
+      // sessionStorage lleno o no disponible — no es crítico
+    }
+  }
+
+  // ── Formato de precio MXN ───────────────────────────────────────────────────
+  const fmtMXN = new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    maximumFractionDigits: 0,
+  });
+
+  // ── Deduplicación de peticiones en vuelo ─────────────────────────────────────
+  // Si dos tarjetas tienen el mismo MLM ID (ej: home + colección renderizadas
+  // en la misma SPA), solo se hace UNA petición y ambas reciben el resultado.
+  /** @type {Map<string, Promise<number|null>>} */
+  const enVuelo = new Map();
+
+  /**
+   * Consulta el precio actual de un producto en la API pública de ML.
+   * @param {string} id - ID del producto (ej: MLM2174936857)
+   * @returns {Promise<number|null>} - Precio actual o null si falla
+   */
+  async function consultarPrecio(id) {
+    // 1. Caché local
+    const cache = leerCache();
+    if (cache[id] !== undefined && typeof cache[id] === 'number') {
+      return cache[id];
+    }
+
+    // 2. Deduplicar peticiones in-flight
+    if (enVuelo.has(id)) {
+      return enVuelo.get(id);
+    }
+
+    // 3. Fetch real
+    const promesa = (async () => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+        const res = await fetch(`${API_BASE}${id}`, {
+          signal: controller.signal,
+          headers: { 'Accept': 'application/json' },
+        });
+
+        clearTimeout(timeout);
+
+        if (!res.ok) return null;
+
+        const data = await res.json();
+        const precio = data.price ?? data.base_price ?? null;
+
+        if (typeof precio === 'number' && precio > 0) {
+          const c = leerCache();
+          c[id] = precio;
+          guardarCache(c);
+          return precio;
+        }
+
+        return null;
+      } catch {
+        // Timeout, red caída, CORS bloqueado, etc.
+        // Graceful Degradation: silencio total.
+        return null;
+      } finally {
+        enVuelo.delete(id);
+      }
+    })();
+
+    enVuelo.set(id, promesa);
+    return promesa;
+  }
+
+  // ── Actualización del DOM ───────────────────────────────────────────────────
+
+  /**
+   * Actualiza el precio en el DOM si cambió respecto al de compilación.
+   * @param {HTMLElement} tarjeta - Elemento con data-ml-id y data-build-price
+   * @param {number} precioML - Precio actual devuelto por la API
+   */
+  function actualizarPrecio(tarjeta, precioML) {
+    const precioBuild = parseFloat(tarjeta.dataset.buildPrice);
+    if (!precioBuild || !precioML) return;
+
+    // Ignorar cambios menores al 1% (ruido de redondeo)
+    const diff = precioML - precioBuild;
+    const porcentaje = Math.abs(Math.round((diff / precioBuild) * 100));
+    if (porcentaje < 1) return;
+
+    // Buscar el elemento de precio dentro de la tarjeta
+    const precioEl = tarjeta.querySelector('[data-precio-display]');
+    if (!precioEl) return;
+
+    // Limpiar badges previos (navegación SPA puede re-ejecutar)
+    tarjeta.querySelectorAll('.precio-live-badge').forEach(b => b.remove());
+
+    // Fase 1: Fade out del precio viejo
+    precioEl.classList.add('precio-updating');
+
+    // Fase 2: Actualizar número y agregar badge
+    setTimeout(() => {
+      precioEl.textContent = fmtMXN.format(precioML);
+      precioEl.classList.remove('precio-updating');
+
+      const badge = document.createElement('span');
+      badge.className = 'precio-live-badge';
+
+      if (diff < 0) {
+        // ¡BAJÓ DE PRECIO! — Verde brillante, animación pop
+        precioEl.classList.add('precio-bajo');
+        badge.classList.add('precio-live-bajo');
+        badge.textContent = `¡Bajó ${porcentaje}% hoy!`;
+      } else {
+        // Subió — Badge informativo sutil
+        badge.classList.add('precio-live-subio');
+        badge.textContent = `↑ Subió ${porcentaje}%`;
+      }
+
+      // Insertar badge después del contenedor de precios
+      const preciosContainer = precioEl.closest('.oferta-precios')
+        || precioEl.closest('.precio-destacado-container')
+        || precioEl.parentElement;
+
+      if (preciosContainer) {
+        preciosContainer.appendChild(badge);
+      }
+    }, 300); // Sincronizado con la duración de .precio-updating transition
+  }
+
+  // ── Procesamiento de tarjetas ───────────────────────────────────────────────
+
+  /**
+   * Procesa una tarjeta individual: consulta precio y actualiza si cambió.
+   * @param {HTMLElement} tarjeta
+   */
+  async function procesarTarjeta(tarjeta) {
+    // Evitar reprocesar (importante con View Transitions)
+    if (tarjeta.dataset.precioChecked === 'true') return;
+    tarjeta.dataset.precioChecked = 'true';
+
+    const id = tarjeta.dataset.mlId;
+    if (!id) return;
+
+    // Delay aleatorio para distribuir peticiones y no golpear rate-limit
+    await new Promise(r => setTimeout(r, Math.random() * DELAY_MAX_MS));
+
+    const precioML = await consultarPrecio(id);
+    if (precioML !== null) {
+      actualizarPrecio(tarjeta, precioML);
+    }
+  }
+
+  // ── Inicialización con IntersectionObserver ─────────────────────────────────
+
+  /**
+   * Escanea el DOM y observa todas las tarjetas con data-ml-id.
+   * Solo dispara el fetch cuando la tarjeta entra al viewport.
+   */
+  function init() {
+    const tarjetas = document.querySelectorAll('[data-ml-id][data-build-price]');
+    if (tarjetas.length === 0) return;
+
+    // Filtrar las que ya fueron procesadas (persisten en SPA)
+    const nuevas = Array.from(tarjetas).filter(
+      t => t.dataset.precioChecked !== 'true'
+    );
+    if (nuevas.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            procesarTarjeta(entry.target);
+            observer.unobserve(entry.target);
+          }
+        }
+      },
+      {
+        // Empezar a cargar 300px antes de que sea visible
+        // (pre-fetch mientras el usuario hace scroll)
+        rootMargin: '300px 0px',
+        threshold: 0.01,
+      }
+    );
+
+    nuevas.forEach(t => observer.observe(t));
+  }
+
+  // ── Punto de entrada ────────────────────────────────────────────────────────
+  // astro:page-load se dispara en CADA navegación (incluida la carga inicial)
+  // cuando View Transitions (ClientRouter) está activo.
+  document.addEventListener('astro:page-load', init);
+</script>

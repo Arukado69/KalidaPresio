@@ -9,7 +9,7 @@
     "dev": "astro dev",
     "obtener-ofertas": "node src/scripts/importarOfertas.js",
     "obtener-datos": "node src/scripts/importarMercadoLibre.js",
-    "build": "node src/scripts/generadorRedirects.js && astro build",
+    "build": "node src/scripts/generadorRedirects.js && node src/scripts/generarRelampago.js && astro build",
     "build:completo": "node src/scripts/importarOfertas.js && node src/scripts/generadorRedirects.js && astro build",
     "preview": "astro preview",
     "astro": "astro"

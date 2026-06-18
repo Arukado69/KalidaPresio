@@ -1,0 +1,324 @@
+---
+/**
+ * /colecciones/[coleccion] — Página dinámica SSG de Clústeres de Intención.
+ *
+ * Cada clúster es una página estática generada en build-time con su propio
+ * H1, meta description y URL SEO-friendly. Las tarjetas reutilizan
+ * TarjetaOferta.astro con el mismo sistema de scoring y diseño.
+ *
+ * La primera tarjeta (ganador del clúster) recibe un borde cian brillante
+ * y un badge "★ Ganador K-P" para maximizar la conversión.
+ */
+import Layout from '../../layouts/Layout.astro';
+import TarjetaOferta from '../../components/TarjetaOferta.astro';
+import BotonCTA from '../../components/BotonCTA.astro';
+import { COLECCIONES_ACTIVAS } from '../../data/colecciones.js';
+
+export function getStaticPaths() {
+  return COLECCIONES_ACTIVAS.map(col => ({
+    params: { coleccion: col.slug },
+    props: { coleccion: col },
+  }));
+}
+
+const { coleccion } = Astro.props;
+const ganador = coleccion.items[0]; // Mejor score/descuento del clúster
+---
+
+<Layout
+  title={`${coleccion.titulo} — KalidaPresio`}
+  description={coleccion.descripcion}
+>
+  <article class="coleccion-page">
+
+    <!-- Breadcrumb SEO -->
+    <nav class="col-breadcrumb" aria-label="Ruta de navegación">
+      <a href="/" class="col-bc-link">Inicio</a>
+      <span class="col-bc-sep" aria-hidden="true">›</span>
+      <a href="/colecciones" class="col-bc-link">Colecciones</a>
+      <span class="col-bc-sep" aria-hidden="true">›</span>
+      <span class="col-bc-current" aria-current="page">{coleccion.titulo}</span>
+    </nav>
+
+    <!-- Header del clúster -->
+    <header class="col-header" data-reveal>
+      <span class="col-emoji" aria-hidden="true">{coleccion.emoji}</span>
+      <h1 class="col-titulo">{coleccion.titulo}</h1>
+      <p class="col-descripcion">{coleccion.descripcion}</p>
+      <div class="col-meta">
+        <span class="col-count">{coleccion.items.length} productos seleccionados</span>
+        <span class="col-updated">Actualizado: {new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+      </div>
+    </header>
+
+    <!-- Ganador del clúster -->
+    {ganador && (
+      <section class="col-ganador" aria-label="Producto destacado del clúster" data-reveal>
+        <div class="col-ganador-badge">
+          <span class="col-ganador-star" aria-hidden="true">★</span>
+          <span>Ganador KalidaPresio</span>
+        </div>
+        <div class="col-ganador-card">
+          <TarjetaOferta oferta={ganador} score={ganador.score100} indice={0} variant="deal" />
+        </div>
+      </section>
+    )}
+
+    <!-- Grid de productos del clúster -->
+    <section class="col-grid-section" aria-label="Productos de la colección">
+      <h2 class="col-grid-titulo">Todos los productos de esta colección</h2>
+      <div class="col-grid">
+        {coleccion.items.slice(1).map((oferta, i) => (
+          <TarjetaOferta
+            oferta={oferta}
+            score={oferta.score100}
+            indice={i + 1}
+          />
+        ))}
+      </div>
+    </section>
+
+    <!-- CTA de cross-selling -->
+    <section class="col-cross-sell" data-reveal>
+      <h2 class="col-cross-titulo">¿Buscas más opciones?</h2>
+      <p class="col-cross-desc">
+        Explora todas las ofertas verificadas por KalidaPresio en nuestro catálogo principal.
+      </p>
+      <div class="col-cross-links">
+        <a href="/" class="col-cross-btn">Ver todas las ofertas →</a>
+        <a href="/colecciones" class="col-cross-btn col-cross-btn-alt">Más colecciones</a>
+      </div>
+    </section>
+
+  </article>
+</Layout>
+
+<style>
+  /* ═══════════════════════════════════════════════════════
+     PÁGINA DE COLECCIÓN — Clúster de Intención SEO
+     ═══════════════════════════════════════════════════════ */
+
+  .coleccion-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
+
+  /* Breadcrumb */
+  .col-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-lg);
+    font-size: 0.82rem;
+  }
+  .col-bc-link {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+  .col-bc-link:hover { color: var(--color-primary); }
+  .col-bc-sep { color: rgba(255, 255, 255, 0.2); }
+  .col-bc-current {
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  /* Header del clúster */
+  .col-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+    padding: var(--spacing-xl) var(--spacing-md);
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Halo sutil detrás del header */
+  .col-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at 50% 0%,
+      rgba(31, 210, 142, 0.06),
+      transparent 60%
+    );
+    pointer-events: none;
+  }
+
+  .col-emoji {
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    display: block;
+    margin-bottom: var(--spacing-sm);
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+  }
+
+  .col-titulo {
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    color: #ffffff;
+    margin-bottom: var(--spacing-sm);
+    position: relative;
+    z-index: 1;
+  }
+
+  .col-descripcion {
+    font-size: var(--fs-base);
+    color: var(--color-text-muted);
+    max-width: 640px;
+    margin: 0 auto var(--spacing-md);
+    line-height: 1.6;
+    position: relative;
+    z-index: 1;
+  }
+
+  .col-meta {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+    font-size: var(--fs-xs);
+    color: var(--color-text-muted);
+    position: relative;
+    z-index: 1;
+  }
+
+  .col-count {
+    color: var(--color-primary);
+    font-weight: 700;
+  }
+
+  /* Ganador del clúster */
+  .col-ganador {
+    margin-bottom: var(--spacing-2xl);
+    position: relative;
+  }
+
+  .col-ganador-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: #0b231a;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.88rem;
+    padding: 0.4rem 1rem;
+    border-radius: var(--radius-pill);
+    margin-bottom: var(--spacing-sm);
+    box-shadow: var(--glow-primary-sm);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .col-ganador-star {
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .col-ganador-card {
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--glow-primary-md);
+    transition: box-shadow var(--dur-med) var(--ease-soft);
+  }
+
+  .col-ganador-card:hover {
+    box-shadow: var(--glow-primary-lg);
+  }
+
+  /* Grid de productos */
+  .col-grid-section {
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .col-grid-titulo {
+    font-family: var(--font-display);
+    font-size: var(--fs-md);
+    color: var(--color-text);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .col-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  @media (max-width: 600px) {
+    .col-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Cross-sell */
+  .col-cross-sell {
+    text-align: center;
+    padding: var(--spacing-xl) var(--spacing-md);
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+  }
+
+  .col-cross-titulo {
+    font-family: var(--font-display);
+    font-size: var(--fs-lg);
+    color: #ffffff;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .col-cross-desc {
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-lg);
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .col-cross-links {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+  }
+
+  .col-cross-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.8rem 1.6rem;
+    border-radius: var(--radius-md);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: var(--transition-base);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: #0b231a;
+    box-shadow: var(--glow-primary-sm);
+  }
+
+  .col-cross-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--glow-primary-md);
+  }
+
+  .col-cross-btn-alt {
+    background: transparent;
+    color: var(--color-text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: none;
+  }
+
+  .col-cross-btn-alt:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary-border);
+    box-shadow: none;
+  }
+</style>

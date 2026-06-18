@@ -63,9 +63,9 @@ const { producto } = Astro.props;
           />
         </div>
 
-        <div class="precio-destacado-container">
+        <div class="precio-destacado-container" data-ml-id={producto.id} data-build-price={producto.precio_mxn}>
           <p class="precio-etiqueta">Mejor Precio Localizado:</p>
-          <p class="precio-valor">
+          <p class="precio-valor" data-precio-display>
             {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(producto.precio_mxn)}
           </p>
           <p class="precio-disclaimer">

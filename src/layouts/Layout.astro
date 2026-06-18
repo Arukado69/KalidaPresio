@@ -1,6 +1,8 @@
 ---
 import '../styles/global.css';
 import Header from '../components/Header.astro';
+import Newsletter from '../components/Newsletter.astro';
+import PrecioEnVivo from '../components/PrecioEnVivo.astro';
 import { ClientRouter } from 'astro:transitions';
 
 export interface Props {
@@ -101,6 +103,9 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
       <slot />
     </main>
 
+    <!-- Boletín (doble opt-in, sin login) — site-wide antes del footer -->
+    <Newsletter />
+
     <footer class="site-footer">
       <div class="footer-content">
         <nav class="footer-nav" aria-label="Navegación de pie de página">
@@ -109,9 +114,11 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
           <a href="/sobre-mi">Quiénes somos</a>
           <a href="/contacto">Contacto</a>
         </nav>
+        <!-- Divulgación enfocada en misión (sin mención de monetización) -->
         <p class="footer-disclaimer">
-          Al comprar mediante los enlaces de este sitio, apoyas su mantenimiento
-          sin ningún costo extra para ti.
+          KalidaPresio rastrea precios y opiniones reales de Mercado Libre México
+          para ayudarte a tomar mejores decisiones de compra. Los precios mostrados
+          son verificados al momento de cada actualización.
         </p>
         <p class="footer-copy">&copy; {new Date().getFullYear()} KalidaPresio. Todos los derechos reservados.</p>
       </div>
@@ -435,6 +442,123 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
       }
 
       // ════════════════════════════════════════════════════════════════
+      // RELÁMPAGO — DATOS EN RUNTIME (Bloque B / KP-005).
+      // Descarga el JSON desde data-rs-url (PUBLIC_RELAMPAGO_URL), filtra las
+      // vencidas (endsAt < now), pinta las cards con el MISMO markup del
+      // componente y delega en initRelampago() (countdown + loop + auto-retiro).
+      // Estados: skeleton (SSR) → items | vacío | error. Imbatibles intacto.
+      // ════════════════════════════════════════════════════════════════
+      const KP_LEYENDA = 'Sello Kalidad-Precio: combina la calidad real según los compradores con el descuento real. Mientras más alto, mejor es la compra.';
+      const esc = (s: any) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+      const fmtMXN = (n: number) =>
+        new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
+
+      // Card del rail (vertical). Mapea el schema runtime (camelCase) al markup.
+      function cardRail(o: any) {
+        const d = Math.round(o.descuentoReal || 0);
+        const img = o.imagen
+          ? `<img src="${esc(o.imagen)}" alt="${esc(o.titulo)}" loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">`
+          : '';
+        return `<li class="rs-item" data-fin="${esc(o.endsAt)}"><article class="rs-card">`
+          + `<div class="rs-media">${img}<span class="rs-img-fallback"${o.imagen ? ' style="display:none"' : ''} aria-hidden="true">⚡</span>`
+          + (d > 0 ? `<span class="rs-desc">-${d}%</span>` : '')
+          + `<span class="rs-kp" title="${esc(KP_LEYENDA)}"><strong>${Math.round(o.scoreKP || 0)}</strong><em>K-P</em></span></div>`
+          + (o.endsAt ? `<span class="rs-count">⏱ Termina en <strong data-rs-count data-fin="${esc(o.endsAt)}">—</strong></span>` : '')
+          + `<h3 class="rs-titulo">${esc(o.titulo)}</h3>`
+          + `<div class="rs-precios"><span class="rs-precio">${fmtMXN(o.precioActual)}</span>${d > 0 ? `<em class="rs-ahorro">-${d}%</em>` : ''}</div>`
+          + `<a class="rs-cta" href="${esc(o.urlAfiliado)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Ver oferta →</a>`
+          + `</article></li>`;
+      }
+      // Card de la franja móvil (horizontal compacta).
+      function cardMini(o: any) {
+        const d = Math.round(o.descuentoReal || 0);
+        const img = o.imagen
+          ? `<img src="${esc(o.imagen)}" alt="${esc(o.titulo)}" loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">`
+          : '';
+        return `<li class="rs-fila-item" data-fin="${esc(o.endsAt)}"><a class="rs-mini" href="${esc(o.urlAfiliado)}" target="_blank" rel="nofollow sponsored noopener noreferrer">`
+          + `<span class="rs-mini-media">${img}<span class="rs-img-fallback"${o.imagen ? ' style="display:none"' : ''} aria-hidden="true">⚡</span></span>`
+          + `<span class="rs-mini-info"><span class="rs-mini-titulo">${esc(o.titulo)}</span>`
+          + `<span class="rs-mini-fila"><strong class="rs-precio">${fmtMXN(o.precioActual)}</strong>${d > 0 ? `<em class="rs-ahorro">-${d}%</em>` : ''}</span>`
+          + (o.endsAt ? `<span class="rs-count">⏱ <strong data-rs-count data-fin="${esc(o.endsAt)}">—</strong></span>` : '')
+          + `</span><span class="rs-mini-cta" aria-hidden="true">Ver oferta →</span></a></li>`;
+      }
+
+      async function initRelampagoFetch() {
+        const zonas = Array.from(document.querySelectorAll('[data-rs-url]')) as HTMLElement[];
+        // Once-per-DOM: evita doble fetch si initPage corre 2x en la carga
+        // inicial. Tras una View Transition, el DOM es nuevo (sin la marca) → refetch.
+        if (!zonas.length || W.__rsFetching || zonas[0].hasAttribute('data-rs-fetched')) return;
+        zonas.forEach((z) => z.setAttribute('data-rs-fetched', ''));
+        const url = zonas[0].getAttribute('data-rs-url') || '/data/relampago.json';
+        W.__rsFetching = true;
+
+        // Estado de error/vacío reutilizable: oculta skeleton, muestra mensaje.
+        const mostrarVacio = () => {
+          zonas.forEach((z) => {
+            (z.querySelector('[data-rs-skel]') as HTMLElement | null)?.setAttribute('hidden', '');
+            const vacio = z.querySelector('[data-rs-vacio]') as HTMLElement | null;
+            if (vacio) vacio.hidden = false;
+          });
+        };
+
+        try {
+          const res = await fetch(url, { cache: 'no-store' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const lote = Array.isArray(data?.ofertas) ? data.ofertas : [];
+          const now = Date.now();
+          // Filtra vencidas (endsAt < now). Sin endsAt → se mantiene (sin countdown).
+          const vivas = lote
+            .filter((o: any) => !o.endsAt || new Date(o.endsAt).getTime() > now)
+            .sort((a: any, b: any) => (b.scoreKP || 0) - (a.scoreKP || 0));
+
+          // Stat del hero (runtime): muestra el conteo si hay vivas
+          const n = vivas.length;
+          document.querySelectorAll('[data-relampago-stat]').forEach((el) => (el.textContent = String(n)));
+          document.querySelectorAll('[data-relampago-statwrap]').forEach((el) => ((el as HTMLElement).hidden = n === 0));
+
+          // "Precios detectados el…" (timestamp del lote, formateado es-MX)
+          let detectadoTxt = '';
+          if (data?.detectadoEl) {
+            const f = new Date(data.detectadoEl);
+            if (!Number.isNaN(f.getTime())) {
+              detectadoTxt = 'Precios detectados el ' + f.toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' });
+            }
+          }
+
+          zonas.forEach((zona) => {
+            const modo = zona.getAttribute('data-rs-mode');
+            const track = zona.querySelector('[data-rs-track]') as HTMLElement | null;
+            const skel = zona.querySelector('[data-rs-skel]') as HTMLElement | null;
+            const vacio = zona.querySelector('[data-rs-vacio]') as HTMLElement | null;
+            const det = zona.querySelector('[data-rs-detectado]') as HTMLElement | null;
+            if (skel) skel.hidden = true;
+            if (n === 0) {
+              if (track) track.hidden = true;
+              if (vacio) vacio.hidden = false;
+              if (det) det.hidden = true;
+              return;
+            }
+            if (track) {
+              track.innerHTML = vivas.map(modo === 'strip' ? cardMini : cardRail).join('');
+              track.hidden = false;
+            }
+            if (vacio) vacio.hidden = true;
+            if (det && detectadoTxt) { det.textContent = detectadoTxt; det.hidden = false; }
+          });
+        } catch (err) {
+          // Degrada elegante: el resto de la página no se rompe.
+          console.error('[relámpago] no se pudo cargar la fuente runtime:', err);
+          mostrarVacio();
+        } finally {
+          W.__rsFetching = false;
+          // Cablea countdown + loop GSAP + auto-retiro sobre el DOM ya pintado.
+          initRelampago();
+        }
+      }
+
+      // ════════════════════════════════════════════════════════════════
       // RELÁMPAGO (RelampagoSticky): auto-retiro + countdown + cola GSAP.
       //  · purgar(): por item compara data-fin (ISO) contra new Date(); si
       //    venció, el <li> se RETIRA del DOM (cero CLS: nada se reacomoda
@@ -623,7 +747,9 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
 
       // initPage es idempotente (los selectores filtran lo ya inicializado),
       // así que es seguro llamarlo más de una vez.
-      function initPage() { initAnims(); initResenas(); initCountUp(); initCountdowns(); initNavActive(); initRelampago(); initFiltros(); }
+      // initRelampagoFetch (async) descarga los datos y al terminar invoca
+      // initRelampago() para cablear countdown + loop sobre el DOM pintado.
+      function initPage() { initAnims(); initResenas(); initCountUp(); initCountdowns(); initNavActive(); initRelampagoFetch(); initFiltros(); }
 
       // Listeners de documento: se atan una vez y sobreviven a las View Transitions.
       bindSpotlight();
@@ -640,6 +766,8 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
       if (document.readyState !== 'loading') initPage();
       else document.addEventListener('DOMContentLoaded', initPage);
     </script>
+    <!-- Hidratación dinámica de precios (post-render, Vanilla JS) -->
+    <PrecioEnVivo />
   </body>
 </html>
 

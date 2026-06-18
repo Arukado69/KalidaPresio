@@ -10,7 +10,8 @@ import ofertas from '../data/ofertas.json';
 // Colecciones por sección (build-time, con fallback a ofertas.json si el
 // extractor aún no corrió). Relámpago e Imbatibles son el MVP; liquidación
 // y menos-500 quedan en backlog (los datos ya existen).
-import { ALL_RELAMPAGO, ALL_IMBATIBLES } from '../data/secciones.js';
+// Relámpago ya NO se importa: es runtime (RelampagoSticky + initRelampagoFetch).
+import { ALL_IMBATIBLES } from '../data/secciones.js';
 
 const isHotSale = import.meta.env.IS_HOT_SALE === 'true';
 
@@ -32,10 +33,8 @@ const ofertasScored = ofertas
   // Mismo criterio que el scraper: K-P y, ante empate, mayor confianza.
   .sort((a, b) => b.score100 - a.score100 || (b.confianza ?? 0) - (a.confianza ?? 0));
 
-// Relámpago ahora viene de las SECCIONES (ALL_RELAMPAGO, ya pre-filtrado de
-// vencidas al build y ordenado por K-P); el retiro en vivo lo hace el cliente.
-// El feed de ofertas.json sigue alimentando showpiece + bento, en paralelo,
-// hasta que n8n fusione ambos pipelines.
+// El feed de ofertas.json (build-time) alimenta showpiece + bento + imbatibles.
+// Las relámpago se sirven aparte en runtime (no entran aquí).
 const evergreen = ofertasScored.filter((o) => !o.oferta_relampago);
 
 // PRODUCTO DEL DÍA (showpiece del hero): la oferta más perfecta —
@@ -122,15 +121,13 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
               <span class="stat-numero" data-countup={ofertas.length}>0</span>
               <span class="stat-label">Ofertas curadas</span>
             </div>
-            {ALL_RELAMPAGO.length > 0 && (
-              <>
-                <div class="hero-stat-divider"></div>
-                <div class="hero-stat">
-                  <span class="stat-numero" data-countup={ALL_RELAMPAGO.length}>0</span>
-                  <span class="stat-label">⚡ Relámpago hoy</span>
-                </div>
-              </>
-            )}
+            <!-- Stat de relámpago: ahora runtime. Oculto al inicio; el fetch
+                 lo rellena y muestra si hay ofertas vivas (initRelampagoFetch). -->
+            <div class="hero-stat-divider" data-relampago-statwrap hidden></div>
+            <div class="hero-stat" data-relampago-statwrap hidden>
+              <span class="stat-numero" data-relampago-stat>0</span>
+              <span class="stat-label">⚡ Relámpago hoy</span>
+            </div>
             <div class="hero-stat-divider"></div>
             <div class="hero-stat">
               <span class="stat-numero" data-countup="100" data-suffix="%">0%</span>
@@ -181,34 +178,17 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
   </section>
 
   <!-- RELÁMPAGO móvil/tablet: franja colapsable bajo el hero (tap revela).
-       En desktop el relámpago vive en el rail sticky de la izquierda. -->
+       Datos en RUNTIME: el componente muestra skeleton y el cliente lo llena
+       (o muestra su empty-state). En desktop vive en el rail sticky izquierdo. -->
   <div class="solo-movil">
-    <RelampagoSticky ofertas={ALL_RELAMPAGO} modo="strip" />
+    <RelampagoSticky modo="strip" />
   </div>
-
-  {ALL_RELAMPAGO.length === 0 && (
-    <!-- Sin relámpago vivas al build: marquesina de confianza como respaldo -->
-    <div class="marquee" aria-hidden="true">
-      <div class="marquee-track">
-        {Array.from({ length: 2 }).map(() => (
-          <div class="marquee-group">
-            <span class="marquee-item">Sello calidad-precio</span>
-            <span class="marquee-item">Datos reales de Mercado Libre</span>
-            <span class="marquee-item">Descuentos verificados</span>
-            <span class="marquee-item">Vendedores reputados</span>
-            <span class="marquee-item">Cero publicidad disfrazada</span>
-            <span class="marquee-item">Ofertas relámpago al instante</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )}
 
   <!-- Layout 2 columnas: rail relámpago STICKY (izq, desktop) + contenido.
        El rail queda siempre visible al scrollear bento + imbatibles. -->
   <div class="kp-shell">
     <aside class="kp-aside">
-      <RelampagoSticky ofertas={ALL_RELAMPAGO} modo="rail" />
+      <RelampagoSticky modo="rail" />
     </aside>
 
     <div class="kp-main">
@@ -978,19 +958,30 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
     border-radius: var(--radius-md);
     background: rgba(31, 210, 142, 0.05);
     border: 1px solid var(--color-primary-border);
+    min-width: 0; /* hijo de .bh-info (column): permite que su fila interna encoja */
   }
   .bh-kp { flex-shrink: 0; }
   .bh-verdict-body { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+  /* Cuando el bento-hero está en FILA (≥760px: imagen izq | info dcha), la
+     columna de info es estrecha (~50% de media-columna, con el contenedor
+     capado a 1200px y el rail robando 280px). El anillo K-P (86px) AL LADO
+     del texto lo aplasta y recorta → lo apilamos (anillo arriba) para que el
+     texto use el ancho completo. En móvil (<760, bento-hero en columna) el
+     info es full-width y el veredicto en fila SÍ cabe — ahí no se toca. */
+  @media (min-width: 760px) {
+    .bh-verdict { flex-direction: column; align-items: flex-start; gap: var(--spacing-sm); }
+  }
   .bh-tier {
     font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--fs-md);
     color: #fff;
     line-height: 1.1;
+    overflow-wrap: break-word; /* nunca empuja el ancho de la columna */
   }
   .bh-tier em { color: var(--color-text-muted); font-style: normal; font-weight: 500; font-size: 0.7em; }
   /* El "por qué" en ámbar cálido: humano, no neón */
-  .bh-why { font-size: var(--fs-sm); color: var(--color-warm); font-weight: 600; line-height: 1.45; margin: 0; }
+  .bh-why { font-size: var(--fs-sm); color: var(--color-warm); font-weight: 600; line-height: 1.45; margin: 0; overflow-wrap: break-word; }
   .bh-signals { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.15rem; }
   .bh-signal {
     display: inline-flex; align-items: center; gap: 0.3rem;
@@ -1027,7 +1018,10 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
     backdrop-filter: blur(4px);
     box-shadow: var(--shadow-sm);
   }
-  .bh-info { padding: var(--spacing-lg); display: flex; flex-direction: column; gap: 0.5rem; }
+  /* min-width: 0 → CLAVE: como hijo flex de .bento-hero (fila en desktop) sin
+     esto su min-width:auto le impide encoger y el texto desborda a la derecha
+     (recortado por overflow:hidden de la card). Bug de Bloque A. */
+  .bh-info { padding: var(--spacing-lg); display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
   .bh-eyebrow { color: var(--color-primary); font-weight: 800; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; }
   .bh-titulo {
     font-size: clamp(1.05rem, 2.2vw, 1.4rem);

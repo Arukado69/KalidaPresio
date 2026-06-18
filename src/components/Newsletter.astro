@@ -1,0 +1,180 @@
+---
+/**
+ * Newsletter — Suscripción con doble opt-in (SIN login, SIN BD propia).
+ * Front: input + botón, honeypot anti-bots, validación en cliente, estados
+ * (enviando/éxito/error) vía fetch (NO <form> que recargue). El backend
+ * (/api/subscribe) firma un token HMAC y manda el correo de confirmación.
+ */
+---
+<section class="nl" aria-labelledby="nl-titulo" data-newsletter>
+  <div class="nl-inner">
+    <div class="nl-copy">
+      <h2 id="nl-titulo" class="nl-titulo">Ofertas que sí valen la pena, en tu correo</h2>
+      <p class="nl-sub">De vez en cuando te avisamos de las mejores oportunidades calidad-precio. Te das de baja cuando quieras.</p>
+    </div>
+
+    <div class="nl-form">
+      <div class="nl-row">
+        <label for="nl-email" class="nl-label-sr">Correo electrónico</label>
+        <input id="nl-email" type="email" inputmode="email" autocomplete="email"
+               class="nl-input" placeholder="tu@correo.com" data-nl-email required />
+        <!-- Honeypot: oculto para humanos, los bots lo rellenan -->
+        <div class="nl-hp" aria-hidden="true">
+          <label>No llenar este campo
+            <input type="text" name="website" tabindex="-1" autocomplete="off" data-nl-hp />
+          </label>
+        </div>
+        <button type="button" class="nl-btn" data-nl-submit data-ripple>
+          <span class="nl-btn-txt">Suscribirme</span>
+        </button>
+      </div>
+      <p class="nl-status" data-nl-status role="status" aria-live="polite" hidden></p>
+    </div>
+  </div>
+</section>
+
+<script is:inline>
+  (function () {
+    function bind(root) {
+      const wrap = root.querySelector('[data-newsletter]') || (root.matches?.('[data-newsletter]') ? root : null);
+      document.querySelectorAll('[data-newsletter]:not([data-nl-bound])').forEach((nl) => {
+        nl.setAttribute('data-nl-bound', '');
+        const email = nl.querySelector('[data-nl-email]');
+        const hp = nl.querySelector('[data-nl-hp]');
+        const btn = nl.querySelector('[data-nl-submit]');
+        const status = nl.querySelector('[data-nl-status]');
+        const txt = btn.querySelector('.nl-btn-txt');
+
+        const setStatus = (msg, tipo) => {
+          status.textContent = msg;
+          status.hidden = !msg;
+          status.dataset.tipo = tipo || '';
+        };
+        const validar = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((v || '').trim());
+
+        async function enviar() {
+          const valor = email.value.trim();
+          if (!validar(valor)) { setStatus('Escribe un correo válido.', 'error'); email.focus(); return; }
+          btn.disabled = true;
+          txt.textContent = 'Enviando…';
+          setStatus('', '');
+          try {
+            const res = await fetch('/api/subscribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: valor, honeypot: hp ? hp.value : '' }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.ok) {
+              setStatus('¡Gracias por suscribirte! Te avisaremos de las mejores ofertas.', 'ok');
+              email.value = '';
+              txt.textContent = '¡Listo!';
+            } else {
+              const m = data.error === 'email_invalido' ? 'Ese correo no parece válido.'
+                : 'No pudimos completar la suscripción. Intenta de nuevo en un momento.';
+              setStatus(m, 'error');
+              txt.textContent = 'Suscribirme';
+              btn.disabled = false;
+            }
+          } catch {
+            setStatus('Hubo un problema de conexión. Intenta de nuevo.', 'error');
+            txt.textContent = 'Suscribirme';
+            btn.disabled = false;
+          }
+        }
+
+        btn.addEventListener('click', enviar);
+        email.addEventListener('keydown', (e) => { if (e.key === 'Enter') enviar(); });
+      });
+    }
+    // Bind en carga inicial y tras cada View Transition (idempotente por la
+    // marca). Guard window: el inline script se re-ejecuta en cada navegación,
+    // así que solo registramos el listener UNA vez (evita apilarlos).
+    if (!window.__kpNlInit) {
+      window.__kpNlInit = true;
+      document.addEventListener('astro:page-load', () => bind(document));
+    }
+    if (document.readyState !== 'loading') bind(document);
+    else document.addEventListener('DOMContentLoaded', () => bind(document));
+  })();
+</script>
+
+<style>
+  .nl {
+    margin: var(--spacing-2xl) auto 0;
+    max-width: 1200px;
+    padding: var(--spacing-xl) var(--spacing-md);
+  }
+  .nl-inner {
+    display: grid;
+    gap: var(--spacing-lg);
+    align-items: center;
+    background: var(--glass-bg);
+    border: 1px solid var(--color-violet-border);
+    border-radius: var(--radius-xl);
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    box-shadow: var(--shadow-md);
+  }
+  @media (min-width: 820px) {
+    .nl-inner { grid-template-columns: 1.1fr 1fr; gap: var(--spacing-xl); }
+  }
+  .nl-titulo {
+    font-size: clamp(1.3rem, 2.6vw, 1.7rem);
+    color: #fff;
+    margin: 0 0 0.4rem;
+    line-height: 1.2;
+  }
+  .nl-sub { color: var(--color-text-muted); font-size: 0.92rem; line-height: 1.6; margin: 0; }
+
+  .nl-row { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+  .nl-label-sr {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
+  }
+  .nl-input {
+    flex: 1 1 200px;
+    min-width: 0;
+    padding: 0.85rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.95rem;
+    transition: border-color var(--dur-fast) var(--ease-soft), box-shadow var(--dur-fast) var(--ease-soft);
+  }
+  .nl-input::placeholder { color: var(--color-text-muted); }
+  .nl-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(31, 210, 142, 0.15);
+  }
+  /* Honeypot: fuera de pantalla para humanos, visible para bots tontos */
+  .nl-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+  .nl-btn {
+    flex: 0 0 auto;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: #0b231a;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 0.85rem 1.6rem;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: transform var(--dur-fast) var(--ease-soft), box-shadow var(--dur-fast) var(--ease-soft), opacity var(--dur-fast);
+  }
+  .nl-btn:hover { transform: translateY(-1px); box-shadow: var(--glow-primary-md); }
+  .nl-btn:active { transform: translateY(0) scale(0.98); }
+  .nl-btn:disabled { opacity: 0.7; cursor: default; }
+
+  .nl-status {
+    margin: 0.7rem 0 0;
+    font-size: 0.86rem;
+    line-height: 1.4;
+  }
+  .nl-status[data-tipo="ok"] { color: var(--color-primary); }
+  .nl-status[data-tipo="error"] { color: var(--color-error); }
+</style>

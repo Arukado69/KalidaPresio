@@ -16,3 +16,7 @@ dist/
 # Sistema operativo
 .DS_Store
 Thumbs.db
+
+# Backend SQLite DB
+backend/database.sqlite*
+backend/node_modules/

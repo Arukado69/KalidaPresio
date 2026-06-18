@@ -18,67 +18,47 @@ import Layout from '../layouts/Layout.astro';
     <div class="contacto-grid">
 
       <div class="form-contenedor">
-        <form
-          class="contacto-form"
-          action="mailto:contacto@kalidapresio.com"
-          method="GET"
-          enctype="text/plain"
-        >
+        <!-- Sin action/submit-reload: el envío es por fetch a /api/contact -->
+        <form class="contacto-form" data-contacto novalidate>
           <div class="campo-grupo">
             <label for="nombre" class="campo-label">Nombre</label>
-            <input
-              type="text"
-              id="nombre"
-              name="nombre"
-              class="campo-input"
-              placeholder="Tu nombre"
-              required
-              autocomplete="name"
-            />
+            <input type="text" id="nombre" class="campo-input" placeholder="Tu nombre" required autocomplete="name" data-c-nombre />
           </div>
 
           <div class="campo-grupo">
             <label for="email" class="campo-label">Correo electrónico</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              class="campo-input"
-              placeholder="tu@correo.com"
-              required
-              autocomplete="email"
-            />
+            <input type="email" id="email" class="campo-input" placeholder="tu@correo.com" required autocomplete="email" data-c-email />
           </div>
 
           <div class="campo-grupo">
             <label for="asunto" class="campo-label">Asunto</label>
-            <select id="asunto" name="asunto" class="campo-input campo-select">
-              <option value="correccion">Corrección técnica</option>
-              <option value="producto">Proponer producto para análisis</option>
-              <option value="colaboracion">Colaboración / Prensa</option>
-              <option value="otro">Otro</option>
+            <select id="asunto" class="campo-input campo-select" data-c-asunto>
+              <option value="Corrección técnica">Corrección técnica</option>
+              <option value="Proponer producto para análisis">Proponer producto para análisis</option>
+              <option value="Colaboración / Prensa">Colaboración / Prensa</option>
+              <option value="Otro">Otro</option>
             </select>
           </div>
 
           <div class="campo-grupo">
             <label for="mensaje" class="campo-label">Mensaje</label>
-            <textarea
-              id="mensaje"
-              name="mensaje"
-              class="campo-input campo-textarea"
-              placeholder="Describe tu consulta con el mayor detalle posible..."
-              rows="5"
-              required
-            ></textarea>
+            <textarea id="mensaje" class="campo-input campo-textarea" placeholder="Describe tu consulta con el mayor detalle posible..." rows="5" required data-c-mensaje></textarea>
           </div>
 
-          <button type="submit" class="form-submit">
-            Enviar Mensaje
+          <!-- Honeypot anti-bots (oculto para humanos) -->
+          <div class="c-hp" aria-hidden="true">
+            <label>No llenar<input type="text" name="company" tabindex="-1" autocomplete="off" data-c-hp /></label>
+          </div>
+
+          <button type="submit" class="form-submit" data-c-submit data-ripple>
+            <span class="c-submit-txt">Enviar Mensaje</span>
             <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
               <line x1="4" y1="10" x2="16" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
               <polyline points="10,4 16,10 10,16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
+
+          <p class="c-status" data-c-status role="status" aria-live="polite" hidden></p>
         </form>
       </div>
 
@@ -96,9 +76,76 @@ import Layout from '../layouts/Layout.astro';
 
     </div>
   </div>
+
+  <script is:inline>
+    (function () {
+      function bind() {
+        document.querySelectorAll('[data-contacto]:not([data-c-bound])').forEach((form) => {
+          form.setAttribute('data-c-bound', '');
+          const nombre = form.querySelector('[data-c-nombre]');
+          const email = form.querySelector('[data-c-email]');
+          const asunto = form.querySelector('[data-c-asunto]');
+          const mensaje = form.querySelector('[data-c-mensaje]');
+          const hp = form.querySelector('[data-c-hp]');
+          const btn = form.querySelector('[data-c-submit]');
+          const txt = form.querySelector('.c-submit-txt');
+          const status = form.querySelector('[data-c-status]');
+          const setStatus = (m, t) => { status.textContent = m; status.hidden = !m; status.dataset.tipo = t || ''; };
+          const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((v || '').trim());
+
+          async function enviar(e) {
+            e.preventDefault();
+            if (!nombre.value.trim() || !emailOk(email.value) || mensaje.value.trim().length < 5) {
+              setStatus('Revisa los campos: nombre, correo válido y un mensaje de al menos 5 caracteres.', 'error');
+              return;
+            }
+            btn.disabled = true; txt.textContent = 'Enviando…'; setStatus('', '');
+            try {
+              const res = await fetch('/api/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  nombre: nombre.value.trim(),
+                  email: email.value.trim(),
+                  mensaje: `[${asunto.value}] ${mensaje.value.trim()}`,
+                  honeypot: hp ? hp.value : '',
+                }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (res.ok && data.ok) {
+                setStatus('¡Gracias! Recibimos tu mensaje y te responderemos pronto.', 'ok');
+                form.reset(); txt.textContent = 'Enviado ✓';
+              } else {
+                setStatus('No pudimos enviar tu mensaje. Intenta de nuevo en un momento.', 'error');
+                txt.textContent = 'Enviar Mensaje'; btn.disabled = false;
+              }
+            } catch {
+              setStatus('Hubo un problema de conexión. Intenta de nuevo.', 'error');
+              txt.textContent = 'Enviar Mensaje'; btn.disabled = false;
+            }
+          }
+          form.addEventListener('submit', enviar);
+        });
+      }
+      // Guard window: el inline script se re-ejecuta en cada View Transition;
+      // registramos el listener una sola vez (bind() es idempotente igualmente).
+      if (!window.__kpContactoInit) {
+        window.__kpContactoInit = true;
+        document.addEventListener('astro:page-load', bind);
+      }
+      if (document.readyState !== 'loading') bind();
+      else document.addEventListener('DOMContentLoaded', bind);
+    })();
+  </script>
 </Layout>
 
 <style>
+  /* Honeypot oculto + estados del formulario (Bloque D) */
+  .c-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .c-status { margin: var(--spacing-sm) 0 0; font-size: 0.88rem; line-height: 1.45; }
+  .c-status[data-tipo="ok"] { color: var(--color-primary); }
+  .c-status[data-tipo="error"] { color: var(--color-error); }
+
   .contacto-page {
     max-width: 900px;
     margin: 0 auto;

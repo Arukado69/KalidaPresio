@@ -1,0 +1,233 @@
+---
+/**
+ * /colecciones — Página índice (Hub) de todas las colecciones.
+ *
+ * Propósito SEO: actúa como "Hub Page" que enlaza a todos los clústeres.
+ * Google la rastrea y distribuye autoridad hacia cada colección hija.
+ * También sirve como página de descubrimiento para el usuario.
+ */
+import Layout from '../../layouts/Layout.astro';
+import { COLECCIONES_ACTIVAS } from '../../data/colecciones.js';
+---
+
+<Layout
+  title="Colecciones Curadas — KalidaPresio"
+  description="Explora nuestras colecciones curadas: ofertas en tecnología, los más vendidos y descuentos relámpago. Selección editorial verificada por KalidaPresio."
+>
+  <article class="col-index">
+
+    <!-- Breadcrumb -->
+    <nav class="ci-breadcrumb" aria-label="Ruta de navegación">
+      <a href="/" class="ci-bc-link">Inicio</a>
+      <span class="ci-bc-sep" aria-hidden="true">›</span>
+      <span class="ci-bc-current" aria-current="page">Colecciones</span>
+    </nav>
+
+    <!-- Header -->
+    <header class="ci-header" data-reveal>
+      <h1 class="ci-titulo">Colecciones Curadas</h1>
+      <p class="ci-descripcion">
+        Cada colección agrupa las mejores ofertas según un criterio específico:
+        tecnología, popularidad o descuento. Selección editorial verificada por
+        nuestro algoritmo KalidaPresio.
+      </p>
+    </header>
+
+    <!-- Grid de colecciones -->
+    <div class="ci-grid">
+      {COLECCIONES_ACTIVAS.map((col, i) => (
+        <a href={`/colecciones/${col.slug}`} class="ci-card" data-reveal data-spotlight style={`--reveal-delay:${i * 100}ms`}>
+          <div class="ci-card-emoji">{col.emoji}</div>
+          <h2 class="ci-card-titulo">{col.titulo}</h2>
+          <p class="ci-card-desc">{col.descripcion.substring(0, 120)}...</p>
+          <div class="ci-card-meta">
+            <span class="ci-card-count">{col.items.length} productos</span>
+            <span class="ci-card-arrow" aria-hidden="true">→</span>
+          </div>
+        </a>
+      ))}
+    </div>
+
+    <!-- CTA de retorno -->
+    <div class="ci-back" data-reveal>
+      <a href="/" class="ci-back-link">← Volver al inicio</a>
+    </div>
+
+  </article>
+</Layout>
+
+<style>
+  /* ═══════════════════════════════════════════════════════
+     ÍNDICE DE COLECCIONES (Hub Page)
+     ═══════════════════════════════════════════════════════ */
+
+  .col-index {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
+
+  /* Breadcrumb */
+  .ci-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: var(--spacing-lg);
+    font-size: 0.82rem;
+  }
+  .ci-bc-link {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+  .ci-bc-link:hover { color: var(--color-primary); }
+  .ci-bc-sep { color: rgba(255, 255, 255, 0.2); }
+  .ci-bc-current { color: var(--color-primary); font-weight: 600; }
+
+  /* Header */
+  .ci-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .ci-titulo {
+    font-family: var(--font-display);
+    font-size: var(--fs-2xl);
+    color: #ffffff;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .ci-descripcion {
+    font-size: var(--fs-base);
+    color: var(--color-text-muted);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* Grid de tarjetas de colección */
+  .ci-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .ci-card {
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-xl) var(--spacing-lg);
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+    transition: transform var(--dur-med) var(--ease-out-expo),
+                border-color var(--dur-med) var(--ease-out-expo),
+                box-shadow var(--dur-med) var(--ease-out-expo);
+  }
+
+  .ci-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(31, 210, 142, 0.32);
+    box-shadow: var(--elev-card-hover);
+  }
+
+  /* Halo de fondo sutil */
+  .ci-card::before {
+    content: '';
+    position: absolute;
+    top: -40px;
+    right: -40px;
+    width: 160px;
+    height: 160px;
+    background: radial-gradient(circle, rgba(31, 210, 142, 0.06), transparent 70%);
+    pointer-events: none;
+  }
+
+  .ci-card-emoji {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-sm);
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+  }
+
+  .ci-card-titulo {
+    font-family: var(--font-display);
+    font-size: var(--fs-md);
+    color: #ffffff;
+    margin-bottom: var(--spacing-xs);
+    line-height: 1.25;
+  }
+
+  .ci-card-desc {
+    font-size: var(--fs-sm);
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    flex-grow: 1;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .ci-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .ci-card-count {
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+
+  .ci-card-arrow {
+    font-size: 1.2rem;
+    color: var(--color-primary);
+    transition: transform var(--dur-fast) var(--ease-out-expo);
+  }
+
+  .ci-card:hover .ci-card-arrow {
+    transform: translateX(6px);
+  }
+
+  /* Borde animado al hover */
+  .ci-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid var(--color-primary);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .ci-card:hover::after {
+    animation: kp-breathe 2.4s var(--ease-soft) infinite;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .ci-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Back link */
+  .ci-back {
+    text-align: center;
+    padding-top: var(--spacing-lg);
+  }
+
+  .ci-back-link {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: var(--fs-sm);
+    transition: color 0.2s ease;
+  }
+
+  .ci-back-link:hover {
+    color: var(--color-primary);
+  }
+</style>

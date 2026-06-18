@@ -107,6 +107,11 @@
   padding: 0;
 }
 
+/* El atributo [hidden] SIEMPRE oculta, aunque una regla de display lo intente
+   sobrescribir (p. ej. .rs-skel/.rs-track con display:flex que se ocultan vía
+   JS con el atributo hidden). Reset estándar y seguro. */
+[hidden] { display: none !important; }
+
 body {
   font-family: var(--font-body);
   font-size: var(--fs-base);
@@ -360,6 +365,54 @@ html {
 .kp-delay-3 { animation-delay: 0.40s; }
 .kp-delay-4 { animation-delay: 0.56s; }
 .kp-delay-5 { animation-delay: 0.72s; }
+
+/* =====================================================================
+   PRECIOS EN VIVO — Hidratación dinámica post-render
+   Solo transform/opacity (compositor GPU, sin reflow).
+   ===================================================================== */
+
+/* Badge flotante de cambio de precio (animación kp-pop del sistema) */
+.precio-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.18rem 0.55rem;
+  border-radius: var(--radius-pill);
+  animation: kp-pop 0.5s var(--ease-out-back) both;
+  white-space: nowrap;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+  letter-spacing: 0.01em;
+}
+
+/* ¡Bajó de precio! — Verde brillante con glow */
+.precio-live-bajo {
+  color: #0b231a;
+  background: linear-gradient(135deg, var(--color-primary), #00e5a0);
+  box-shadow: var(--glow-primary-sm);
+}
+
+/* Subió de precio — Badge sutil gris */
+.precio-live-subio {
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+}
+
+/* Transición de fade-out mientras se actualiza el precio */
+.precio-updating {
+  opacity: 0.25;
+  transition: opacity 0.3s var(--ease-soft);
+}
+
+/* Precio resaltado en verde tras una bajada */
+.precio-bajo {
+  color: var(--color-primary) !important;
+  transition: color 0.4s var(--ease-out-expo);
+}
 
 /* --- Accesibilidad: si el usuario pide menos movimiento, todo se calma --- */
 @media (prefers-reduced-motion: reduce) {

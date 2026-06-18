@@ -82,7 +82,7 @@ const fmt = (n: number) =>
   }).format(n);
 ---
 
-<article class={`oferta-card${variant === 'deal' ? ' is-deal' : ''}`} data-spotlight data-reveal data-cat={categoria} style={`--reveal-delay:${revealDelay}ms`}>
+<article class={`oferta-card${variant === 'deal' ? ' is-deal' : ''}`} data-spotlight data-reveal data-cat={categoria} data-ml-id={oferta.id} data-build-price={oferta.precio_actual} style={`--reveal-delay:${revealDelay}ms`}>
   <div class="oferta-media">
     <img
       src={oferta.imagen}
@@ -149,7 +149,7 @@ const fmt = (n: number) =>
     )}
 
     <div class="oferta-precios">
-      <span class="oferta-precio">{fmt(oferta.precio_actual)}</span>
+      <span class="oferta-precio" data-precio-display>{fmt(oferta.precio_actual)}</span>
       {precioOriginal && <span class="oferta-precio-original">{fmt(precioOriginal)}</span>}
       {descuento > 0 && <span class="oferta-descuento">-{descuento}%</span>}
     </div>
