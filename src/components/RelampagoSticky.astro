@@ -150,7 +150,9 @@ const RELAMPAGO_URL = import.meta.env.PUBLIC_RELAMPAGO_URL || '/data/relampago.j
      re-encola lo que sale por arriba; la máscara desvanece bordes. */
   .rs-viewport {
     position: relative;
-    height: 620px;
+    height: calc(100vh - 200px);
+    max-height: 620px;
+    min-height: 300px;
     overflow: hidden;
     -webkit-mask-image: linear-gradient(transparent, #000 5%, #000 95%, transparent);
     mask-image: linear-gradient(transparent, #000 5%, #000 95%, transparent);

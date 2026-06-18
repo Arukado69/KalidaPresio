@@ -630,7 +630,7 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
         rail.addEventListener('mouseenter', () => { pausado = true; });
         rail.addEventListener('mouseleave', () => { pausado = false; });
 
-        const programar = () => { W.__rsStep = setTimeout(paso, 4600); };
+        const programar = () => { W.__rsStep = setTimeout(paso, 2500); };
         const paso = () => {
           purgar(); // si algo venció a mitad de ciclo, se salta sin esperar al minuto
           const items = Array.from(track.children) as HTMLElement[];
