@@ -31,7 +31,11 @@
       "Bash(curl -s http://localhost:4321/)",
       "Bash(curl -s http://localhost:4322/)",
       "PowerShell($p = \\(Get-NetTCPConnection -LocalPort 4321 -State Listen -ErrorAction SilentlyContinue\\).OwningProcess; if \\($p\\) { $proc = Get-Process -Id $p -ErrorAction SilentlyContinue; \"Port 4321 -> PID $p \\($\\($proc.ProcessName\\)\\), started $\\($proc.StartTime\\)\" } else { \"4321 free\" })",
-      "PowerShell($env:SKIP_EXTRACCION = 'true'; npm run build 2>&1 | Select-String -Pattern \"omitido|Complete|error\" | Select-Object -First 4)"
+      "PowerShell($env:SKIP_EXTRACCION = 'true'; npm run build 2>&1 | Select-String -Pattern \"omitido|Complete|error\" | Select-Object -First 4)",
+      "Bash(node -e \"const j=require\\('./dist/data/relampago.json'\\); const now=Date.now\\(\\); const vivas=j.ofertas.filter\\(o=>new Date\\(o.endsAt\\)>now\\); console.log\\('detectadoEl:', j.detectadoEl\\); console.log\\('total ofertas:', j.ofertas.length, '| vivas \\(endsAt futuro\\):', vivas.length\\); console.log\\('ejemplo:', j.ofertas[0].titulo.slice\\(0,30\\), '| endsAt:', j.ofertas[0].endsAt\\);\")",
+      "Bash(git add *)",
+      "Bash(git -c 'user.name=Irving Omar' -c user.email=omar.dimir69@gmail.com commit -q -m 'release: v1.2.0 — relámpago en vivo + runbook de despliegue Hetzner *)",
+      "Bash(git tag -a v1.2.0 -m 'KalidaPresio v1.2.0 *)"
     ]
   }
 }
