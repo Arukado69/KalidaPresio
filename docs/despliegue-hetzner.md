@@ -102,31 +102,50 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d kalidapresio.com -d www.kalidapresio.com
 ```
 
-## 5. Precios frescos + relámpago "en vivo" — crons de refresco
-**Clave para que los precios NO se vean viejos.** El precio que muestra el sitio
-sale de `ofertas.json`; si no se re-escanea, queda obsoleto (la API oficial de ML
-devuelve 403 para items de terceros, así que la fuente válida es el scrape público
-de `/ofertas`, que NO necesita OAuth).
+## 5. Precios frescos — UN solo pipeline (sin clashes)
+**Por qué importa:** el precio que muestra el sitio sale de `ofertas.json`; si no se
+re-escanea, queda viejo (la API oficial de ML devuelve 403 para items de terceros,
+así que la fuente válida es el scrape público de `/ofertas`, sin OAuth).
 
-Dos crons:
+**Regla de oro: una sola cosa escanea, una sola cosa despliega.**
+
+- **Escanea → el GitHub Action** (`.github/workflows/actualizar-ofertas.yml`): corre
+  cada 3 h, re-escanea `ofertas.json` + `_redirects` y los commitea al repo. Es la
+  ÚNICA fuente de datos. (Ya está activo; no se toca.)
+- **Despliega → un cron en Hetzner** que trata la caja como EFÍMERA: descarta cambios
+  locales, baja el repo, reconstruye fresco y sirve. Así nunca hay working-tree sucio
+  ni `git pull` que choque con los commits del bot.
+
+`/opt/kalida/deploy.sh` (créalo en el VPS):
 ```bash
+#!/usr/bin/env bash
+set -euo pipefail
+cd /ruta/kalidapresio2.0
+git fetch origin
+git reset --hard origin/main            # caja efímera: toma EXACTO lo del repo (datos del bot incluidos)
+npm ci --silent
+npm run build                           # regenera relampago (endsAt +24h) + imbatibles + precios frescos
+rsync -a --delete dist/ /var/www/kalidapresio/
+echo "[deploy] $(date -Is) OK"
+```
+```bash
+chmod +x /opt/kalida/deploy.sh
 crontab -e
 ```
 ```cron
-# Cada 6 h: re-escanea precios reales + regenera relámpago + publícalo SIN rebuild.
-# (importarOfertas.js es scrape público; no requiere credenciales.)
-0 */6 * * * cd /ruta/kalidapresio2.0 && /usr/bin/node src/scripts/importarOfertas.js && /usr/bin/node src/scripts/generarRelampago.js && cp public/data/relampago.json /var/www/kalidapresio/data/relampago.json
-
-# Una vez al día (3am): rebuild completo → bento + imbatibles (build-time) también
-# reflejan los precios frescos. Sirve dist/ recién construido.
-0 3 * * * cd /ruta/kalidapresio2.0 && npm run build && rsync -a --delete dist/ /var/www/kalidapresio/
+# Cada 3 h: baja el feed fresco del bot + reconstruye + sirve. Único deployer.
+0 */3 * * * /opt/kalida/deploy.sh >> /var/log/kalida-deploy.log 2>&1
 ```
 Notas:
-- El relámpago (hero spotlight + carrusel) se refresca **sin rebuild** porque se lee
-  en runtime; por eso basta copiar `relampago.json` al web root.
-- Bento e imbatibles son build-time → necesitan el rebuild diario para precio fresco.
-- Si quieres precios aún más frescos en todo el sitio, sube la frecuencia del rebuild
-  (cada 6–12 h), a costa de más CPU.
+- **NO** corras `importarOfertas.js` ni `generarRelampago.js` por separado en Hetzner:
+  el bot ya escanea y el `npm run build` ya regenera el relámpago. Duplicarlo es lo
+  que causaba el clash.
+- El `git reset --hard` es seguro **porque la caja solo construye y sirve** (nunca
+  editas archivos a mano ahí). El código vive en el repo; el VPS es desechable.
+- ¿Quieres relámpago/precios aún más frescos? Baja el cron a `0 */1 * * *` (cada hora).
+- ¿No quieres depender del bot? Alternativa: añade `node src/scripts/importarOfertas.js`
+  al inicio de `deploy.sh` y **desactiva el Action** (Settings → Actions, o borra el
+  workflow). Pero NO dejes ambos activos.
 
 ## 6. Variables de entorno en el VPS
 `backend/.env` (o variables del contenedor):

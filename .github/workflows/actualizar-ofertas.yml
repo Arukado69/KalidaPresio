@@ -1,7 +1,10 @@
 name: Actualizar feed de ofertas
 
 # Refresca src/data/ofertas.json cada 3 horas (imita el ciclo de tu n8n).
-# Cloudflare Pages despliega solo cuando este workflow hace push del cambio.
+# ÚNICA fuente de datos del sitio: re-escanea precios y los commitea al repo.
+# El despliegue lo hace el cron de Hetzner (/opt/kalida/deploy.sh), que baja
+# este feed fresco, reconstruye y sirve. Ver docs/despliegue-hetzner.md §5.
+# NO añadir otro scraper en el VPS: rompería el pipeline (working-tree sucio).
 on:
   schedule:
     - cron: '0 */3 * * *' # cada 3 horas (UTC)
