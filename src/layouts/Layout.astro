@@ -547,6 +547,8 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
             if (vacio) vacio.hidden = true;
             if (det && detectadoTxt) { det.textContent = detectadoTxt; det.hidden = false; }
           });
+          // SPOTLIGHT del hero: rota por las MISMAS ofertas frescas (precio del feed).
+          initHeroSpotlight(vivas);
         } catch (err) {
           // Degrada elegante: el resto de la página no se rompe.
           console.error('[relámpago] no se pudo cargar la fuente runtime:', err);
@@ -556,6 +558,119 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
           // Cablea countdown + loop GSAP + auto-retiro sobre el DOM ya pintado.
           initRelampago();
         }
+      }
+
+      // ════════════════════════════════════════════════════════════════
+      // SPOTLIGHT EN VIVO DEL HERO — rota por las ofertas frescas del feed.
+      // Resuelve: el hero ya no se queda fijo ni con precio viejo; muestra la
+      // oferta más reciente y CAMBIA cada ~5.5s con transición GSAP. El SSR
+      // pinta la mejor (LCP); aquí mutamos los nodos existentes (incluido el
+      // anillo K-P y las estrellas SSR, cuyo CSS scoped ya aplica). Pausa al
+      // hover, dots clicables, pausa con pestaña oculta, respeta reduced-motion.
+      // ════════════════════════════════════════════════════════════════
+      function initHeroSpotlight(vivas: any[]) {
+        const host = document.querySelector('[data-hero-spotlight]') as HTMLElement | null;
+        if (!host || !Array.isArray(vivas) || vivas.length === 0) return;
+        if (W.__heroTimer) { clearInterval(W.__heroTimer); W.__heroTimer = null; }
+
+        const items = vivas.slice(0, 6); // tope de 6 para no saturar los dots
+        const q = (s: string) => host.querySelector(s) as HTMLElement | null;
+        const elImg = q('.hs-img') as HTMLImageElement | null;
+        const elDesc = q('.hs-desc');
+        const elTit = q('.hs-titulo');
+        const elPrecio = q('.hs-precio');
+        const elPrev = q('.hs-prev');
+        const sello = q('.kp-sello');
+        const ring = host.querySelector('.kp-ring-progress');
+        const num = q('.kp-num');
+        const stars = q('.estrellas');
+        const ratingNum = q('.hs-rating strong');
+        const ratingOp = q('.hs-rating em');
+        const cta = q('.cta-button') as HTMLAnchorElement | null;
+        const count = q('[data-hero-count]');
+        const dots = q('[data-hero-dots]');
+        const media = q('.hs-media');
+        const datos = q('.hs-datos');
+
+        const restante = (iso: string) => {
+          const ms = new Date(iso).getTime() - Date.now();
+          if (ms <= 0) return null;
+          const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60);
+          return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m % 60}m` : `${Math.max(m, 1)}m`;
+        };
+        const kpColor = (s: number) => (s >= 70 ? '#1fd28e' : s >= 55 ? '#e9b86d' : '#ff6b6b');
+        const circ = sello ? (parseFloat(getComputedStyle(sello).getPropertyValue('--kp-circ')) || 216) : 216;
+
+        if (dots) {
+          dots.innerHTML = items.map((_, i) =>
+            `<button class="hs-dot" type="button" data-i="${i}" role="tab" aria-label="Oferta ${i + 1} de ${items.length}"></button>`).join('');
+        }
+
+        const aplicar = (o: any, i: number) => {
+          const d = Math.round(o.descuentoReal || 0);
+          if (elImg) { elImg.src = o.imagen || ''; elImg.alt = o.titulo || ''; elImg.style.visibility = ''; }
+          if (elDesc) { elDesc.textContent = `-${d}%`; elDesc.style.display = d > 0 ? '' : 'none'; }
+          if (elTit) elTit.textContent = o.titulo || '';
+          if (elPrecio) elPrecio.textContent = fmtMXN(o.precioActual);
+          if (elPrev) {
+            if (o.precioOriginal) { elPrev.textContent = fmtMXN(o.precioOriginal); elPrev.style.display = ''; }
+            else elPrev.style.display = 'none';
+          }
+          const s = Math.round(o.scoreKP || 0), col = kpColor(s);
+          if (sello) { sello.style.setProperty('--kp-offset', (circ * (1 - s / 100)).toFixed(2) + 'px'); sello.style.setProperty('--kp-color', col); }
+          if (ring) ring.setAttribute('stroke', col);
+          if (num) { num.textContent = String(s); num.style.color = col; }
+          if (stars) {
+            stars.style.setProperty('--fill', ((Math.max(0, Math.min(5, o.rating || 0)) / 5) * 100) + '%');
+            stars.setAttribute('aria-label', `${(o.rating || 0).toFixed(1)} de 5 estrellas`);
+          }
+          if (ratingNum) ratingNum.textContent = (o.rating || 0).toFixed(1);
+          if (ratingOp) ratingOp.textContent = `(${(o.opiniones || 0).toLocaleString('es-MX')} opiniones)`;
+          if (cta) cta.setAttribute('href', o.urlAfiliado || '#');
+          if (count) { const r = o.endsAt ? restante(o.endsAt) : null; count.textContent = r ? `⏱ Termina en ${r}` : ''; count.hidden = !r; }
+          if (dots) dots.querySelectorAll('.hs-dot').forEach((b, bi) => {
+            b.classList.toggle('is-active', bi === i);
+            b.setAttribute('aria-selected', String(bi === i));
+          });
+        };
+
+        let idx = 0;
+        const pintar = (i: number, animar: boolean) => {
+          idx = ((i % items.length) + items.length) % items.length;
+          const o = items[idx];
+          if (animar && !reduce && (window as any).gsap && media && datos) {
+            gsap.to([media, datos], {
+              opacity: 0, y: 6, duration: 0.22, ease: 'power2.in',
+              onComplete: () => {
+                aplicar(o, idx);
+                gsap.fromTo([media, datos], { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: 0.4, ease: 'expo.out' });
+              },
+            });
+          } else {
+            aplicar(o, idx);
+          }
+        };
+
+        pintar(0, false); // primera: instantáneo (ya hay SSR → sin parpadeo)
+
+        const arrancar = () => {
+          if (reduce || items.length < 2) return;
+          W.__heroTimer = setInterval(() => {
+            if (!document.hidden && !(host as any).__pausado) pintar(idx + 1, true);
+          }, 5500);
+        };
+        arrancar();
+
+        // Pausa al hover/foco (para leer/clicar); dots saltan a una oferta.
+        host.addEventListener('mouseenter', () => ((host as any).__pausado = true));
+        host.addEventListener('mouseleave', () => ((host as any).__pausado = false));
+        host.addEventListener('focusin', () => ((host as any).__pausado = true));
+        host.addEventListener('focusout', () => ((host as any).__pausado = false));
+        if (dots) dots.addEventListener('click', (e) => {
+          const b = (e.target as HTMLElement).closest('.hs-dot') as HTMLElement | null;
+          if (!b) return;
+          pintar(parseInt(b.getAttribute('data-i') || '0', 10), true);
+        });
       }
 
       // ════════════════════════════════════════════════════════════════

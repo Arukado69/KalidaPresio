@@ -102,19 +102,31 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d kalidapresio.com -d www.kalidapresio.com
 ```
 
-## 5. Ofertas relámpago "en vivo" — cron de refresco (sin rebuild)
-Regenera `relampago.json` directo en el web root cada 12 h. El sitio lo relee solo
-(mi `initRelampagoFetch` hace fetch en runtime). NO reconstruye Astro.
+## 5. Precios frescos + relámpago "en vivo" — crons de refresco
+**Clave para que los precios NO se vean viejos.** El precio que muestra el sitio
+sale de `ofertas.json`; si no se re-escanea, queda obsoleto (la API oficial de ML
+devuelve 403 para items de terceros, así que la fuente válida es el scrape público
+de `/ofertas`, que NO necesita OAuth).
+
+Dos crons:
 ```bash
 crontab -e
 ```
 ```cron
-# Cada 12 h: relámpago fresco (endsAt +24h) en el web root
-0 */12 * * * cd /ruta/kalidapresio2.0 && /usr/bin/node src/scripts/generarRelampago.js && cp public/data/relampago.json /var/www/kalidapresio/data/relampago.json
+# Cada 6 h: re-escanea precios reales + regenera relámpago + publícalo SIN rebuild.
+# (importarOfertas.js es scrape público; no requiere credenciales.)
+0 */6 * * * cd /ruta/kalidapresio2.0 && /usr/bin/node src/scripts/importarOfertas.js && /usr/bin/node src/scripts/generarRelampago.js && cp public/data/relampago.json /var/www/kalidapresio/data/relampago.json
+
+# Una vez al día (3am): rebuild completo → bento + imbatibles (build-time) también
+# reflejan los precios frescos. Sirve dist/ recién construido.
+0 3 * * * cd /ruta/kalidapresio2.0 && npm run build && rsync -a --delete dist/ /var/www/kalidapresio/
 ```
-Para rotar también los PRODUCTOS (no solo las fechas), añade antes
-`node src/scripts/importarOfertas.js` (requiere las credenciales ML OAuth en el `.env`
-del servidor) — p. ej. una vez al día.
+Notas:
+- El relámpago (hero spotlight + carrusel) se refresca **sin rebuild** porque se lee
+  en runtime; por eso basta copiar `relampago.json` al web root.
+- Bento e imbatibles son build-time → necesitan el rebuild diario para precio fresco.
+- Si quieres precios aún más frescos en todo el sitio, sube la frecuencia del rebuild
+  (cada 6–12 h), a costa de más CPU.
 
 ## 6. Variables de entorno en el VPS
 `backend/.env` (o variables del contenedor):

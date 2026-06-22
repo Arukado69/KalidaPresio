@@ -35,7 +35,9 @@
       "Bash(node -e \"const j=require\\('./dist/data/relampago.json'\\); const now=Date.now\\(\\); const vivas=j.ofertas.filter\\(o=>new Date\\(o.endsAt\\)>now\\); console.log\\('detectadoEl:', j.detectadoEl\\); console.log\\('total ofertas:', j.ofertas.length, '| vivas \\(endsAt futuro\\):', vivas.length\\); console.log\\('ejemplo:', j.ofertas[0].titulo.slice\\(0,30\\), '| endsAt:', j.ofertas[0].endsAt\\);\")",
       "Bash(git add *)",
       "Bash(git -c 'user.name=Irving Omar' -c user.email=omar.dimir69@gmail.com commit -q -m 'release: v1.2.0 — relámpago en vivo + runbook de despliegue Hetzner *)",
-      "Bash(git tag -a v1.2.0 -m 'KalidaPresio v1.2.0 *)"
+      "Bash(git tag -a v1.2.0 -m 'KalidaPresio v1.2.0 *)",
+      "Bash(git -c 'user.name=Irving Omar' -c user.email=omar.dimir69@gmail.com commit -q -m 'feat: hero spotlight en vivo + precios frescos \\(exactitud pre-deploy\\) *)",
+      "Bash(git tag *)"
     ]
   }
 }

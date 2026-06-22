@@ -137,7 +137,11 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
         </div>
 
         {showpiece && (
-          <aside class="hero-show" aria-label="Producto del día">
+          <!-- SPOTLIGHT EN VIVO: el SSR pinta la mejor oferta (LCP), y en runtime
+               initHeroSpotlight rota por el feed de relámpago (fresco, precio del
+               feed) cada ~5.5s con transición GSAP. Pausa al hover, dots clicables,
+               respeta reduced-motion. data-hero-spotlight = ancla del rotador. -->
+          <aside class="hero-show" aria-label="Ofertas destacadas en vivo" data-hero-spotlight>
             <!-- Halo de marca detrás del producto (pulsa lento, solo opacity) -->
             <div class="hs-glow" aria-hidden="true"></div>
 
@@ -150,7 +154,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
                 fetchpriority="high"
                 onerror="this.style.visibility='hidden'"
               />
-              {spDescuento > 0 && <span class="hs-desc">-{spDescuento}%</span>}
+              <span class="hs-desc" style={spDescuento > 0 ? '' : 'display:none'}>-{spDescuento}%</span>
               <!-- Sello K-P prominente, medio fuera del marco (entra con pop) -->
               <div class="hs-kp">
                 <SelloKP score={showpiece.score100} size={76} pulse tooltip tipAlign="start" />
@@ -158,11 +162,12 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
             </div>
 
             <div class="hs-datos">
-              <span class="hs-eyebrow">★ Producto del día</span>
+              <span class="hs-eyebrow"><span class="hs-live" aria-hidden="true"></span> En vivo · Oferta destacada</span>
               <h2 class="hs-titulo">{showpiece.titulo}</h2>
+              <span class="hs-count" data-hero-count hidden></span>
               <div class="hs-precios">
                 <span class="hs-precio">{fmt(showpiece.precio_actual)}</span>
-                {spPrev && <s class="hs-prev">{fmt(spPrev)}</s>}
+                <s class="hs-prev" style={spPrev ? '' : 'display:none'}>{spPrev ? fmt(spPrev) : ''}</s>
               </div>
               <div class="hs-rating">
                 <Estrellas rating={showpiece.rating} size={14} />
@@ -170,6 +175,8 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
                 <em>({showpiece.opiniones?.toLocaleString('es-MX')} opiniones)</em>
               </div>
               <BotonCTA id={showpiece.id} enlace={showpiece.link_afiliado} texto="Ver oferta" magnetic />
+              <!-- Puntos de progreso del rotador (los rellena initHeroSpotlight) -->
+              <div class="hs-dots" data-hero-dots role="tablist" aria-label="Ofertas en rotación"></div>
             </div>
           </aside>
         )}
@@ -485,6 +492,60 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
   .hs-rating em { font-style: normal; }
   .hero-show :global(.cta-wrapper) { margin: var(--spacing-xs) 0 0; justify-content: flex-start; }
   .hero-show :global(.cta-button) { width: auto; padding: 0.8rem 1.8rem; }
+
+  /* === Spotlight en vivo: indicador, countdown, dots === */
+  /* Punto "EN VIVO" que late (solo opacity/scale → compositor) */
+  .hs-live {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--color-error);
+    box-shadow: 0 0 0 0 rgba(255, 93, 118, 0.6);
+    animation: hs-live-pulse 1.8s ease-out infinite;
+    vertical-align: middle;
+    margin-right: 0.1rem;
+  }
+  @keyframes hs-live-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255, 93, 118, 0.55); }
+    70%  { box-shadow: 0 0 0 7px rgba(255, 93, 118, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 93, 118, 0); }
+  }
+
+  /* Countdown del spotlight (dorado suave, como el del rail) */
+  .hs-count {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.3rem;
+    background: rgba(246, 209, 79, 0.1);
+    border: 1px solid rgba(246, 209, 79, 0.3);
+    color: var(--color-accent);
+    border-radius: var(--radius-pill);
+    padding: 0.15rem 0.6rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Puntos de progreso del rotador */
+  .hs-dots { display: flex; gap: 0.4rem; margin-top: 0.6rem; }
+  .hs-dot {
+    width: 7px; height: 7px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.22);
+    cursor: pointer;
+    transition: width var(--dur-med) var(--ease-out-expo), background-color var(--dur-med) var(--ease-out-expo);
+  }
+  .hs-dot.is-active {
+    width: 22px;
+    background: var(--color-primary);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hs-live { animation: none; }
+  }
 
   .hero-badge {
     display: inline-block;
