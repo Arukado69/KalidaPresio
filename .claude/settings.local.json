@@ -37,7 +37,11 @@
       "Bash(git -c 'user.name=Irving Omar' -c user.email=omar.dimir69@gmail.com commit -q -m 'release: v1.2.0 — relámpago en vivo + runbook de despliegue Hetzner *)",
       "Bash(git tag -a v1.2.0 -m 'KalidaPresio v1.2.0 *)",
       "Bash(git -c 'user.name=Irving Omar' -c user.email=omar.dimir69@gmail.com commit -q -m 'feat: hero spotlight en vivo + precios frescos \\(exactitud pre-deploy\\) *)",
-      "Bash(git tag *)"
+      "Bash(git tag *)",
+      "Bash(git fetch *)",
+      "Bash(git -c 'user.name=Irving Omar' -c user.email=omar.dimir69@gmail.com merge -X ours origin/main -m 'merge: integrar auto-feed del remoto manteniendo precios frescos de v1.2 *)",
+      "Bash(git push *)",
+      "Bash(git -c 'user.name=Irving Omar' -c user.email=omar.dimir69@gmail.com commit -q -m 'docs: pipeline de datos único y limpio \\(Action=fuente, Hetzner=deploy efímero\\) *)"
     ]
   }
 }

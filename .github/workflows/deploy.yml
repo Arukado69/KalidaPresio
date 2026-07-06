@@ -1,0 +1,27 @@
+name: Trigger Hetzner Deployment
+
+on:
+  push:
+    branches:
+      - main
+    # 🎯 TRUCO MAESTRO: Ignora los commits automáticos del bot de ofertas
+    paths-ignore:
+      - 'src/data/ofertas.json'
+      - 'public/_redirects'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Executes SSH commands on Hetzner
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 22
+          script: |
+            cd /var/www/kalidapresio
+            git fetch --all
+            git reset --hard origin/main
+            docker compose up -d --build frontend
