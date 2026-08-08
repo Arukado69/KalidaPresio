@@ -20,7 +20,8 @@ const items = (Array.isArray(curados) ? curados : []).map((c) => {
   const descuento = c.precioPrevio && c.precio
     ? Math.round((1 - c.precio / c.precioPrevio) * 100)
     : 0;
-  return { ...c, enlace: aLinkAfiliado(c.url), descuento };
+  // campana 'elegidos' → en tu panel de ML verás los clics de ESTA sección aparte
+  return { ...c, enlace: aLinkAfiliado(c.url, 'elegidos'), descuento };
 });
 ---
 

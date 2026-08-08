@@ -59,7 +59,7 @@ const ganador = coleccion.items[0]; // Mejor score/descuento del clúster
           <span>Ganador KalidaPresio</span>
         </div>
         <div class="col-ganador-card">
-          <TarjetaOferta oferta={ganador} score={ganador.score100} indice={0} variant="deal" />
+          <TarjetaOferta oferta={ganador} score={ganador.score100} indice={0} variant="deal" campana={coleccion.slug} />
         </div>
       </section>
     )}
@@ -73,6 +73,7 @@ const ganador = coleccion.items[0]; // Mejor score/descuento del clúster
             oferta={oferta}
             score={oferta.score100}
             indice={i + 1}
+            campana={coleccion.slug}
           />
         ))}
       </div>

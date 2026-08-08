@@ -31,18 +31,31 @@ const categorias = ORDEN_CATEGORIAS.filter((c) => presentes.has(c));
       <strong>{conCategoria.length}</strong> productos imbatibles · precio permanente bajo, ordenados por calidad real
     </p>
 
-    {categorias.length > 1 && (
-      <div class="filtros" role="tablist" aria-label="Filtrar por categoría">
-        <button class="chip is-active" type="button" data-filter="*" data-ripple role="tab" aria-selected="true">Todas</button>
-        {categorias.map((c) => (
-          <button class="chip" type="button" data-filter={c} data-ripple role="tab" aria-selected="false">{c}</button>
-        ))}
-      </div>
-    )}
+    <div class="imb-controles">
+      {categorias.length > 1 && (
+        <div class="filtros" role="tablist" aria-label="Filtrar por categoría">
+          <button class="chip is-active" type="button" data-filter="*" data-ripple role="tab" aria-selected="true">Todas</button>
+          {categorias.map((c) => (
+            <button class="chip" type="button" data-filter={c} data-ripple role="tab" aria-selected="false">{c}</button>
+          ))}
+        </div>
+      )}
+      <!-- Orden en vivo (client-side, sin recargar) -->
+      <label class="imb-orden">
+        <span class="imb-orden-label">Ordenar:</span>
+        <select data-orden data-grid-target="imbatibles">
+          <option value="recomendado">Recomendado</option>
+          <option value="descuento">Mayor descuento</option>
+          <option value="precio-asc">Menor precio</option>
+          <option value="precio-desc">Mayor precio</option>
+          <option value="kp">Mejor K-P</option>
+        </select>
+      </label>
+    </div>
 
     <div class="imb-grid" data-grid-filtrable>
       {conCategoria.map((o, i) => (
-        <TarjetaOferta oferta={o} score={o.score_seccion ?? o.score_kalidad_presio} indice={i} categoria={o.categoria} />
+        <TarjetaOferta oferta={o} score={o.score_seccion ?? o.score_kalidad_presio} indice={i} categoria={o.categoria} campana="imbatibles" />
       ))}
     </div>
   </section>
@@ -73,12 +86,45 @@ const categorias = ORDEN_CATEGORIAS.filter((c) => presentes.has(c));
     .imb-grid { grid-template-columns: repeat(3, 1fr); }
   }
 
+  /* Fila de controles: filtros (izq) + orden (dcha) */
+  .imb-controles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+  }
+  .imb-orden {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+  .imb-orden-label { font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.75rem; }
+  .imb-orden select {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-text);
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-pill);
+    padding: 0.4rem 0.9rem;
+    cursor: pointer;
+    transition: border-color var(--dur-fast) var(--ease-soft);
+  }
+  .imb-orden select:hover { border-color: var(--color-primary-border); }
+  .imb-orden select:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
   /* Chips de filtro (estilos propios: el scoping de Astro no hereda los de index) */
   .filtros {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: 0;
   }
   .chip {
     font: inherit;

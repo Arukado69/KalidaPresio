@@ -6,6 +6,7 @@ import BotonCTA from '../components/BotonCTA.astro';
 import RelampagoSticky from '../components/RelampagoSticky.astro';
 import ImbatiblesGrid from '../components/ImbatiblesGrid.astro';
 import Curados from '../components/Curados.astro';
+import ExplorarChips from '../components/ExplorarChips.astro';
 import { generarVeredicto, tierKP } from '../utils/veredicto.js';
 import ofertas from '../data/ofertas.json';
 // Colecciones por sección (build-time, con fallback a ofertas.json si el
@@ -184,6 +185,9 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
       </div>
     )}
   </section>
+
+  <!-- Acceso rápido: explorar por precio (menos de $500 / bajo $300) y más -->
+  <ExplorarChips />
 
   <!-- RELÁMPAGO móvil/tablet: franja colapsable bajo el hero (tap revela).
        Datos en RUNTIME: el componente muestra skeleton y el cliente lo llena

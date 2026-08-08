@@ -5,6 +5,7 @@ import EstrellasKP from './EstrellasKP.astro';
 import BotonCTA from './BotonCTA.astro';
 import { generarVeredicto } from '../utils/veredicto.js';
 import { resenaKP } from '../utils/resenaKP.js';
+import { aLinkAfiliado } from '../utils/afiliado.js';
 
 export interface Oferta {
   id: string;
@@ -46,9 +47,15 @@ export interface Props {
   categoria?: string;
   /** Layout: 'grid' (vertical, por defecto) o 'deal' (horizontal). */
   variant?: 'grid' | 'deal';
+  /** Etiqueta de sección para el matt_word (medición por sección en ML). */
+  campana?: string;
 }
 
-const { oferta, score, indice = 0, categoria, variant = 'grid' } = Astro.props;
+const { oferta, score, indice = 0, categoria, variant = 'grid', campana } = Astro.props;
+
+// Si se pasa `campana`, re-etiqueta el link con matt_word de esa sección
+// (para medir en el panel de ML). Si no, usa el link_afiliado tal cual.
+const enlaceCTA = campana ? aLinkAfiliado(oferta.link_afiliado, campana) : oferta.link_afiliado;
 
 const score100 = Math.round(score ?? oferta.score_kalidad_presio ?? 0);
 
@@ -82,7 +89,7 @@ const fmt = (n: number) =>
   }).format(n);
 ---
 
-<article class={`oferta-card${variant === 'deal' ? ' is-deal' : ''}`} data-spotlight data-reveal data-cat={categoria} data-ml-id={oferta.id} data-build-price={oferta.precio_actual} style={`--reveal-delay:${revealDelay}ms`}>
+<article class={`oferta-card${variant === 'deal' ? ' is-deal' : ''}`} data-spotlight data-reveal data-cat={categoria} data-ml-id={oferta.id} data-build-price={oferta.precio_actual} data-precio={oferta.precio_actual} data-descuento={descuento} data-kp={score100} style={`--reveal-delay:${revealDelay}ms`}>
   <div class="oferta-media">
     <img
       src={oferta.imagen}
@@ -170,7 +177,7 @@ const fmt = (n: number) =>
 
     <div class="oferta-cta">
       <!-- CTA fijo del piloto: "Ver oferta →" (la flecha la pone el icono del botón) -->
-      <BotonCTA id={oferta.id} enlace={oferta.link_afiliado} texto="Ver oferta" />
+      <BotonCTA id={oferta.id} enlace={enlaceCTA} texto="Ver oferta" />
     </div>
   </div>
 </article>

@@ -73,6 +73,29 @@ export const COLECCIONES = [
       .filter(o => (o.descuento ?? 0) >= 35)
       .sort((a, b) => (b.descuento ?? 0) - (a.descuento ?? 0)),
   },
+
+  // ── Bandas de precio (navegación por presupuesto) ──────────────────────────
+  {
+    slug: 'ofertas-menos-de-500',
+    titulo: 'Ofertas por Menos de $500',
+    descripcion: 'Las mejores ofertas calidad-precio por menos de $500 pesos en Mercado Libre México. Compras inteligentes con presupuesto ajustado, ordenadas por nuestro sello K-P.',
+    emoji: '💵',
+    color: 'var(--color-primary)',
+    items: ofertasEnriquecidas
+      .filter(o => (o.precio_actual ?? 0) > 0 && o.precio_actual < 500)
+      .sort((a, b) => b.score100 - a.score100),
+  },
+
+  {
+    slug: 'gangas-bajo-300',
+    titulo: 'Gangas por Menos de $300',
+    descripcion: 'Productos que valen la pena por menos de $300 pesos en Mercado Libre México. Lo mejor del presupuesto bajo, sin sacrificar calidad — verificado por KalidaPresio.',
+    emoji: '🪙',
+    color: 'var(--color-warm)',
+    items: ofertasEnriquecidas
+      .filter(o => (o.precio_actual ?? 0) > 0 && o.precio_actual < 300)
+      .sort((a, b) => b.score100 - a.score100),
+  },
 ];
 
 /**

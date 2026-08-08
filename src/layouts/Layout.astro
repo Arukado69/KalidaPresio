@@ -455,6 +455,17 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
       const fmtMXN = (n: number) =>
         new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
 
+      // Re-etiqueta un link de afiliado ya armado con una campaña de sección:
+      // le suma un sufijo al matt_word para medir esa superficie en el panel de ML.
+      const conCampana = (url: string, campana: string) => {
+        try {
+          const u = new URL(url);
+          const w = u.searchParams.get('matt_word');
+          if (w && !w.endsWith('_' + campana)) u.searchParams.set('matt_word', `${w}_${campana}`);
+          return u.toString();
+        } catch { return url; }
+      };
+
       // Card del rail (vertical). Mapea el schema runtime (camelCase) al markup.
       function cardRail(o: any) {
         const d = Math.round(o.descuentoReal || 0);
@@ -468,7 +479,7 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
           + (o.endsAt ? `<span class="rs-count">⏱ Termina en <strong data-rs-count data-fin="${esc(o.endsAt)}">—</strong></span>` : '')
           + `<h3 class="rs-titulo">${esc(o.titulo)}</h3>`
           + `<div class="rs-precios"><span class="rs-precio">${fmtMXN(o.precioActual)}</span>${d > 0 ? `<em class="rs-ahorro">-${d}%</em>` : ''}</div>`
-          + `<a class="rs-cta" href="${esc(o.urlAfiliado)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Ver oferta →</a>`
+          + `<a class="rs-cta" href="${esc(conCampana(o.urlAfiliado, 'relampago'))}" target="_blank" rel="nofollow sponsored noopener noreferrer">Ver oferta →</a>`
           + `</article></li>`;
       }
       // Card de la franja móvil (horizontal compacta).
@@ -477,7 +488,7 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
         const img = o.imagen
           ? `<img src="${esc(o.imagen)}" alt="${esc(o.titulo)}" loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">`
           : '';
-        return `<li class="rs-fila-item" data-fin="${esc(o.endsAt)}"><a class="rs-mini" href="${esc(o.urlAfiliado)}" target="_blank" rel="nofollow sponsored noopener noreferrer">`
+        return `<li class="rs-fila-item" data-fin="${esc(o.endsAt)}"><a class="rs-mini" href="${esc(conCampana(o.urlAfiliado, 'relampago'))}" target="_blank" rel="nofollow sponsored noopener noreferrer">`
           + `<span class="rs-mini-media">${img}<span class="rs-img-fallback"${o.imagen ? ' style="display:none"' : ''} aria-hidden="true">⚡</span></span>`
           + `<span class="rs-mini-info"><span class="rs-mini-titulo">${esc(o.titulo)}</span>`
           + `<span class="rs-mini-fila"><strong class="rs-precio">${fmtMXN(o.precioActual)}</strong>${d > 0 ? `<em class="rs-ahorro">-${d}%</em>` : ''}</span>`
@@ -627,7 +638,7 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
           }
           if (ratingNum) ratingNum.textContent = (o.rating || 0).toFixed(1);
           if (ratingOp) ratingOp.textContent = `(${(o.opiniones || 0).toLocaleString('es-MX')} opiniones)`;
-          if (cta) cta.setAttribute('href', o.urlAfiliado || '#');
+          if (cta) cta.setAttribute('href', conCampana(o.urlAfiliado || '#', 'hero'));
           if (count) { const r = o.endsAt ? restante(o.endsAt) : null; count.textContent = r ? `⏱ Termina en ${r}` : ''; count.hidden = !r; }
           if (dots) dots.querySelectorAll('.hs-dot').forEach((b, bi) => {
             b.classList.toggle('is-active', bi === i);
@@ -861,11 +872,42 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
         });
       }
 
+      // --- Orden en vivo del catálogo (client-side, sin recargar) ---
+      function initOrden() {
+        const grid = document.querySelector('[data-grid-filtrable]') as HTMLElement | null;
+        const select = document.querySelector('[data-orden]') as HTMLSelectElement | null;
+        if (!grid || !select || select.hasAttribute('data-orden-bound')) return;
+        select.setAttribute('data-orden-bound', '');
+        const original = Array.from(grid.children) as HTMLElement[]; // orden 'recomendado'
+        const num = (c: HTMLElement, k: string) => parseFloat(c.getAttribute(k) || '0') || 0;
+        select.addEventListener('change', () => {
+          const v = select.value;
+          const orden = [...original];
+          if (v === 'descuento') orden.sort((a, b) => num(b, 'data-descuento') - num(a, 'data-descuento'));
+          else if (v === 'precio-asc') orden.sort((a, b) => num(a, 'data-precio') - num(b, 'data-precio'));
+          else if (v === 'precio-desc') orden.sort((a, b) => num(b, 'data-precio') - num(a, 'data-precio'));
+          else if (v === 'kp') orden.sort((a, b) => num(b, 'data-kp') - num(a, 'data-kp'));
+          // 'recomendado' deja el orden original. Re-inserta en el nuevo orden.
+          orden.forEach((c) => grid.appendChild(c));
+          if (!reduce) {
+            let shown = 0;
+            orden.forEach((c) => {
+              if (c.style.display === 'none') return; // respeta el filtro de categoría activo
+              c.style.animationDelay = `${(shown % 8) * 45}ms`;
+              c.classList.remove('filter-in');
+              void c.offsetWidth;
+              c.classList.add('filter-in');
+              shown++;
+            });
+          }
+        });
+      }
+
       // initPage es idempotente (los selectores filtran lo ya inicializado),
       // así que es seguro llamarlo más de una vez.
       // initRelampagoFetch (async) descarga los datos y al terminar invoca
       // initRelampago() para cablear countdown + loop sobre el DOM pintado.
-      function initPage() { initAnims(); initResenas(); initCountUp(); initCountdowns(); initNavActive(); initRelampagoFetch(); initFiltros(); }
+      function initPage() { initAnims(); initResenas(); initCountUp(); initCountdowns(); initNavActive(); initRelampagoFetch(); initFiltros(); initOrden(); }
 
       // Listeners de documento: se atan una vez y sobreviven a las View Transitions.
       bindSpotlight();
