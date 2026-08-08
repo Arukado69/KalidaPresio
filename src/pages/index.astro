@@ -5,6 +5,7 @@ import Estrellas from '../components/Estrellas.astro';
 import BotonCTA from '../components/BotonCTA.astro';
 import RelampagoSticky from '../components/RelampagoSticky.astro';
 import ImbatiblesGrid from '../components/ImbatiblesGrid.astro';
+import Curados from '../components/Curados.astro';
 import { generarVeredicto, tierKP } from '../utils/veredicto.js';
 import ofertas from '../data/ofertas.json';
 // Colecciones por sección (build-time, con fallback a ofertas.json si el
@@ -299,6 +300,10 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
       </div>
     </section>
   )}
+
+  <!-- ELEGIDOS: tus productos curados a mano (curados.json). Camino del dinero:
+       pegas links → tarjetas con tu código de afiliado. No depende de scraping. -->
+  <Curados />
 
   <!-- Catálogo principal: IMBATIBLES (grid 3/2/1, score recalibrado 65/10/25).
        Liquidación y menos-500: datos listos en secciones.js, render en el

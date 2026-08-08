@@ -1,0 +1,157 @@
+---
+/**
+ * Curados — Sección "Elegidos por nosotros": los productos que TÚ curas a mano.
+ *
+ * Fuente: src/data/curados.json — una lista simple que tú mantienes.
+ * Por cada entrada: { url, titulo, imagen, precio, precioPrevio?, badge? }.
+ * El sitio le pega tu código de afiliado (aLinkAfiliado) y arma la tarjeta.
+ *
+ * Este es tu CAMINO DEL DINERO, sin scraping ni API: pegas links, salen tarjetas.
+ * Vive arriba (bajo el hero) porque son tus apuestas destacadas.
+ */
+import curados from '../data/curados.json';
+import { aLinkAfiliado } from '../utils/afiliado.js';
+
+const fmt = (n) =>
+  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
+
+// Enriquecemos cada entrada: link de afiliado + descuento calculado.
+const items = (Array.isArray(curados) ? curados : []).map((c) => {
+  const descuento = c.precioPrevio && c.precio
+    ? Math.round((1 - c.precio / c.precioPrevio) * 100)
+    : 0;
+  return { ...c, enlace: aLinkAfiliado(c.url), descuento };
+});
+---
+
+{items.length > 0 && (
+  <section class="seccion-estructural curados" data-reveal>
+    <h2 class="titulo-seccion">✨ Elegidos por nosotros</h2>
+    <p class="cur-sub">Nuestra selección a mano — los que de verdad recomendamos hoy.</p>
+
+    <div class="cur-grid">
+      {items.map((o, i) => (
+        <a
+          class="cur-card"
+          data-spotlight
+          data-ripple
+          href={o.enlace}
+          target="_blank"
+          rel="nofollow sponsored noopener noreferrer"
+          style={`--reveal-delay:${(i % 6) * 70}ms`}
+        >
+          <div class="cur-media">
+            {o.imagen
+              ? <img src={o.imagen} alt={o.titulo} loading="lazy" class="cur-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
+              : null}
+            <span class="cur-fallback" style={o.imagen ? 'display:none' : ''} aria-hidden="true">✨</span>
+            {o.badge && <span class="cur-badge">{o.badge}</span>}
+            {o.descuento > 0 && <span class="cur-desc">-{o.descuento}%</span>}
+          </div>
+          <div class="cur-info">
+            <h3 class="cur-titulo">{o.titulo}</h3>
+            <div class="cur-precios">
+              <span class="cur-precio">{fmt(o.precio)}</span>
+              {o.precioPrevio && <s class="cur-prev">{fmt(o.precioPrevio)}</s>}
+            </div>
+            <span class="cur-cta">Ver oferta →</span>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+)}
+
+<style>
+  .cur-sub {
+    margin: calc(-1 * var(--spacing-sm)) 0 var(--spacing-lg);
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+
+  .cur-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+  @media (min-width: 560px) { .cur-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1024px) { .cur-grid { grid-template-columns: repeat(3, 1fr); } }
+
+  .cur-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    text-decoration: none;
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elev-card);
+    transition: transform var(--dur-med) var(--ease-out-expo),
+                box-shadow var(--dur-med) var(--ease-out-expo),
+                border-color var(--dur-med) var(--ease-out-expo);
+  }
+  .cur-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    border-color: rgba(31, 210, 142, 0.32);
+    box-shadow: var(--elev-card-hover);
+  }
+  .cur-card:hover .cur-cta { transform: translateX(3px); }
+  @media (hover: hover) {
+    .cur-card:hover { filter: brightness(1.04); }
+    .cur-card:hover .cur-img { transform: scale(1.05); }
+  }
+
+  /* Foto cuadrada 1:1 sobre blanco (formato nativo ML, sin recorte) */
+  .cur-media {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    background: #fff;
+    overflow: hidden;
+  }
+  .cur-img {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    padding: var(--spacing-sm);
+    transition: transform var(--dur-slow) var(--ease-out-expo);
+  }
+  .cur-fallback {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    font-size: 3rem;
+    background: var(--color-violet);
+  }
+  .cur-badge {
+    position: absolute; top: 10px; left: 10px;
+    background: var(--color-accent); color: var(--color-accent-ink);
+    font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 3px 9px; border-radius: var(--radius-xs);
+  }
+  .cur-desc {
+    position: absolute; top: 10px; right: 10px;
+    background: var(--color-error); color: #fff;
+    font-size: 0.8rem; font-weight: 900; padding: 3px 9px; border-radius: var(--radius-xs);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .cur-info {
+    display: flex; flex-direction: column; gap: 0.4rem;
+    padding: var(--spacing-md);
+    flex-grow: 1;
+  }
+  .cur-titulo {
+    font-size: 0.95rem; color: #fff; font-weight: 700; line-height: 1.3; margin: 0;
+    display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    min-height: 2.5em;
+  }
+  .cur-precios { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+  .cur-precio {
+    font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; color: #fff; letter-spacing: -0.02em;
+  }
+  .cur-prev { font-size: 0.9rem; color: var(--color-text-muted); text-decoration: line-through; }
+  .cur-cta {
+    margin-top: auto;
+    font-size: 0.8rem; font-weight: 700; color: var(--color-primary);
+    transition: transform var(--dur-fast) var(--ease-soft);
+  }
+</style>

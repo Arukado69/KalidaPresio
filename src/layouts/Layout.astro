@@ -2,7 +2,6 @@
 import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Newsletter from '../components/Newsletter.astro';
-import PrecioEnVivo from '../components/PrecioEnVivo.astro';
 import { ClientRouter } from 'astro:transitions';
 
 export interface Props {
@@ -114,11 +113,13 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
           <a href="/sobre-mi">Quiénes somos</a>
           <a href="/contacto">Contacto</a>
         </nav>
-        <!-- Divulgación enfocada en misión (sin mención de monetización) -->
+        <!-- Divulgación honesta: los precios son una foto, no un contrato.
+             La compra ocurre en ML a su precio; por eso pedimos verificar. -->
         <p class="footer-disclaimer">
           KalidaPresio rastrea precios y opiniones reales de Mercado Libre México
-          para ayudarte a tomar mejores decisiones de compra. Los precios mostrados
-          son verificados al momento de cada actualización.
+          para ayudarte a decidir mejor. Los precios son una referencia del momento
+          en que se detectaron — <strong>verifica siempre el precio final en Mercado
+          Libre antes de comprar</strong>. Última actualización: {new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}.
         </p>
         <p class="footer-copy">&copy; {new Date().getFullYear()} KalidaPresio. Todos los derechos reservados.</p>
       </div>
@@ -881,8 +882,6 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
       if (document.readyState !== 'loading') initPage();
       else document.addEventListener('DOMContentLoaded', initPage);
     </script>
-    <!-- Hidratación dinámica de precios (post-render, Vanilla JS) -->
-    <PrecioEnVivo />
   </body>
 </html>
 

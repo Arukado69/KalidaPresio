@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
-    # 🎯 TRUCO MAESTRO: Ignora los commits automáticos del bot de ofertas
-    paths-ignore:
-      - 'src/data/ofertas.json'
-      - 'public/_redirects'
+    # Dispara en TODO push a main, incluidos los commits de datos del bot
+    # (cada 3 h). Antes se ignoraban → el sitio se congelaba con precios viejos.
+    # Ahora cada refresco de datos redespliega: precios frescos + el build
+    # regenera relampago.json (endsAt +24h) → el carrusel nunca se vacía.
+    # El deploy solo hace SSH+rebuild (no commitea), así que no hay loop.
+  workflow_dispatch: {}   # permite disparar el deploy a mano cuando quieras
 
 jobs:
   deploy:
