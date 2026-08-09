@@ -1,0 +1,25 @@
+# Contexto de build mínimo (imágenes ligeras + builds rápidos)
+node_modules
+backend/node_modules
+dist
+.astro
+.git
+.github
+.claude
+.agents
+.vscode
+docs
+*.md
+!README.md
+.env
+.env.*
+!.env.example
+backend/database.sqlite*
+src/scripts/.ml_token_cache.json
+proyecto_completo_claude.txt
+codigo_para_claude.txt
+estado_actual.txt
+web.zip
+empaquetar.cjs
+skills-lock.json
+SKILL.md

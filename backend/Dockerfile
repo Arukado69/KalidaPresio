@@ -1,19 +1,20 @@
 FROM node:22.12.0-alpine
 
-# Crear el directorio de trabajo
 WORKDIR /app
 
-# Copiar el package.json
-COPY package.json ./
+# Dependencias con lockfile (build reproducible)
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev || npm install --omit=dev
 
-# Instalar las dependencias de producción
-RUN npm install --omit=dev
-
-# Copiar el resto del código
+# Código del backend
 COPY . .
 
-# Exponer el puerto
+# Directorio de datos (volumen para la SQLite persistente)
+RUN mkdir -p /data
+ENV DB_PATH=/data/database.sqlite
+
 EXPOSE 3001
 
-# Arrancar el servidor
-CMD ["npm", "start"]
+# node:sqlite es experimental en Node 22.x → REQUIERE el flag, si no truena
+# al arrancar con "No such built-in module: node:sqlite".
+CMD ["node", "--experimental-sqlite", "server.js"]

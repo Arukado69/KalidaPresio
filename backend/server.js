@@ -185,13 +185,19 @@ app.get('/api/export/subscribers', (req, res) => {
   }
 });
 
+// Healthcheck (lo usa docker-compose para saber si el contenedor está sano)
+app.get('/health', (req, res) => res.status(200).json({ ok: true }));
+
 // Manejador genérico para rutas no encontradas
 app.use((req, res) => {
   res.status(404).json({ ok: false, error: 'Endpoint no encontrado' });
 });
 
 // ── START ─────────────────────────────────────────────────────────────────────
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`🚀 [Backend] Servidor iniciado en http://127.0.0.1:${PORT}`);
+// HOST: en contenedor = 0.0.0.0 (alcanzable por Caddy en la red interna);
+// en bare-metal detrás de nginx local podrías fijar HOST=127.0.0.1.
+const HOST = process.env.HOST || '0.0.0.0';
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 [Backend] Servidor iniciado en http://${HOST}:${PORT}`);
   console.log(`🛡️ [Backend] CORS restringido. Rate Limit activo (5 req/min).`);
 });

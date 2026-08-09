@@ -1,166 +1,103 @@
-# Despliegue KalidaPresio v1.2 — Hetzner + Porkbun (vía Bash/SSH)
+# Despliegue KalidaPresio — Hetzner + Porkbun (Docker + GitHub Actions)
 
-Arquitectura en producción:
+Todo va en contenedores, versionado en el repo. Un `git push` a `main` despliega solo.
 
 ```
-            Porkbun DNS (A record) ──► IP del VPS Hetzner
-                                          │
-                                     Nginx (443/80, TLS)
-                          ┌───────────────┴───────────────┐
-                  sirve  dist/  (sitio Astro)      proxy /api/* ──► :3001
-                  (estático)                        (backend Express + SQLite)
-                          │
-                  /data/relampago.json  ◄── cron lo regenera cada 12 h (sin rebuild)
+        Porkbun DNS (A record @ y www) ──► IP del VPS Hetzner
+                                              │  (puertos 80 + 443)
+                                    ┌─────────┴──────────┐
+                                    │   contenedor       │
+                                    │   frontend (Caddy) │  HTTPS automático
+                                    │   sirve dist/      │  (Let's Encrypt)
+                                    └─────────┬──────────┘
+                             /api/*  │        │  todo lo demás
+                                     ▼        ▼
+                             ┌──────────────┐  sitio Astro estático
+                             │ backend      │  (bento, curados, colecciones…)
+                             │ Express+SQLite│
+                             └──────────────┘
 ```
 
-Decisión de arquitectura de formularios: en este modelo manda el **backend Express**
-(`backend/`). La carpeta `functions/` (Cloudflare Pages Functions) **no se usa** aquí
-— puedes ignorarla o borrarla. Diferencia: el Express guarda en SQLite (opt-in simple,
-sin correo de confirmación); las Functions hacían doble opt-in con envío de correo.
+- **frontend** (`Dockerfile` raíz): compila Astro y lo sirve con **Caddy**, que
+  además obtiene el certificado HTTPS solo y hace de reverse-proxy de `/api`.
+- **backend** (`backend/Dockerfile`): Express + SQLite (contacto y boletín).
+- **`functions/`** (Cloudflare Pages Functions) NO se usa en este modelo. Ignórala.
 
 ---
 
-## 0. Requisitos en el VPS (una sola vez)
+## 1. Requisitos en el VPS (una sola vez)
+Solo Docker. Caddy maneja TLS, así que **no** necesitas nginx ni certbot.
 ```bash
-sudo apt update && sudo apt install -y nginx
-# Node 22.12+ (para los scripts de build) — vía nvm o nodesource
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt install -y nodejs
-sudo apt install -y certbot python3-certbot-nginx
-# Docker (para el backend) — opcional si corres el backend con node directo
 curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER   # re-loguéate después
 ```
 
-## 1. Build del sitio (en tu máquina o en el VPS)
+## 2. Primer despliegue (manual, una vez)
 ```bash
-cd kalidapresio2.0
-npm ci
-npm run build        # genera redirects + relampago.json fresco + dist/
+sudo mkdir -p /var/www/kalidapresio && sudo chown $USER /var/www/kalidapresio
+git clone https://github.com/Arukado69/KalidaPresio.git /var/www/kalidapresio
+cd /var/www/kalidapresio
+
+# Configura las variables de producción
+cp .env.example .env
+nano .env      # pon SITE_ADDRESS=kalidapresio.com y un EXPORT_TOKEN seguro
+
+# Levanta todo (Caddy pedirá el certificado automáticamente)
+docker compose up -d --build
+docker compose ps          # ambos servicios 'running'/'healthy'
 ```
-El build deja todo en `dist/`. Si lo construyes local, súbelo al VPS:
+
+## 3. Dominio (Porkbun) + HTTPS
+- En Porkbun: **A record** `@` y `www` → IP del VPS.
+- Con el DNS propagado y `SITE_ADDRESS=kalidapresio.com`, Caddy obtiene el
+  certificado Let's Encrypt **automáticamente** al arrancar. Sin certbot, sin cron.
+- Verifica: `https://kalidapresio.com` con candado válido.
+
+## 4. Despliegue continuo (ya configurado: `deploy.yml`)
+Cada push a `main` (incluye los commits de datos del bot cada 3 h) dispara el
+workflow, que hace SSH al VPS y:
 ```bash
-rsync -avz --delete dist/ usuario@IP_HETZNER:/var/www/kalidapresio/
+git reset --hard origin/main && docker compose up -d --build && docker image prune -f
 ```
+**Secrets a configurar** en GitHub → Settings → Secrets and variables → Actions:
+| Secret | Valor |
+|---|---|
+| `SSH_HOST` | IP del VPS |
+| `SSH_USER` | usuario SSH |
+| `SSH_PASSWORD` | contraseña SSH (o cambia el workflow a `key:` — más seguro) |
 
-## 2. Backend Express (formularios) en el VPS
+> Recomendado: migra a **clave SSH** (`key: ${{ secrets.SSH_KEY }}`) en vez de password.
+
+## 5. Frescura de datos (automática)
+- El bot `actualizar-ofertas.yml` re-escanea `ofertas.json` cada 3 h y lo commitea.
+- Ese push dispara `deploy.yml` → rebuild → `generarRelampago.js` regenera el
+  relámpago (endsAt +24h) → **el carrusel nunca se vacía y los precios se refrescan.**
+- El precio en vivo real es imposible (ML da 403 por item); por eso el footer avisa
+  "verifica el precio final en ML". Los **links de afiliado** llevan tu código siempre.
+
+## 6. Operación diaria
 ```bash
-cd backend
-# Opción A — Docker (hay Dockerfile):
-docker build -t kalida-backend .
-docker run -d --name kalida-backend --restart unless-stopped \
-  -p 127.0.0.1:3001:3001 \
-  -v /var/data/kalida:/app/data \
-  kalida-backend
-# Opción B — Node directo con PM2:
-npm install && pm2 start "node server.js" --name kalida-backend
+docker compose logs -f frontend     # logs de Caddy / sitio
+docker compose logs -f backend      # logs del backend
+docker compose restart backend      # reiniciar un servicio
+docker compose down                 # bajar todo (los volúmenes persisten)
 ```
-⚠️ **Gotcha node:sqlite**: `db.js` usa `node:sqlite`, que en Node 22.x es experimental
-y requiere el flag `--experimental-sqlite`. Si el contenedor falla al arrancar con
-"No such built-in module: node:sqlite", cambia el arranque a
-`node --experimental-sqlite server.js` (en el `CMD` del Dockerfile o en el script
-`start`), o usa Node 24+. La DB SQLite debe vivir en un volumen persistente para no
-perder suscriptores al recrear el contenedor.
-
-## 3. Nginx — sitio estático + proxy del API + caché del JSON
-`/etc/nginx/sites-available/kalidapresio`:
-```nginx
-server {
-  server_name kalidapresio.com www.kalidapresio.com;
-  root /var/www/kalidapresio;
-  index index.html;
-
-  # SPA-ish: Astro genera /ruta/index.html
-  location / { try_files $uri $uri/ $uri.html /index.html; }
-
-  # CLAVE para "ofertas en vivo": el JSON de relámpago NO se cachea,
-  # así el cron lo actualiza y el navegador siempre lee la última versión.
-  location = /data/relampago.json {
-    add_header Cache-Control "no-cache, must-revalidate";
-    expires off;
-  }
-
-  # Assets con hash → caché agresiva
-  location /_astro/ { expires 1y; add_header Cache-Control "public, immutable"; }
-
-  # Formularios → backend Express
-  location /api/ {
-    proxy_pass http://127.0.0.1:3001;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-}
-```
+**Respaldo de suscriptores** (SQLite en volumen `backend_data`):
 ```bash
-sudo ln -s /etc/nginx/sites-available/kalidapresio /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
+docker compose cp backend:/data/database.sqlite ./backup-$(date +%F).sqlite
+# o exporta a CSV:  https://kalidapresio.com/api/export/subscribers?token=TU_EXPORT_TOKEN
 ```
 
-## 4. Dominio (Porkbun) + TLS
-- En Porkbun: crea un **A record** `@` y `www` → IP del VPS Hetzner.
-- Espera propagación DNS, luego:
+## 7. Prueba local (opcional, sin dominio)
 ```bash
-sudo certbot --nginx -d kalidapresio.com -d www.kalidapresio.com
+# En .env: SITE_ADDRESS=:80
+docker compose up --build
+# abre http://localhost
 ```
 
-## 5. Precios frescos — UN solo pipeline (sin clashes)
-**Por qué importa:** el precio que muestra el sitio sale de `ofertas.json`; si no se
-re-escanea, queda viejo (la API oficial de ML devuelve 403 para items de terceros,
-así que la fuente válida es el scrape público de `/ofertas`, sin OAuth).
-
-**Regla de oro: una sola cosa escanea, una sola cosa despliega.**
-
-- **Escanea → el GitHub Action** (`.github/workflows/actualizar-ofertas.yml`): corre
-  cada 3 h, re-escanea `ofertas.json` + `_redirects` y los commitea al repo. Es la
-  ÚNICA fuente de datos. (Ya está activo; no se toca.)
-- **Despliega → un cron en Hetzner** que trata la caja como EFÍMERA: descarta cambios
-  locales, baja el repo, reconstruye fresco y sirve. Así nunca hay working-tree sucio
-  ni `git pull` que choque con los commits del bot.
-
-`/opt/kalida/deploy.sh` (créalo en el VPS):
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-cd /ruta/kalidapresio2.0
-git fetch origin
-git reset --hard origin/main            # caja efímera: toma EXACTO lo del repo (datos del bot incluidos)
-npm ci --silent
-npm run build                           # regenera relampago (endsAt +24h) + imbatibles + precios frescos
-rsync -a --delete dist/ /var/www/kalidapresio/
-echo "[deploy] $(date -Is) OK"
-```
-```bash
-chmod +x /opt/kalida/deploy.sh
-crontab -e
-```
-```cron
-# Cada 3 h: baja el feed fresco del bot + reconstruye + sirve. Único deployer.
-0 */3 * * * /opt/kalida/deploy.sh >> /var/log/kalida-deploy.log 2>&1
-```
-Notas:
-- **NO** corras `importarOfertas.js` ni `generarRelampago.js` por separado en Hetzner:
-  el bot ya escanea y el `npm run build` ya regenera el relámpago. Duplicarlo es lo
-  que causaba el clash.
-- El `git reset --hard` es seguro **porque la caja solo construye y sirve** (nunca
-  editas archivos a mano ahí). El código vive en el repo; el VPS es desechable.
-- ¿Quieres relámpago/precios aún más frescos? Baja el cron a `0 */1 * * *` (cada hora).
-- ¿No quieres depender del bot? Alternativa: añade `node src/scripts/importarOfertas.js`
-  al inicio de `deploy.sh` y **desactiva el Action** (Settings → Actions, o borra el
-  workflow). Pero NO dejes ambos activos.
-
-## 6. Variables de entorno en el VPS
-`backend/.env` (o variables del contenedor):
-```
-PORT=3001
-EXPORT_TOKEN=<token-largo-y-secreto>   # protege /api/export/subscribers
-```
-El sitio estático no necesita secretos. `PUBLIC_RELAMPAGO_URL` queda en su default
-`/data/relampago.json` (mismo dominio). Si algún día sirves el JSON desde otro host,
-cámbiala antes del build.
-
-## 7. Checklist final antes de anunciar
-- [ ] `https://kalidapresio.com` carga con TLS válido.
-- [ ] Sección relámpago muestra 8 ofertas (no vacía).
-- [ ] Enviar el formulario de contacto → 200 y aparece en SQLite.
-- [ ] Suscribir un correo → 200; duplicado → 200 (no filtra).
-- [ ] Esperar a que el cron corra (o ejecútalo a mano) y verificar que `endsAt`
-      avanza y el carrusel sigue lleno tras 24 h.
+## Notas
+- La SQLite y los certificados TLS viven en **volúmenes** (`backend_data`, `caddy_data`):
+  sobreviven a `docker compose up --build`. No los borres.
+- El build del frontend re-escanea secciones desde ML; si ML no responde, degrada al
+  JSON existente y el build NO falla.
+- `node:sqlite` requiere `--experimental-sqlite` (ya está en `backend/Dockerfile`).

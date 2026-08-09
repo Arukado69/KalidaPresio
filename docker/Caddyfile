@@ -1,0 +1,30 @@
+# KalidaPresio — Caddy: sirve el sitio estático + proxy al backend + HTTPS auto.
+# SITE_ADDRESS lo define docker-compose desde .env:
+#   · Producción: SITE_ADDRESS=kalidapresio.com  (Caddy obtiene el certificado solo)
+#   · Local:      SITE_ADDRESS=:80                 (HTTP, sin TLS)
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# ── API → backend Express (contenedor 'backend' en la red interna) ──
+	handle /api/* {
+		reverse_proxy backend:3001
+	}
+
+	# ── Sitio estático (Astro SSG) ──
+	handle {
+		root * /srv
+
+		# El JSON de relámpago NO se cachea → el sitio lee la última versión
+		# en runtime (frescura del carrusel sin rebuild).
+		@relampago path /data/relampago.json
+		header @relampago Cache-Control "no-cache, must-revalidate"
+
+		# Assets con hash de Astro → caché agresiva e inmutable.
+		@assets path /_astro/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+
+		# Astro genera /ruta/index.html; esto resuelve las rutas limpias.
+		try_files {path} {path}/ {path}.html /index.html
+		file_server
+	}
+}

@@ -5,8 +5,10 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Inicializar la base de datos de forma segura usando node:sqlite nativo
-const dbPath = path.resolve(__dirname, 'database.sqlite');
+// Ruta de la DB: en contenedor usa DB_PATH (volumen persistente); en local,
+// el archivo junto al código. Así los suscriptores no se pierden al recrear
+// el contenedor.
+const dbPath = process.env.DB_PATH || path.resolve(__dirname, 'database.sqlite');
 const db = new DatabaseSync(dbPath);
 
 // Habilitar WAL (Write-Ahead Logging) para mejor concurrencia y rendimiento

@@ -1,0 +1,51 @@
+# ============================================================================
+# KalidaPresio — Orquestación de producción (Hetzner VPS).
+#   frontend: Astro estático servido por Caddy (HTTPS automático) + proxy /api
+#   backend:  Express + SQLite (formularios de contacto y boletín)
+#
+# Arranque:  docker compose up -d --build
+# Variables: se leen de .env (en el mismo directorio). Ver .env.example.
+# ============================================================================
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kalidapresio-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Producción: kalidapresio.com  ·  Local: :80
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - caddy_data:/data     # certificados TLS persistentes (¡no perder!)
+      - caddy_config:/config
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+    image: kalidapresio-backend
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      HOST: 0.0.0.0                       # accesible por la red interna de Docker
+      DB_PATH: /data/database.sqlite      # SQLite en volumen (persistente)
+      EXPORT_TOKEN: ${EXPORT_TOKEN:-cambia-este-token}
+    expose:
+      - "3001"                            # solo red interna; Caddy lo proxya
+    volumes:
+      - backend_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  caddy_data:
+  caddy_config:
+  backend_data:
