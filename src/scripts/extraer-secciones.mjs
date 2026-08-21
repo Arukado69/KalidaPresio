@@ -17,6 +17,8 @@
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { leerTarjeta } from '../utils/mlPayload.js';
+import { calcularScorePorSeccion, fraccionVolumen } from '../utils/scoreSecciones.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -196,104 +198,55 @@ function aISO(v) {
  * cuenta en `faltantes` (Map sección→contador) para el reporte.
  */
 function extraerItem(item, seccion, faltantes) {
-  const p = item.card ?? item; // adaptativo: algunos feeds traen el card "plano"
-  const comps = Array.isArray(p?.components) ? p.components : [];
-  const comp = (t) => comps.find((c) => c.type === t);
+  // `item.card` es lo normal; algunos feeds traen el card "plano".
+  const envuelto = item?.card ? item : { card: item };
+  const card = envuelto.card;
   const cuenta = (campo) => faltantes.set(campo, (faltantes.get(campo) || 0) + 1);
 
-  const id = p?.metadata?.id ?? null;
-  if (!id) { cuenta('sin id (item descartado)'); return null; }
+  if (!card?.metadata?.id) { cuenta('sin id (item descartado)'); return null; }
 
-  const reviews = comp('reviews')?.reviews;
-  const priceData = comp('price')?.price;
+  const aAfiliado = (url) => (MATT_TOOL
+    ? `${url.split('?')[0]}?matt_tool=${MATT_TOOL}&matt_word=${MATT_WORD}`
+    : url.split('?')[0]);
 
-  // Descuento REAL (la fórmula base: discount.value → previous_price → label)
-  const precioActual = priceData?.current_price?.value || 0;
-  const precioPrevio = priceData?.previous_price?.value || 0;
-  let descuento = priceData?.discount?.value || 0;
-  if (!descuento && precioPrevio > precioActual && precioActual > 0) {
-    descuento = Math.round((1 - precioActual / precioPrevio) * 100);
-  }
-  if (!descuento && priceData?.discount_label?.text) {
-    const md = priceData.discount_label.text.match(/(\d+)\s*%/);
-    if (md) descuento = parseInt(md[1], 10);
-  }
+  // La lectura del payload de ML vive UNA sola vez, en src/utils/mlPayload.js.
+  // Antes estaba copiada aquí y en importarOfertas.js con distinta resistencia;
+  // cuando ML renombró sus componentes, la copia que alimenta el sitio se
+  // rompió en silencio durante 43 días y esta ni se enteró.
+  const base = leerTarjeta(envuelto, aAfiliado);
+  if (!base) { cuenta('tarjeta incompleta (sin título o precio)'); return null; }
 
-  const highlightTxt = comp('highlight')?.highlight?.text || '';
-  const countdown = comp('highlight_countdown')?.highlight_countdown;
-  const sellerTxt = comp('seller')?.seller?.text || '';
-  const shippingTxt = comp('shipping')?.shipping?.text || '';
-  const limpiar = (s) => s.replace(/\{[^}]*\}/g, '').replace(/\s+/g, ' ').trim();
-
-  // FIN DE OFERTA (clave para relámpago): ruta conocida y, si no, cualquier
-  // componente que traiga un countdown con period_end.
-  let finRaw = countdown?.countdown?.period_end ?? null;
-  if (!finRaw) {
-    const otro = comps.find((c) => c?.[c.type]?.countdown?.period_end);
-    finRaw = otro ? otro[otro.type].countdown.period_end : null;
-  }
-  const finOferta = aISO(finRaw);
-
-  // Contadores de faltantes (para el reporte, no para tronar)
-  if (!reviews || !reviews.total) cuenta('sin reviews');
-  if (!precioActual) cuenta('sin precio');
-  if (!p?.pictures?.pictures?.[0]?.id) cuenta('sin imagen');
-  if (!descuento) cuenta('sin descuento');
-  if (seccion === 'relampago' && !finOferta) cuenta('relámpago sin fin_oferta');
-
-  const urlCruda = p?.metadata?.url || '';
-  const baseUrl = urlCruda.startsWith('http') ? urlCruda : `https://${urlCruda}`;
-  const afiliado = MATT_TOOL
-    ? `${baseUrl.split('?')[0]}?matt_tool=${MATT_TOOL}&matt_word=${MATT_WORD}`
-    : baseUrl.split('?')[0];
+  // Contadores para el reporte (informan, no truenan)
+  if (!base.rating) cuenta('sin calificación');
+  if (!base.vendidos) cuenta('sin unidades vendidas');
+  if (!base.imagen) cuenta('sin imagen');
+  if (!base.descuento) cuenta('sin descuento');
+  // ML retiró el countdown de las tarjetas en 2026: las relámpago ya no traen
+  // fecha de fin. Se registra para que el reporte lo deje por escrito.
+  if (seccion === 'relampago') cuenta('relámpago sin fin_oferta (ML ya no lo publica)');
 
   return {
-    id,
-    titulo: comp('title')?.title?.text ?? null,
-    precio_actual: precioActual,
-    precio_previo: precioPrevio || null,
-    descuento,
-    rating: reviews?.rating_average || 0,
-    opiniones: reviews?.total || 0,
-    link_afiliado: afiliado,
-    imagen: p?.pictures?.pictures?.[0]?.id
-      ? `https://http2.mlstatic.com/D_NQ_NP_${p.pictures.pictures[0].id}-O.webp`
-      : null,
-    marca: comp('brand')?.brand?.text || null,
-    destacado: limpiar(countdown?.text || highlightTxt) || null,
-    mas_vendido: /m[aá]s\s+vendido/i.test(highlightTxt),
-    oferta_relampago: (!!countdown && /rel[aá]mpago/i.test(countdown.text || '')) || seccion === 'relampago',
-    fin_oferta: finOferta,            // ISO 8601 o null — para el auto-refresh del carrusel
-    vendedor: sellerTxt ? (limpiar(sellerTxt).replace(/^Por\s+/i, '') || null) : null,
-    vendedor_confiable: /cockade/i.test(sellerTxt),
-    envio_gratis: /gratis/i.test(shippingTxt),
-    secciones: [seccion],             // ARRAY: el dedup acumula aquí
+    ...base,
+    // La sección la determina la URL sondeada, no la tarjeta: es la única
+    // fuente que queda para saber qué es relámpago.
+    oferta_relampago: seccion === 'relampago',
+    secciones: [seccion],   // ARRAY: el dedup acumula aquí
   };
 }
 
 // ════════════════════════════════════════════════════════
-// HOOK: SCORE + FILTRO EXISTENTES
-// Copia 1:1 de src/scripts/importarOfertas.js (el algoritmo NO se inventa aquí;
-// si cambias el original, replica el cambio o expórtalo y impórtalo).
+// HOOK: SCORE + FILTRO — delegados a la fuente única
+// (src/utils/scoreSecciones.js). Ya no hay copia que se pueda desincronizar.
 // ════════════════════════════════════════════════════════
 const PRECIO_MINIMO = 200;
 const SCORE_MINIMO = 70;
 
-function calcularScore(data) {
-  const scoreRating = (data.rating / 5) * 65;
-  const descuentoTopado = Math.min(data.descuento || 0, 40);
-  const scoreDescuento = (descuentoTopado / 40) * 20;
-  const scoreOpiniones = Math.min((data.opiniones / 500) * 15, 15);
-  return Math.round(scoreRating + scoreDescuento + scoreOpiniones);
-}
+const calcularScore = (data) => calcularScorePorSeccion(data, 'default');
 
-function calcularConfianza(data) {
-  let c = 0;
-  if (data.mas_vendido) c += 40;
-  c += Math.min((data.opiniones || 0) / 500, 1) * 35;
-  if (data.vendedor_confiable) c += 25;
-  return Math.round(Math.min(c, 100));
-}
+// Volumen de ventas 60% (escala log) · Vendedor reputado 40%.
+// Reponderado en 2026-08-20: ML retiró la insignia "MÁS VENDIDO" que valía 40.
+const calcularConfianza = (data) =>
+  Math.round(Math.min(fraccionVolumen(data.vendidos) * 60 + (data.vendedor_confiable ? 40 : 0), 100));
 
 function evaluarYFiltrar(items) {
   return items

@@ -4,7 +4,7 @@ import SelloKP from '../components/SelloKP.astro';
 ---
 <Layout
   title="Quiénes somos — KalidaPresio"
-  description="Cómo construimos el Sello K-P: ofertas reales de Mercado Libre, opiniones verificadas ponderadas y una fórmula pública. Sin ranking pagado."
+  description="Cómo construimos el Sello K-P: ofertas reales de Mercado Libre, calificación y ventas verificadas ponderadas, y una fórmula pública. Sin ranking pagado."
   ogType="website"
 >
 
@@ -41,7 +41,8 @@ import SelloKP from '../components/SelloKP.astro';
         <p class="autor-bio">
           Somos un proyecto independiente de inteligencia de precios que rastrea ofertas
           reales en Mercado Libre México. Ordenamos cada producto con un único criterio:
-          la relación calidad-precio real, basada en opiniones verificadas de compradores.
+          la relación calidad-precio real, basada en la calificación y las ventas reales
+          que publica la propia plataforma.
           No vendemos posiciones, no aceptamos pago por aparecer y nuestro algoritmo
           es público y trata a todos los productos por igual.
         </p>
@@ -80,7 +81,7 @@ import SelloKP from '../components/SelloKP.astro';
           <h3 class="criterio-titulo">2. La calificación manda (65%)</h3>
           <p class="criterio-desc">
             La opinión real de los compradores es el factor dominante del sello: vale el 65% del puntaje.
-            Un producto sin reseñas (calificación 0) ni siquiera entra. Premiamos lo que la gente ya
+            Un producto sin calificación ni siquiera entra. Premiamos lo que la gente ya
             comprobó, no las promesas del listado.
           </p>
         </article>
@@ -108,9 +109,9 @@ import SelloKP from '../components/SelloKP.astro';
           </div>
           <h3 class="criterio-titulo">4. El volumen da confianza (15%)</h3>
           <p class="criterio-desc">
-            La cantidad de opiniones suma hasta un 15%, considerando hasta 500 reseñas. Mil compradores
-            satisfechos dan más certeza que tres. Y la fórmula es pública e idéntica para todos: no
-            vendemos posiciones ni aceptamos pago por aparecer mejor.
+            Las unidades vendidas suman hasta un 15%, en escala logarítmica desde 100 hasta
+            100 mil. Diez mil personas que ya pagaron dan más certeza que diez. Y la fórmula es
+            pública e idéntica para todos: no vendemos posiciones ni aceptamos pago por aparecer.
           </p>
         </article>
       </div>
@@ -152,8 +153,8 @@ import SelloKP from '../components/SelloKP.astro';
           (mín(descuento, 40) / 40) × 20. Suma, pero con tope.
         </p>
         <p class="formula-linea">
-          <span class="formula-tag">Volumen (15%)</span>
-          mín((opiniones / 500) × 15, 15). Confianza por cantidad de reseñas.
+          <span class="formula-tag">Volumen de ventas (15%)</span>
+          log(vendidos) escalado de 100 a 100 mil, × 15. Confianza por ventas reales.
         </p>
         <p class="formula-codigo">
           score = redondear( calificación + descuento + volumen )  →  0 a 100
@@ -169,23 +170,19 @@ import SelloKP from '../components/SelloKP.astro';
       <h2 class="section-titulo">Y además, ¿qué tan respaldada está?</h2>
       <p class="section-intro">
         El Sello K-P dice si la oferta es buena. Por separado medimos cuánta evidencia la respalda
-        —sin inventar reseñas, solo con datos objetivos que Mercado Libre ya muestra—. Lo llamamos
+        —sin inventar nada, solo con datos objetivos que Mercado Libre ya publica—. Lo llamamos
         <strong>Confianza</strong> y aparece en cada oferta.
       </p>
 
       <div class="conf-grid">
         <div class="conf-card">
+          <span class="conf-peso">60%</span>
+          <h3 class="conf-titulo">Unidades vendidas</h3>
+          <p class="conf-desc">Cuánta gente ya lo compró, según Mercado Libre. Es la gente votando con su dinero — la señal más difícil de fingir.</p>
+        </div>
+        <div class="conf-card">
+        <div class="conf-card">
           <span class="conf-peso">40%</span>
-          <h3 class="conf-titulo">“Más vendido” de Mercado Libre</h3>
-          <p class="conf-desc">La etiqueta de ML: mucha gente ya lo compró. Es la gente votando con su dinero — la señal más difícil de fingir.</p>
-        </div>
-        <div class="conf-card">
-          <span class="conf-peso">35%</span>
-          <h3 class="conf-titulo">Volumen de opiniones</h3>
-          <p class="conf-desc">Mil compradores que califican dan más certeza que tres. Cuenta hasta 500 reseñas.</p>
-        </div>
-        <div class="conf-card">
-          <span class="conf-peso">25%</span>
           <h3 class="conf-titulo">Vendedor reputado</h3>
           <p class="conf-desc">Vendedores con escarapela (MercadoLíder o superior): trayectoria comprobada.</p>
         </div>

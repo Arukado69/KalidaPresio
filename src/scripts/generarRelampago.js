@@ -14,7 +14,7 @@
  *
  * El schema de salida es idéntico al que espera initRelampagoFetch() en Layout:
  *   { detectadoEl, ofertas: [{ id, titulo, precioActual, precioOriginal,
- *     descuentoReal, scoreKP, rating, opiniones, imagen, urlAfiliado, badge, endsAt }] }
+ *     descuentoReal, scoreKP, rating, vendidos, imagen, urlAfiliado, badge, endsAt }] }
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -85,12 +85,12 @@ try {
     descuentoReal: Math.round(o.descuento ?? 0),
     scoreKP: o.score_kalidad_presio ?? 0,
     rating: o.rating ?? 0,
-    opiniones: o.opiniones ?? 0,
+    vendidos: o.vendidos ?? 0,
     imagen: o.imagen ?? '',
     // Para la analitica: permite responder que CATEGORIA convierte mejor.
     categoria: categorizar(o.titulo ?? ''),
     urlAfiliado: o.link_afiliado,
-    badge: o.mas_vendido ? 'MÁS VENDIDO'
+    badge: (o.vendidos ?? 0) >= 10000 ? 'MÁS VENDIDO'
          : o.destacado ? o.destacado
          : (o.descuento ?? 0) >= 50 ? 'OFERTA IMPERDIBLE'
          : null,

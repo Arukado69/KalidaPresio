@@ -6,6 +6,7 @@ import BotonCTA from './BotonCTA.astro';
 import { generarVeredicto } from '../utils/veredicto.js';
 import { resenaKP } from '../utils/resenaKP.js';
 import { aLinkAfiliado } from '../utils/afiliado.js';
+import { formatearVendidos } from '../utils/mlPayload.js';
 
 export interface Oferta {
   id: string;
@@ -14,7 +15,7 @@ export interface Oferta {
   precio_previo?: number | null;
   descuento: number;
   rating: number;
-  opiniones: number;
+  vendidos: number;
   score_kalidad_presio?: number;
   link_afiliado: string;
   imagen: string;
@@ -30,7 +31,7 @@ export interface Oferta {
   confianza?: number;
   // Opcional (esquema propuesto): resumen de reseñas curado.
   // Si falta, el panel se arma con señales objetivas; si no hay rating ni
-  // opiniones, el panel se oculta por completo.
+  // vendidos, el panel se oculta por completo.
   opiniones_sentimiento?: {
     resumen?: string;
     puntos_clave?: string[];
@@ -77,7 +78,7 @@ const revealDelay = (indice % 8) * 70;
 const veredictoTxt = generarVeredicto(oferta);
 
 // "Segunda reseña" K-P: estrellas DETERMINISTAS derivadas de datos reales
-// (score/rating/opiniones/descuento). Se calcula en build — el panel es
+// (score/rating/vendidos/descuento). Se calcula en build — el panel es
 // estático; el cliente solo anima el revelado (hover/tap).
 const resena = resenaKP(oferta, score100);
 
@@ -164,11 +165,11 @@ const fmt = (n: number) =>
     <div class="oferta-rating">
       <Estrellas rating={oferta.rating} size={15} />
       <span class="oferta-rating-num">{oferta.rating?.toFixed(1)}</span>
-      <span class="oferta-opiniones">({oferta.opiniones?.toLocaleString('es-MX')})</span>
+      <span class="oferta-opiniones">{formatearVendidos(oferta.vendidos)}</span>
     </div>
 
     <div class="oferta-confianza">
-      <span class={`conf-chip conf-${confClase}`} title="Qué tan respaldada está la compra (opiniones, ventas y reputación del vendedor)">
+      <span class={`conf-chip conf-${confClase}`} title="Qué tan respaldada está la compra (unidades vendidas y reputación del vendedor)">
         Confianza: {confNivel}
       </span>
       {oferta.envio_gratis && <span class="meta-chip">Envío gratis</span>}

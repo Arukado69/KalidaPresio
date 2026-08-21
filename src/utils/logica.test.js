@@ -13,53 +13,53 @@ import { generarVeredicto, tierKP } from './veredicto.js';
 
 describe('calcularScorePorSeccion', () => {
   it('da 100 al item perfecto con pesos estándar', () => {
-    expect(calcularScorePorSeccion({ rating: 5, descuento: 40, opiniones: 500 }, 'relampago')).toBe(100);
+    expect(calcularScorePorSeccion({ rating: 5, descuento: 40, vendidos: 100_000 }, 'relampago')).toBe(100);
   });
 
   it('da 0 cuando no hay ninguna señal', () => {
-    expect(calcularScorePorSeccion({ rating: 0, descuento: 0, opiniones: 0 }, 'relampago')).toBe(0);
+    expect(calcularScorePorSeccion({ rating: 0, descuento: 0, vendidos: 0 }, 'relampago')).toBe(0);
   });
 
   it('topa el descuento en 40%: 60% no puntúa más que 40%', () => {
-    const base = { rating: 4, opiniones: 100 };
+    const base = { rating: 4, vendidos: 1000 };
     expect(calcularScorePorSeccion({ ...base, descuento: 60 }, 'default'))
       .toBe(calcularScorePorSeccion({ ...base, descuento: 40 }, 'default'));
   });
 
-  it('satura el volumen en 500 opiniones', () => {
+  it('satura el volumen a partir de 100 mil vendidos', () => {
     const base = { rating: 4, descuento: 20 };
-    expect(calcularScorePorSeccion({ ...base, opiniones: 5000 }, 'default'))
-      .toBe(calcularScorePorSeccion({ ...base, opiniones: 500 }, 'default'));
+    expect(calcularScorePorSeccion({ ...base, vendidos: 250_000 }, 'default'))
+      .toBe(calcularScorePorSeccion({ ...base, vendidos: 100_000 }, 'default'));
   });
 
   it('en imbatibles el volumen pesa más que el descuento (decisión 2026-06-11)', () => {
     // Un item SIN descuento pero con muchas opiniones no debe hundirse: los
     // imbatibles son precio-permanente-bajo y ML no manda previous_price.
-    const sinDescuento = { rating: 4.8, descuento: 0, opiniones: 500 };
+    const sinDescuento = { rating: 4.8, descuento: 0, vendidos: 10_000 };
     expect(calcularScorePorSeccion(sinDescuento, 'imbatibles'))
       .toBeGreaterThan(calcularScorePorSeccion(sinDescuento, 'default'));
     expect(PESOS_SECCION.imbatibles.volumen).toBeGreaterThan(PESOS_SECCION.default.volumen);
   });
 
   it('una sección desconocida cae en los pesos por defecto', () => {
-    const item = { rating: 4.2, descuento: 25, opiniones: 300 };
+    const item = { rating: 4.2, descuento: 25, vendidos: 3000 };
     expect(calcularScorePorSeccion(item, 'seccion-que-no-existe'))
       .toBe(calcularScorePorSeccion(item, 'default'));
   });
 
   it('no truena con campos ausentes ni valores fuera de rango', () => {
     expect(calcularScorePorSeccion({}, 'default')).toBe(0);
-    expect(calcularScorePorSeccion({ rating: 9, descuento: -5, opiniones: -100 }, 'default')).toBe(65);
+    expect(calcularScorePorSeccion({ rating: 9, descuento: -5, vendidos: -100 }, 'default')).toBe(65);
   });
 });
 
 describe('scoreEfectivo', () => {
   it('respeta el score ya persistido en el feed', () => {
-    expect(scoreEfectivo({ score_kalidad_presio: 42, rating: 5, opiniones: 500, descuento: 40 })).toBe(42);
+    expect(scoreEfectivo({ score_kalidad_presio: 42, rating: 5, vendidos: 100_000, descuento: 40 })).toBe(42);
   });
 
   it('lo recalcula cuando falta', () => {
-    expect(scoreEfectivo({ rating: 5, descuento: 40, opiniones: 500 })).toBe(100);
+    expect(scoreEfectivo({ rating: 5, descuento: 40, vendidos: 100_000 })).toBe(100);
   });
 
   it('conserva un score persistido de 0 (no lo confunde con "ausente")', () => {
@@ -150,23 +150,25 @@ describe('tierKP', () => {
 });
 
 describe('generarVeredicto', () => {
-  it('abre por "más vendido" cuando esa es la señal más fuerte', () => {
-    const v = generarVeredicto({ mas_vendido: true, rating: 4.7, opiniones: 1200, descuento: 10 });
+  it('abre por volumen de ventas cuando esa es la señal más fuerte', () => {
+    // ML retiró la insignia "MÁS VENDIDO": el umbral de 10 mil unidades hace el
+    // mismo papel y es un dato publicado, no una etiqueta editorial.
+    const v = generarVeredicto({ rating: 4.7, vendidos: 12_000, descuento: 10 });
     expect(v).toMatch(/más vendido/i);
     expect(v).toContain('4.7');
   });
 
   it('abre por el descuento cuando es grande y la calificación aguanta', () => {
-    expect(generarVeredicto({ rating: 4.6, opiniones: 300, descuento: 55 })).toMatch(/55%/);
+    expect(generarVeredicto({ rating: 4.6, vendidos: 3000, descuento: 55 })).toMatch(/55%/);
   });
 
-  it('formatea los miles de opiniones de forma legible', () => {
-    expect(generarVeredicto({ rating: 4.8, opiniones: 1200 })).toContain('1.2 mil');
-    expect(generarVeredicto({ rating: 4.8, opiniones: 15000 })).toContain('15 mil');
+  it('formatea los miles de unidades de forma legible', () => {
+    expect(generarVeredicto({ rating: 4.8, vendidos: 1200 })).toContain('1.2 mil');
+    expect(generarVeredicto({ rating: 4.8, vendidos: 15_000 })).toContain('15 mil');
   });
 
   it('cierra con las señales de confianza que existan', () => {
-    const base = { rating: 4.5, opiniones: 200 };
+    const base = { rating: 4.5, vendidos: 2000 };
     expect(generarVeredicto({ ...base, vendedor_confiable: true, envio_gratis: true }))
       .toContain('Vendedor reputado y envío gratis.');
     expect(generarVeredicto({ ...base, envio_gratis: true })).toContain('Con envío gratis.');
@@ -179,9 +181,9 @@ describe('generarVeredicto', () => {
   });
 
   it('no inventa cifras que no vienen en el feed', () => {
-    // Sin rating ni opiniones no debe aparecer ningún "★" ni conteo.
+    // Sin rating ni ventas no debe aparecer ningún "★" ni conteo.
     const v = generarVeredicto({ descuento: 30 });
     expect(v).not.toContain('★');
-    expect(v).not.toMatch(/\bopiniones\b/);
+    expect(v).not.toMatch(/\bvendidos\b/);
   });
 });

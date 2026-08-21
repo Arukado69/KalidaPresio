@@ -12,8 +12,12 @@ export function tierKP(score) {
     : 'Baja';
 }
 
-/** Formatea el volumen de opiniones de forma legible (1 200 → "1.2 mil"). */
-function opiniones(n) {
+/**
+ * Formatea el volumen de VENTAS (1 200 → "1.2 mil").
+ * ML publica cubos («Más de 5mil»), o sea cotas inferiores: por eso el copy
+ * dice «+1.2 mil vendidos» y nunca una cifra exacta.
+ */
+function volumen(n) {
   const v = Number(n) || 0;
   if (v >= 1000) {
     const miles = v / 1000;
@@ -30,22 +34,24 @@ function opiniones(n) {
  */
 export function generarVeredicto(o = {}) {
   const r = Number(o.rating) || 0;
-  const op = Number(o.opiniones) || 0;
+  const op = Number(o.vendidos) || 0;
   const d = Math.round(Number(o.descuento) || 0);
-  const opTxt = opiniones(op);
+  const opTxt = volumen(op);
   const frases = [];
 
   // ── Apertura: la señal más contundente manda ──
-  if (o.mas_vendido && r >= 4.5 && op > 0) {
-    frases.push(`De lo más vendido de su categoría y aun así ${r.toFixed(1)}★ con ${opTxt} opiniones.`);
+  // ML retiró la insignia "MÁS VENDIDO" de sus tarjetas en 2026; el umbral de
+  // 10 mil unidades cumple el mismo papel y es un dato, no una etiqueta.
+  if (op >= 10000 && r >= 4.5) {
+    frases.push(`De lo más vendido de su categoría y aun así ${r.toFixed(1)}★, con +${opTxt} vendidos.`);
   } else if (d >= 50 && r >= 4.5 && op > 0) {
-    frases.push(`Baja ${d}% real y mantiene ${r.toFixed(1)}★ entre ${opTxt} compradores.`);
-  } else if (r >= 4.7 && op >= 500) {
-    frases.push(`${r.toFixed(1)}★ con ${opTxt} opiniones: calidad probada por mucha gente.`);
+    frases.push(`Baja ${d}% real y mantiene ${r.toFixed(1)}★ con +${opTxt} vendidos.`);
+  } else if (r >= 4.7 && op >= 5000) {
+    frases.push(`${r.toFixed(1)}★ y +${opTxt} vendidos: calidad probada por mucha gente.`);
   } else if (d >= 40) {
     frases.push(`Descuento real del ${d}% verificado contra su precio habitual${r > 0 ? `, con ${r.toFixed(1)}★` : ''}.`);
   } else if (r > 0 && op > 0) {
-    frases.push(`${r.toFixed(1)}★ con ${opTxt} opiniones${d > 0 ? ` y ${d}% de descuento real` : ''}.`);
+    frases.push(`${r.toFixed(1)}★ con +${opTxt} vendidos${d > 0 ? ` y ${d}% de descuento real` : ''}.`);
   } else if (d > 0) {
     frases.push(`Descuento real del ${d}% sobre su precio habitual.`);
   } else {

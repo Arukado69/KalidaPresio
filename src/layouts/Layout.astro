@@ -45,7 +45,7 @@ const datosSitio = {
       name: 'KalidaPresio',
       inLanguage: 'es-MX',
       description:
-        'Rastreamos precios y opiniones reales de Mercado Libre México para encontrar las mejores ofertas calidad-precio.',
+        'Rastreamos precios, calificaciones y ventas reales de Mercado Libre México para encontrar las mejores ofertas calidad-precio.',
       publisher: { '@id': `${Astro.site}#org` },
     },
     {
@@ -131,7 +131,7 @@ const datosSitio = {
         <!-- Divulgación honesta: los precios son una foto, no un contrato.
              La compra ocurre en ML a su precio; por eso pedimos verificar. -->
         <p class="footer-disclaimer">
-          KalidaPresio rastrea precios y opiniones reales de Mercado Libre México
+          KalidaPresio rastrea precios, calificaciones y ventas reales de Mercado Libre México
           para ayudarte a decidir mejor. Los precios son una referencia del momento
           en que se detectaron — <strong>verifica siempre el precio final en Mercado
           Libre antes de comprar</strong>. <SelloFrescura generadoEl={GENERADO_EL} variante="pie" />.
@@ -141,6 +141,8 @@ const datosSitio = {
     </footer>
 
     <script>
+      import { formatearVendidos } from '../utils/mlPayload.js';
+
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       const W = window as any;
 
@@ -709,7 +711,7 @@ const datosSitio = {
             stars.setAttribute('aria-label', `${(o.rating || 0).toFixed(1)} de 5 estrellas`);
           }
           if (ratingNum) ratingNum.textContent = (o.rating || 0).toFixed(1);
-          if (ratingOp) ratingOp.textContent = `(${(o.opiniones || 0).toLocaleString('es-MX')} opiniones)`;
+          if (ratingOp) ratingOp.textContent = formatearVendidos(o.vendidos);
           if (cta) {
             cta.setAttribute('href', conCampana(o.urlAfiliado || '#', 'hero'));
             // Los data-* viajan CON el producto: el rotador cambia de oferta

@@ -51,12 +51,14 @@ export const COLECCIONES = [
   {
     slug: 'mas-vendidos-del-mes',
     titulo: 'Los Más Vendidos del Mes',
-    descripcion: 'Los productos más populares según miles de reseñas verificadas de compradores en Mercado Libre México. Volumen de ventas real, no posicionamiento pagado.',
+    descripcion: 'Los productos con más unidades vendidas en Mercado Libre México. Volumen de ventas real publicado por la propia plataforma, no posicionamiento pagado.',
     emoji: '🏆',
     color: 'var(--color-warm)',
     items: ofertasEnriquecidas
-      .filter(o => o.mas_vendido === true || (o.opiniones ?? 0) > 1000)
-      .sort((a, b) => (b.opiniones ?? 0) - (a.opiniones ?? 0)),
+      // Ahora el nombre de la colección es literal: ML publica unidades
+      // vendidas, así que "más vendidos" ya no es una inferencia.
+      .filter(o => (o.vendidos ?? 0) >= 5000)
+      .sort((a, b) => (b.vendidos ?? 0) - (a.vendidos ?? 0)),
   },
 
   {

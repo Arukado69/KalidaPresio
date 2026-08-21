@@ -6,7 +6,7 @@ se reconstruye y Caddy lo sirve detrás de Nginx Proxy Manager.
 
 El **Sello K-P** puntúa cada oferta de 0 a 100 combinando calificación real de
 compradores (65 %), descuento real verificado contra el precio previo (20 %, con
-tope en 40 %) y volumen de opiniones (15 %, saturado en 500). Las secciones de
+tope en 40 %) y volumen de ventas (15 %, en escala logarítmica de 100 a 100 mil unidades). Las secciones de
 precio permanente bajo («Imbatibles») usan un recalibrado 65/10/25 porque ahí ML
 no manda `previous_price` y penalizar la falta de descuento sería injusto.
 

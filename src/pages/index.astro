@@ -11,6 +11,7 @@ import { generarVeredicto, tierKP } from '../utils/veredicto.js';
 import { scoreEfectivo } from '../utils/scoreSecciones.js';
 import { aLinkAfiliado } from '../utils/afiliado.js';
 import { categorizar } from '../utils/categorias.js';
+import { formatearVendidos } from '../utils/mlPayload.js';
 import { OFERTAS as ofertas } from '../data/ofertas.js';
 // Colecciones por sección (build-time, con fallback a ofertas.json si el
 // extractor aún no corrió). Relámpago e Imbatibles son el MVP; liquidación
@@ -170,7 +171,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
               <div class="hs-rating">
                 <Estrellas rating={showpiece.rating} size={14} />
                 <strong>{showpiece.rating?.toFixed(1)}</strong>
-                <em>({showpiece.opiniones?.toLocaleString('es-MX')} opiniones)</em>
+                <em>{formatearVendidos(showpiece.vendidos)}</em>
               </div>
               <BotonCTA id={showpiece.id} enlace={aLinkAfiliado(showpiece.link_afiliado, 'hero')} texto="Ver oferta" magnetic />
               <!-- Puntos de progreso del rotador (los rellena initHeroSpotlight) -->
@@ -255,7 +256,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
                   <span class="bh-signal">
                     <Estrellas rating={veredicto.rating} size={13} />
                     <strong>{veredicto.rating?.toFixed(1)}</strong>
-                    <em>({veredicto.opiniones?.toLocaleString('es-MX')})</em>
+                    <em>{formatearVendidos(veredicto.vendidos)}</em>
                   </span>
                   {vDescuento > 0 && <span class="bh-signal bh-dscto">−{vDescuento}% real</span>}
                 </div>
