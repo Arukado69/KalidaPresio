@@ -1,25 +1,46 @@
-# Contexto de build mínimo (imágenes ligeras + builds rápidos)
+# Contexto de build mínimo (imágenes ligeras + builds rápidos).
+# Regla de oro: NADA de esto debe entrar a la imagen.
+
+# Dependencias y artefactos (se reinstalan/reconstruyen dentro del contenedor)
 node_modules
 backend/node_modules
 dist
 .astro
+
+# Git y metadata del repo
 .git
 .github
-.claude
-.agents
-.vscode
-docs
-*.md
-!README.md
+.gitignore
+
+# Entorno / SECRETOS — nunca hornear un .env en la imagen. Lo público entra
+# por build args y lo secreto por env_file en runtime.
 .env
 .env.*
 !.env.example
+
+# Herramientas locales / editor / agentes
+.claude
+.agents
+.vscode
+.codebase-memory
+
+# Docs y varios (no afectan al runtime)
+docs
+*.md
+!README.md
+
+# Datos locales que no deben viajar
 backend/database.sqlite*
 src/scripts/.ml_token_cache.json
-proyecto_completo_claude.txt
-codigo_para_claude.txt
-estado_actual.txt
+
+# Volcados para pegar en el chat
 web.zip
+codigo_para_claude.txt
+proyecto_completo_claude.txt
+estado_actual.txt
 empaquetar.cjs
 skills-lock.json
 SKILL.md
+
+# Tests: no se ejecutan dentro de la imagen (corren en CI)
+**/*.test.js

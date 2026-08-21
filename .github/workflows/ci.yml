@@ -1,0 +1,62 @@
+name: CI
+
+# Verificación en cada push y en cada Pull Request: instala con el lockfile,
+# corre los tests de la lógica de negocio y COMPILA el sitio.
+#
+# El build es la parte importante: antes nada comprobaba que el sitio siguiera
+# compilando antes de que el deploy entrara por SSH al VPS a reconstruir. Un
+# feed malformado o un import roto se descubría en producción.
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Test + Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        # SKIP_EXTRACCION: los runners de GitHub salen por IPs que Mercado Libre
+        # bloquea. Saltarse el sondeo hace el CI rápido y determinista; el feed
+        # seccionado se genera en el VPS, y si allí falla el sitio degrada a
+        # ofertas.json (que este mismo repo mantiene fresco cada 3 h).
+        env:
+          SITE_URL: https://kalidapresio.com
+          SKIP_EXTRACCION: 'true'
+        run: npm run build
+
+      - name: Comprobar que la canónica NO apunta a localhost
+        # Guardia de regresión del fallo que tuvo el sitio fuera del índice:
+        # sin `site` en astro.config, cada página salía con
+        # <link rel="canonical" href="http://localhost:4321/">.
+        run: |
+          if grep -rq 'canonical" href="http://localhost' dist/; then
+            echo "❌ Hay canónicas apuntando a localhost. ¿Falta SITE_URL?"
+            grep -rl 'canonical" href="http://localhost' dist/ | head
+            exit 1
+          fi
+          echo "✅ Canónicas correctas."
+
+      - name: Comprobar que los redirects de afiliado se generaron
+        run: |
+          test -s docker/redirects.caddy || { echo "❌ docker/redirects.caddy vacío o ausente."; exit 1; }
+          echo "✅ $(grep -c '^redir ' docker/redirects.caddy) redirects de afiliado."

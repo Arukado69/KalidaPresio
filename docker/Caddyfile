@@ -1,19 +1,70 @@
-# KalidaPresio — Caddy: sirve el sitio estático + proxy al backend + HTTPS auto.
-# SITE_ADDRESS lo define docker-compose desde .env:
-#   · Producción: SITE_ADDRESS=kalidapresio.com  (Caddy obtiene el certificado solo)
-#   · Local:      SITE_ADDRESS=:80                 (HTTP, sin TLS)
+# =============================================================================
+# KalidaPresio — Caddy interno: sirve el sitio estático + proxy al backend.
+#
+# ARQUITECTURA (igual que NS Hub): este Caddy NO toca los puertos 80/443 del
+# VPS ni pide certificados. Quien termina TLS y publica el dominio es **Nginx
+# Proxy Manager**, que ya es dueño de 80/443 en el host. Caddy escucha en
+# HTTP plano dentro de la red de Docker y NPM le hace proxy por nombre de
+# contenedor (kalidapresio-web:80).
+#
+#   Internet → NPM (TLS, :443) → kalidapresio-web:80 (este Caddy)
+#                                        ├── /api/*  → kalidapresio-api:3001
+#                                        └── resto   → sitio estático /srv
+#
+# SITE_ADDRESS lo define docker-compose desde .env.production:
+#   · Detrás de NPM (lo normal): SITE_ADDRESS=:80   ← HTTP plano, sin TLS
+#   · Caddy solo, con dominio:   SITE_ADDRESS=kalidapresio.com  (TLS automático)
+# =============================================================================
+{
+	# Sin TLS propio detrás de NPM: no hace falta cuenta ACME ni puerto 443.
+	auto_https off
+	admin off
+
+	servers {
+		# NPM se sienta delante: sin esto {remote_host} sería siempre la IP del
+		# proxy y los logs (y cualquier rate-limit futuro) verían un solo cliente.
+		trusted_proxies static private_ranges
+	}
+}
+
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 
-	# ── API → backend Express (contenedor 'backend' en la red interna) ──
-	handle /api/* {
-		reverse_proxy backend:3001
+	# Raíz a nivel de sitio para que la comparta el bloque de errores (la 404).
+	root * /srv
+
+	# ── Cabeceras de seguridad (aplican a todo lo que sirve este bloque) ─────
+	header {
+		# No adivinar el tipo de contenido: bloquea ataques de MIME sniffing.
+		X-Content-Type-Options "nosniff"
+		# No filtrar la URL completa a Mercado Libre en el Referer del clic.
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# El sitio no usa cámara, micrófono ni geolocalización. Que nadie pueda.
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# Nadie debería poder enmarcar el sitio (clickjacking sobre los CTA).
+		X-Frame-Options "SAMEORIGIN"
+		# Caddy anuncia su versión por defecto; no hace falta.
+		-Server
 	}
 
-	# ── Sitio estático (Astro SSG) ──
-	handle {
-		root * /srv
+	# ── Enlaces de afiliado (cloaking) ───────────────────────────────────────
+	# redirects.caddy lo genera `generadorRedirects.js` en cada build desde
+	# ofertas.json y el Dockerfile lo copia a /etc/caddy/. Antes esto vivía en
+	# public/_redirects (formato de Cloudflare) y Caddy no lo leía: cada clic
+	# en /recomienda/... caía en el try_files y devolvía la PORTADA con 200.
+	handle /recomienda/* {
+		import /etc/caddy/redirects.caddy
+		# Un id que ya no está en el feed: 404 honesto, no la portada.
+		respond "Esta oferta ya no está disponible." 404
+	}
 
+	# ── API → backend Express (servicio 'api' en la red interna de Docker) ──
+	handle /api/* {
+		reverse_proxy api:3001
+	}
+
+	# ── Sitio estático (Astro SSG) ──────────────────────────────────────────
+	handle {
 		# El JSON de relámpago NO se cachea → el sitio lee la última versión
 		# en runtime (frescura del carrusel sin rebuild).
 		@relampago path /data/relampago.json
@@ -24,7 +75,17 @@
 		header @assets Cache-Control "public, max-age=31536000, immutable"
 
 		# Astro genera /ruta/index.html; esto resuelve las rutas limpias.
-		try_files {path} {path}/ {path}.html /index.html
+		# OJO: sin /index.html al final. Antes lo tenía, y eso convertía CADA
+		# URL inexistente en la portada con HTTP 200 (soft-404 para Google).
+		try_files {path} {path}/ {path}.html
+		file_server
+	}
+
+	# Errores reales con la página 404 del sitio y su código de estado correcto.
+	# (Forma documentada de Caddy: matcher `expression` + rewrite + file_server.)
+	handle_errors {
+		@404 expression {err.status_code} == 404
+		rewrite @404 /404.html
 		file_server
 	}
 }

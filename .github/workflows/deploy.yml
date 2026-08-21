@@ -1,33 +1,84 @@
-name: Trigger Hetzner Deployment
+name: Desplegar en Hetzner
 
+# Cada push a main —incluidos los commits de datos del bot cada 3 h— reconstruye
+# el sitio en el VPS. Es lo que mantiene los precios frescos: sin esto, el
+# sitio se congela con el feed del último despliegue manual.
+#
+# El deploy solo hace SSH + rebuild (no commitea), así que no hay bucle.
 on:
   push:
-    branches:
-      - main
-    # Dispara en TODO push a main, incluidos los commits de datos del bot
-    # (cada 3 h). Antes se ignoraban → el sitio se congelaba con precios viejos.
-    # Ahora cada refresco de datos redespliega: precios frescos + el build
-    # regenera relampago.json (endsAt +24h) → el carrusel nunca se vacía.
-    # El deploy solo hace SSH+rebuild (no commitea), así que no hay loop.
-  workflow_dispatch: {}   # permite disparar el deploy a mano cuando quieras
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-produccion
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  # ── Puerta de calidad ───────────────────────────────────────────────────────
+  # Si el sitio no compila, no se toca producción. Antes el deploy entraba por
+  # SSH directamente y el error se descubría en el VPS, con el contenedor viejo
+  # sirviendo mientras alguien investigaba.
+  verificar:
+    name: Test + Build
     runs-on: ubuntu-latest
     steps:
-      - name: Executes SSH commands on Hetzner
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - env:
+          SITE_URL: https://kalidapresio.com
+          SKIP_EXTRACCION: 'true'
+        run: npm run build
+
+  desplegar:
+    name: SSH + docker compose
+    needs: verificar
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ejecutar el despliegue en el VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: 22
+          # Clave SSH, no contraseña. Genera el par con:
+          #   ssh-keygen -t ed25519 -C "github-actions-kalidapresio" -f deploy_key
+          # La pública va a ~/.ssh/authorized_keys del VPS; la privada, al
+          # secret SSH_KEY del repo.
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
           script: |
-            set -e
-            cd /var/www/kalidapresio
+            set -euo pipefail
+            cd /opt/kalidapresio
+
             git fetch --all
             git reset --hard origin/main
-            # Reconstruye y levanta AMBOS servicios (frontend Caddy + backend).
-            docker compose up -d --build
-            # Limpia imágenes huérfanas para no llenar el disco del VPS.
+
+            # Respaldo de la imagen actual para poder revertir en ~30 s.
+            docker image inspect kalidapresio-web:latest >/dev/null 2>&1 \
+              && docker tag kalidapresio-web:latest kalidapresio-web:prev || true
+            docker image inspect kalidapresio-api:latest >/dev/null 2>&1 \
+              && docker tag kalidapresio-api:latest kalidapresio-api:prev || true
+
+            # Reconstruye e intercambia ambos servicios.
+            # --build SIEMPRE: SITE_URL y ML_MATT_* se hornean en el bundle;
+            # sin reconstruir, el valor viejo sigue dentro.
+            docker compose --env-file .env.production up -d --build
+
+            # Espera a que el frontend responda antes de dar el deploy por bueno.
+            for i in $(seq 1 20); do
+              if curl -fsS -o /dev/null http://127.0.0.1:8080/; then
+                echo "✅ Frontend respondiendo."
+                break
+              fi
+              [ "$i" = "20" ] && { echo "❌ El frontend no respondió en 60 s."; docker compose --env-file .env.production logs --tail 60 web; exit 1; }
+              sleep 3
+            done
+
+            # Limpia capas huérfanas (no toca las etiquetas :prev).
             docker image prune -f

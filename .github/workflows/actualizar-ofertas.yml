@@ -1,20 +1,21 @@
 name: Actualizar feed de ofertas
 
 # Refresca src/data/ofertas.json cada 3 horas (imita el ciclo de tu n8n).
-# ÚNICA fuente de datos del sitio: re-escanea precios y los commitea al repo.
-# El despliegue lo hace el cron de Hetzner (/opt/kalida/deploy.sh), que baja
-# este feed fresco, reconstruye y sirve. Ver docs/despliegue-hetzner.md §5.
-# NO añadir otro scraper en el VPS: rompería el pipeline (working-tree sucio).
+# ÚNICA fuente de datos versionada del sitio: re-escanea precios y los commitea.
+# Ese push dispara deploy.yml → rebuild en el VPS → precios frescos en la web.
+#
+# NOTA: public/_redirects y docker/redirects.caddy YA NO se commitean (están en
+# .gitignore). Son derivados: los regenera `npm run build` en cada despliegue a
+# partir del ofertas.json que sí viaja aquí. Versionar derivados fue justo lo
+# que dejó la portada dos meses con precios de junio.
 on:
   schedule:
     - cron: '0 */3 * * *' # cada 3 horas (UTC)
   workflow_dispatch: {}     # permite ejecutarlo a mano desde la pestaña Actions
 
-# Necesario para que el bot pueda commitear el JSON actualizado
 permissions:
   contents: write
 
-# Evita solapamientos si una corrida tarda más de lo previsto
 concurrency:
   group: actualizar-ofertas
   cancel-in-progress: false
@@ -30,6 +31,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
 
       - name: Instalar dependencias
         run: npm ci
@@ -40,16 +42,25 @@ jobs:
         env:
           ML_MATT_TOOL: ${{ secrets.ML_MATT_TOOL }}
           ML_MATT_WORD: ${{ secrets.ML_MATT_WORD }}
-        run: |
-          node src/scripts/importarOfertas.js
-          node src/scripts/generadorRedirects.js
+        run: node src/scripts/importarOfertas.js
+
+      # El feed nuevo debe poder construir el sitio ANTES de commitearse.
+      # Un ofertas.json malformado hacía fallar generadorRedirects.js ya en el
+      # VPS, con el deploy a medias.
+      - name: Verificar que el feed construye
+        env:
+          SITE_URL: https://kalidapresio.com
+          SKIP_EXTRACCION: 'true'
+          ML_MATT_TOOL: ${{ secrets.ML_MATT_TOOL }}
+          ML_MATT_WORD: ${{ secrets.ML_MATT_WORD }}
+        run: npm run build
 
       - name: Commit y push si hubo cambios
         run: |
           git config user.name  "kalidapresio-bot"
           git config user.email "bot@users.noreply.github.com"
-          if [ -n "$(git status --porcelain src/data/ofertas.json public/_redirects)" ]; then
-            git add src/data/ofertas.json public/_redirects
+          if [ -n "$(git status --porcelain src/data/ofertas.json)" ]; then
+            git add src/data/ofertas.json
             git commit -m "chore: actualización automática del feed de ofertas"
             git push
             echo "Feed actualizado y enviado."
