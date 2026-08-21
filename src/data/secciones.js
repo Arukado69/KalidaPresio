@@ -25,7 +25,7 @@
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import ofertasProduccion from './ofertas.json';
+import { OFERTAS as ofertasProduccion, GENERADO_EL as GENERADO_OFERTAS } from './ofertas.js';
 import { calcularScorePorSeccion } from '../utils/scoreSecciones.js';
 
 /** Ventana de confianza del feed seccionado. Más viejo que esto → se ignora. */
@@ -92,8 +92,13 @@ const seccionado = cargado.items;
 /** true si estamos sirviendo el fallback de ofertas.json (sin extractor fresco). */
 export const ES_FALLBACK = seccionado === null;
 
-/** Marca de tiempo de los datos que se están sirviendo (ISO 8601). */
-export const GENERADO_EL = ES_FALLBACK ? null : cargado.generadoEl;
+/**
+ * Marca de tiempo de los datos que se están sirviendo REALMENTE (ISO 8601).
+ * Con el feed seccionado, su sello; en fallback, el de ofertas.json. `null`
+ * solo si ninguno de los dos lo trae — y en ese caso el sitio lo admite en
+ * voz alta en vez de inventarse una fecha.
+ */
+export const GENERADO_EL = ES_FALLBACK ? GENERADO_OFERTAS : cargado.generadoEl;
 
 // El build debe DECIR de dónde salen los datos. Un fallback silencioso es lo
 // que dejó la portada dos meses en junio.

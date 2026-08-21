@@ -40,7 +40,12 @@ try {
   console.log('\n⚡ [Relámpago] Generando carrusel desde ofertas.json...');
 
   const raw = fs.readFileSync(OFERTAS_PATH, 'utf-8');
-  const ofertas = JSON.parse(raw);
+  const crudo = JSON.parse(raw);
+  // Array (formato antiguo) o sobre con sello `{ generadoEl, items }`.
+  const ofertas = Array.isArray(crudo) ? crudo : (crudo?.items ?? []);
+  // El carrusel hereda la fecha de DETECCION del feed, no la del build:
+  // es el dato honesto, y `detectadoEl` ya lo pinta el rail en runtime.
+  const detectadoEl = (!Array.isArray(crudo) && crudo?.generadoEl) || new Date().toISOString();
 
   if (!Array.isArray(ofertas) || ofertas.length === 0) {
     console.warn('⚠ [Relámpago] ofertas.json vacío o inválido. Se genera JSON vacío.');
@@ -93,7 +98,7 @@ try {
   }));
 
   const output = {
-    detectadoEl: ahora.toISOString(),
+    detectadoEl,
     ofertas: seleccionadas,
   };
 

@@ -11,7 +11,7 @@ import { generarVeredicto, tierKP } from '../utils/veredicto.js';
 import { scoreEfectivo } from '../utils/scoreSecciones.js';
 import { aLinkAfiliado } from '../utils/afiliado.js';
 import { categorizar } from '../utils/categorias.js';
-import ofertas from '../data/ofertas.json';
+import { OFERTAS as ofertas } from '../data/ofertas.js';
 // Colecciones por sección (build-time, con fallback a ofertas.json si el
 // extractor aún no corrió). Relámpago e Imbatibles son el MVP; liquidación
 // y menos-500 quedan en backlog (los datos ya existen).

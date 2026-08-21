@@ -176,8 +176,23 @@ async function main() {
     throw new Error('0 ofertas tras el filtro. No se sobrescribe ofertas.json para no dejar la web vacía.');
   }
 
-  await writeFile(OUTPUT, JSON.stringify(joyas, null, 2), 'utf-8');
-  console.log(`💾  ofertas.json actualizado con ${joyas.length} productos.`);
+  // Sobre con SELLO DE FECHA, igual que secciones-feed.json.
+  //
+  // Antes era un array pelón: no había forma de saber CUÁNDO se detectaron esos
+  // precios, y el pie del sitio acababa mostrando la fecha del build como si
+  // fuera la de los datos. Con esto el sitio puede decir la verdad («precios
+  // detectados hace 2 h») en vez de una frescura que no se ha ganado.
+  //
+  // `src/data/ofertas.js` acepta las dos formas, así que el sitio sigue
+  // funcionando con un ofertas.json viejo hasta que el bot escriba el nuevo.
+  const sobre = {
+    generadoEl: new Date().toISOString(),
+    fuente: URL_OFERTAS,
+    total: joyas.length,
+    items: joyas,
+  };
+  await writeFile(OUTPUT, JSON.stringify(sobre, null, 2), 'utf-8');
+  console.log(`💾  ofertas.json actualizado con ${joyas.length} productos (sellado ${sobre.generadoEl}).`);
   console.log(`🏆  Mejor: "${joyas[0].titulo?.slice(0, 50)}" (score ${joyas[0].score_kalidad_presio}).\n`);
 }
 

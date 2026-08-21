@@ -4,6 +4,9 @@ import Header from '../components/Header.astro';
 import Newsletter from '../components/Newsletter.astro';
 import { ClientRouter } from 'astro:transitions';
 import Analitica from '../components/Analitica.astro';
+import SelloFrescura from '../components/SelloFrescura.astro';
+// La fecha REAL de deteccion de los precios que se estan sirviendo.
+import { GENERADO_EL } from '../data/secciones.js';
 
 export interface Props {
   title: string;
@@ -131,7 +134,7 @@ const datosSitio = {
           KalidaPresio rastrea precios y opiniones reales de Mercado Libre México
           para ayudarte a decidir mejor. Los precios son una referencia del momento
           en que se detectaron — <strong>verifica siempre el precio final en Mercado
-          Libre antes de comprar</strong>. Última actualización: {new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}.
+          Libre antes de comprar</strong>. <SelloFrescura generadoEl={GENERADO_EL} variante="pie" />.
         </p>
         <p class="footer-copy">&copy; {new Date().getFullYear()} KalidaPresio. Todos los derechos reservados.</p>
       </div>

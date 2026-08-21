@@ -20,7 +20,8 @@ import { categorizar } from '../utils/categorias.js';
 // aqui y en index.astro, con un comentario que la llamaba "Single Source of
 // Truth" siendo dos copias distintas.
 import { scoreEfectivo } from '../utils/scoreSecciones.js';
-import ofertas from './ofertas.json';
+// Pasa por el cargador: acepta el feed con o sin sello de fecha.
+import { OFERTAS as ofertas } from './ofertas.js';
 
 // Pre-calcular score y categoría para todos los productos (una sola vez)
 const ofertasEnriquecidas = ofertas.map(o => ({

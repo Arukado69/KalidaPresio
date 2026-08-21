@@ -13,6 +13,8 @@ import Layout from '../../layouts/Layout.astro';
 import TarjetaOferta from '../../components/TarjetaOferta.astro';
 import BotonCTA from '../../components/BotonCTA.astro';
 import { COLECCIONES_ACTIVAS } from '../../data/colecciones.js';
+import SelloFrescura from '../../components/SelloFrescura.astro';
+import { GENERADO_EL } from '../../data/secciones.js';
 
 export function getStaticPaths() {
   return COLECCIONES_ACTIVAS.map(col => ({
@@ -45,6 +47,7 @@ const ganador = coleccion.items[0]; // Mejor score/descuento del clúster
       <span class="col-emoji" aria-hidden="true">{coleccion.emoji}</span>
       <h1 class="col-titulo">{coleccion.titulo}</h1>
       <p class="col-descripcion">{coleccion.descripcion}</p>
+      <p class="col-frescura"><SelloFrescura generadoEl={GENERADO_EL} /></p>
       <div class="col-meta">
         <span class="col-count">{coleccion.items.length} productos seleccionados</span>
         <span class="col-updated">Actualizado: {new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
@@ -166,6 +169,8 @@ const ganador = coleccion.items[0]; // Mejor score/descuento del clúster
     position: relative;
     z-index: 1;
   }
+
+  .col-frescura { margin: 0 0 var(--spacing-md); }
 
   .col-descripcion {
     font-size: var(--fs-base);

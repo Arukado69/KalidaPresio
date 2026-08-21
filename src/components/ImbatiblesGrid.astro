@@ -12,6 +12,8 @@
  */
 import TarjetaOferta from './TarjetaOferta.astro';
 import { categorizar, ORDEN_CATEGORIAS } from '../utils/categorias.js';
+import SelloFrescura from './SelloFrescura.astro';
+import { GENERADO_EL } from '../data/secciones.js';
 
 export interface Props {
   productos: any[];
@@ -30,6 +32,7 @@ const categorias = ORDEN_CATEGORIAS.filter((c) => presentes.has(c));
     <p class="imb-stats">
       <strong>{conCategoria.length}</strong> productos imbatibles · precio permanente bajo, ordenados por calidad real
     </p>
+    <p class="imb-frescura"><SelloFrescura generadoEl={GENERADO_EL} /></p>
 
     <div class="imb-controles">
       {categorias.length > 1 && (
@@ -62,8 +65,13 @@ const categorias = ORDEN_CATEGORIAS.filter((c) => presentes.has(c));
 )}
 
 <style>
-  .imb-stats {
+  .imb-frescura {
+    /* Pegado al conteo: el "cuantos" y el "de cuando" se leen juntos. */
     margin: calc(-1 * var(--spacing-sm)) 0 var(--spacing-md);
+  }
+
+  .imb-stats {
+    margin: calc(-1 * var(--spacing-sm)) 0 0.35rem;
     color: var(--color-text-muted);
     font-size: 0.9rem;
   }

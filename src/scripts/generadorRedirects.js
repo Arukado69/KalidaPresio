@@ -88,7 +88,13 @@ function asegurarParametrosAfiliado(rawUrl) {
 // Proceso principal
 try {
   const rawData = fs.readFileSync(dataPath, 'utf-8');
-  const ofertas = JSON.parse(rawData);
+  const crudo = JSON.parse(rawData);
+  // El feed puede venir como array (formato antiguo) o como sobre con
+  // sello de fecha `{ generadoEl, items }`. Las dos valen.
+  const ofertas = Array.isArray(crudo) ? crudo : (crudo?.items ?? []);
+  if (!Array.isArray(ofertas) || ofertas.length === 0) {
+    throw new Error('ofertas.json no contiene ofertas utilizables.');
+  }
 
   // Validación en build-time: abortar si alguna oferta es malformada
   console.log('\n🔍 [KalidaPresio] Validando integridad del feed de ofertas...');
