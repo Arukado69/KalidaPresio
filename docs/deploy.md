@@ -12,13 +12,13 @@ de los puertos 80/443 del VPS.
                           └───────────┬────────────┘
                                       │  red_global (por nombre de contenedor)
                           ┌───────────┴────────────┐
-                          │  kalidapresio-web:80   │  Caddy + sitio Astro SSG
+                          │  kalidapresio_web:80   │  Caddy + sitio Astro SSG
                           │    ├── /recomienda/*   │  → 302 a ML con tu código
                           │    ├── /api/*  ────────┼──┐
                           │    └── resto → /srv    │  │
                           └────────────────────────┘  │
                                       ┌───────────────┴──────┐
-                                      │ kalidapresio-api:3001│ Express + SQLite
+                                      │ kalidapresio_api:3001│ Express + SQLite
                                       └──────────────────────┘
 ```
 
@@ -73,17 +73,17 @@ Un solo archivo cubre los dos mundos. Lo mínimo para arrancar:
 
 ```bash
 # BUILD-TIME (se hornean; cambiarlos exige --build)
-SITE_URL=https://kalidapresio.com     # ← el build FALLA si falta
+SITE_URL=https://kalidapresio.albis-labs.xyz     # ← el build FALLA si falta
 ML_MATT_TOOL=68549198
 ML_MATT_WORD=ci20241127172754
 
 # RUNTIME (basta con up -d)
 SITE_ADDRESS=:80                       # HTTP plano: el TLS lo da NPM
-PUBLIC_SITE_URL=https://kalidapresio.com
+PUBLIC_SITE_URL=https://kalidapresio.albis-labs.xyz
 SUBSCRIBE_SECRET=                      # openssl rand -hex 32
 RESEND_API_KEY=
-EMAIL_FROM=KalidaPresio <hola@kalidapresio.com>
-SUPPORT_INBOX=hola@kalidapresio.com
+EMAIL_FROM=KalidaPresio <hola@albis-labs.xyz>
+SUPPORT_INBOX=hola@albis-labs.xyz
 EXPORT_TOKEN=                          # openssl rand -hex 32
 ```
 
@@ -124,7 +124,7 @@ Comprobación en el propio VPS:
 ```bash
 docker compose --env-file .env.production ps        # ambos healthy
 curl -I http://127.0.0.1:8080/                      # 200 = el sitio vive
-curl -s http://127.0.0.1:8080/ | grep -o 'canonical[^>]*'   # debe decir kalidapresio.com
+curl -s http://127.0.0.1:8080/ | grep -o 'canonical[^>]*'   # debe decir kalidapresio.albis-labs.xyz
 docker compose --env-file .env.production logs -f web
 ```
 
@@ -138,13 +138,13 @@ el contenedor y NPM se queda dando 502.
 
 ```bash
 # Sanity check: ¿NPM alcanza al sitio por nombre?
-docker exec proxy-app-1 curl -sI http://kalidapresio-web:80 | head -1   # → HTTP/1.1 200 OK
+docker exec proxy-app-1 curl -sI http://kalidapresio_web:80 | head -1   # → HTTP/1.1 200 OK
 ```
 
 En la UI de NPM (`http://<IP-del-VPS>:81`) → **Proxy Hosts → Add Proxy Host**:
 
-- **Domain Names:** `kalidapresio.com` y `www.kalidapresio.com`
-- **Scheme:** `http` · **Forward Hostname/IP:** `kalidapresio-web` · **Forward Port:** `80`
+- **Domain Names:** `kalidapresio.albis-labs.xyz` y `www.kalidapresio.albis-labs.xyz`
+- **Scheme:** `http` · **Forward Hostname/IP:** `kalidapresio_web` · **Forward Port:** `80`
   ⚠️ En *Forward Hostname/IP* va **SOLO el nombre** — nada de `http://` ni `:80`
   ahí. Una URL completa en ese campo genera un upstream inválido y NPM responde
   **500 (openresty)** aunque todo lo demás esté bien.
@@ -168,7 +168,7 @@ En la UI de NPM (`http://<IP-del-VPS>:81`) → **Proxy Hosts → Add Proxy Host*
   > bájalo a 1.
 
 **Redirección de www a la raíz** (opcional, recomendado para SEO): un segundo
-Proxy Host para `www.kalidapresio.com` con *Forward* a `kalidapresio.com`, o
+Proxy Host para `www.kalidapresio.albis-labs.xyz` con *Forward* a `kalidapresio.albis-labs.xyz`, o
 simplemente incluye ambos dominios en el mismo host — la canónica ya apunta
 siempre a la versión sin `www`.
 
@@ -179,8 +179,8 @@ El workflow `deploy.yml` lo hace solo en cada push a `main`. A mano:
 ```bash
 cd /opt/kalidapresio
 git pull
-docker tag kalidapresio-web:latest kalidapresio-web:prev    # respaldo
-docker tag kalidapresio-api:latest kalidapresio-api:prev
+docker tag kalidapresio_web:latest kalidapresio_web:prev    # respaldo
+docker tag kalidapresio_api:latest kalidapresio_api:prev
 docker compose --env-file .env.production up -d --build
 docker image prune -f
 ```
@@ -213,8 +213,8 @@ rm deploy_key deploy_key.pub
 
 ```bash
 cd /opt/kalidapresio
-docker tag kalidapresio-web:prev kalidapresio-web:latest
-docker tag kalidapresio-api:prev kalidapresio-api:latest
+docker tag kalidapresio_web:prev kalidapresio_web:latest
+docker tag kalidapresio_api:prev kalidapresio_api:latest
 docker compose --env-file .env.production up -d          # sin --build
 curl -I http://127.0.0.1:8080/
 ```
@@ -263,7 +263,7 @@ docker compose --env-file .env.production restart api
 ```bash
 TOKEN=$(grep -m1 '^EXPORT_TOKEN=' /opt/kalidapresio/.env.production | cut -d= -f2-)
 curl -fsS -H "Authorization: Bearer $TOKEN" \
-  https://kalidapresio.com/api/export/subscribers -o suscriptores.csv
+  https://kalidapresio.albis-labs.xyz/api/export/subscribers -o suscriptores.csv
 # ?todos=1 incluye también pendientes y bajas (para auditar la lista)
 ```
 
@@ -299,14 +299,14 @@ docker compose --env-file .env.production up --build
 
 - **502 en NPM tras un `up -d`:** el contenedor no está en `red_global`.
   Verifica con
-  `docker inspect kalidapresio-web --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}'`
+  `docker inspect kalidapresio_web --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}'`
   y que el compose del VPS esté al día (`git pull`). Nunca uses
   `docker network connect` a mano: se pierde al recrear el contenedor.
 - **`network red_global declared as external, but could not be found`:** la red
   compartida de NPM se llama distinto. `docker network ls` y ajusta
   `networks.npm.name`.
 - **500 (openresty) con los contenedores healthy:** el Proxy Host tiene una URL
-  completa en *Forward Hostname/IP*. Ahí va solo `kalidapresio-web`.
+  completa en *Forward Hostname/IP*. Ahí va solo `kalidapresio_web`.
 - **El build falla con «Falta build-arg SITE_URL»:** olvidaste
   `--env-file .env.production`, o la variable está vacía. Es intencional: sin
   ella el sitio sale con canónicas a localhost y Google lo descarta.
@@ -316,7 +316,7 @@ docker compose --env-file .env.production up --build
 - **`/recomienda/<id>` devuelve 404:** correcto si esa oferta ya salió del feed.
   Si devuelve 404 para TODAS, `docker/redirects.caddy` no se generó: mira el log
   del build (`generadorRedirects.js`) y comprueba
-  `docker exec kalidapresio-web wc -l /etc/caddy/redirects.caddy`.
+  `docker exec kalidapresio_web wc -l /etc/caddy/redirects.caddy`.
 - **El boletín responde 503:** falta `SUBSCRIBE_SECRET` o `RESEND_API_KEY`. El
   log del backend lo dice al arrancar:
   `docker compose --env-file .env.production logs api | head -20`.

@@ -66,7 +66,7 @@ jobs:
       - name: Verificar que el feed construye
         if: steps.scrape.outcome == 'success'
         env:
-          SITE_URL: https://kalidapresio.com
+          SITE_URL: ${{ vars.SITE_URL || 'https://kalidapresio.albis-labs.xyz' }}
           SKIP_EXTRACCION: 'true'
           ML_MATT_TOOL: ${{ secrets.ML_MATT_TOOL }}
           ML_MATT_WORD: ${{ secrets.ML_MATT_WORD }}

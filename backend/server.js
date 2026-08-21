@@ -20,7 +20,7 @@ import {
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const SITE_URL = (process.env.PUBLIC_SITE_URL || 'https://kalidapresio.com').replace(/\/$/, '');
+const SITE_URL = (process.env.PUBLIC_SITE_URL || 'https://kalidapresio.albis-labs.xyz').replace(/\/$/, '');
 const SUBSCRIBE_SECRET = process.env.SUBSCRIBE_SECRET || '';
 const EXPORT_TOKEN = process.env.EXPORT_TOKEN || '';
 const SUPPORT_INBOX = process.env.SUPPORT_INBOX || '';
@@ -42,10 +42,14 @@ app.set('trust proxy', Number(process.env.TRUST_PROXY ?? 2));
 app.use(express.json({ limit: '32kb' }));
 
 // Configuración estricta de CORS
+// Los orígenes permitidos se DERIVAN del propio dominio del sitio en vez de
+// escribirse a mano. Tenerlos duplicados es como el CORS se queda apuntando a
+// un dominio viejo tras una migración: el sitio carga, los formularios no, y
+// nada lo dice hasta que alguien intenta suscribirse.
 const dominiosPermitidos = [
   'http://localhost:4321',
-  'https://kalidapresio.com',
-  'https://www.kalidapresio.com',
+  SITE_URL,
+  SITE_URL.replace('://', '://www.'),
   ...(process.env.CORS_EXTRA_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
 ];
 app.use(cors({

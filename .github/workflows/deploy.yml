@@ -31,7 +31,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - env:
-          SITE_URL: https://kalidapresio.com
+          SITE_URL: ${{ vars.SITE_URL || 'https://kalidapresio.albis-labs.xyz' }}
           SKIP_EXTRACCION: 'true'
         run: npm run build
 
@@ -60,10 +60,10 @@ jobs:
             git reset --hard origin/main
 
             # Respaldo de la imagen actual para poder revertir en ~30 s.
-            docker image inspect kalidapresio-web:latest >/dev/null 2>&1 \
-              && docker tag kalidapresio-web:latest kalidapresio-web:prev || true
-            docker image inspect kalidapresio-api:latest >/dev/null 2>&1 \
-              && docker tag kalidapresio-api:latest kalidapresio-api:prev || true
+            docker image inspect kalidapresio_web:latest >/dev/null 2>&1 \
+              && docker tag kalidapresio_web:latest kalidapresio_web:prev || true
+            docker image inspect kalidapresio_api:latest >/dev/null 2>&1 \
+              && docker tag kalidapresio_api:latest kalidapresio_api:prev || true
 
             # Reconstruye e intercambia ambos servicios.
             # --build SIEMPRE: SITE_URL y ML_MATT_* se hornean en el bundle;

@@ -32,8 +32,11 @@ services:
         PUBLIC_UMAMI_URL: ${PUBLIC_UMAMI_URL:-}
         PUBLIC_UMAMI_ID: ${PUBLIC_UMAMI_ID:-}
         PUBLIC_UMAMI_SCRIPT: ${PUBLIC_UMAMI_SCRIPT:-kp.js}
-    image: kalidapresio-web:latest
-    container_name: kalidapresio-web
+    image: kalidapresio_web:latest
+    # OJO: este nombre es la dirección por la que Nginx Proxy Manager alcanza
+    # al sitio (Forward Hostname). Si lo cambias aquí, cámbialo también en NPM
+    # o el proxy responderá 502 contra un contenedor que no existe.
+    container_name: kalidapresio_web
     restart: unless-stopped
 
     environment:
@@ -60,8 +63,8 @@ services:
   api:
     build:
       context: ./backend
-    image: kalidapresio-api:latest
-    container_name: kalidapresio-api
+    image: kalidapresio_api:latest
+    container_name: kalidapresio_api
     restart: unless-stopped
 
     # Secretos y config de RUNTIME (NO se hornean): SUBSCRIBE_SECRET,
