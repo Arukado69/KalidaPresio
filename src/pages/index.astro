@@ -4,7 +4,7 @@ import SelloKP from '../components/SelloKP.astro';
 import Estrellas from '../components/Estrellas.astro';
 import BotonCTA from '../components/BotonCTA.astro';
 import RelampagoSticky from '../components/RelampagoSticky.astro';
-import ImbatiblesGrid from '../components/ImbatiblesGrid.astro';
+import SeccionGrid from '../components/SeccionGrid.astro';
 import Curados from '../components/Curados.astro';
 import ExplorarChips from '../components/ExplorarChips.astro';
 import { generarVeredicto, tierKP } from '../utils/veredicto.js';
@@ -17,7 +17,13 @@ import { OFERTAS as ofertas } from '../data/ofertas.js';
 // extractor aún no corrió). Relámpago e Imbatibles son el MVP; liquidación
 // y menos-500 quedan en backlog (los datos ya existen).
 // Relámpago ya NO se importa: es runtime (RelampagoSticky + initRelampagoFetch).
-import { ALL_IMBATIBLES } from '../data/secciones.js';
+import { ALL_IMBATIBLES, IMBATIBLES_COMPLETADO, SECCIONES_CON_PAGINA } from '../data/secciones.js';
+
+// El encabezado de la rejilla sigue al CONTENIDO, no al revés: si hubo que
+// completarla con el resto del catálogo, no se titula "Precios imbatibles".
+const rejilla = IMBATIBLES_COMPLETADO
+  ? { emoji: '⭐', titulo: 'Lo mejor del catálogo', resumen: 'seleccionados y ordenados por el Sello K-P', campana: 'catalogo' }
+  : { emoji: '💪', titulo: 'Precios imbatibles', resumen: 'precio permanente bajo, ordenados por calidad real', campana: 'imbatibles' };
 
 const isHotSale = import.meta.env.IS_HOT_SALE === 'true';
 
@@ -319,13 +325,94 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
   <!-- Catálogo principal: IMBATIBLES (grid 3/2/1, score recalibrado 65/10/25).
        Liquidación y menos-500: datos listos en secciones.js, render en el
        siguiente sprint (backlog). -->
-  <ImbatiblesGrid productos={ALL_IMBATIBLES} />
+  <SeccionGrid
+      productos={ALL_IMBATIBLES}
+      titulo={rejilla.titulo}
+      emoji={rejilla.emoji}
+      resumen={rejilla.resumen}
+      campana={rejilla.campana}
+    />
+
+    {SECCIONES_CON_PAGINA.length > 0 && (
+      <nav class="secs" aria-label="Secciones de ofertas" data-reveal>
+        <h2 class="titulo-seccion secs-titulo">Explora por sección</h2>
+        <ul class="secs-lista">
+          {SECCIONES_CON_PAGINA.map((sec) => (
+            <li>
+              <a href={`/ofertas/${sec.slug}`} data-spotlight data-ripple>
+                <span class="secs-emoji" aria-hidden="true">{sec.emoji}</span>
+                <span class="secs-txt">
+                  <strong>{sec.titulo}</strong>
+                  <em>{sec.items.length} productos · {sec.resumen}</em>
+                </span>
+                <span class="secs-flecha" aria-hidden="true">→</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )}
 
     </div><!-- /.kp-main -->
   </div><!-- /.kp-shell -->
 </Layout>
 
 <style>
+  /* Banda de secciones: enlaza el catálogo que NO cabe en la portada.
+     Pesa unos cientos de bytes en vez de las 91 tarjetas que representaría. */
+  .secs { margin-top: var(--spacing-2xl); }
+  .secs-titulo { text-align: center; }
+
+  .secs-lista {
+    list-style: none;
+    margin: var(--spacing-md) auto 0;
+    padding: 0;
+    max-width: 1000px;
+    display: grid;
+    gap: var(--spacing-sm);
+  }
+  @media (min-width: 720px) {
+    .secs-lista { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .secs-lista a {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    height: 100%;
+    padding: 1.05rem 1.2rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--color-violet-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--color-text);
+    position: relative;
+    overflow: hidden;
+    transition: border-color var(--dur-fast) var(--ease-soft), transform var(--dur-fast) var(--ease-soft);
+  }
+  .secs-lista a:hover { border-color: var(--color-primary); transform: translateY(-2px); }
+
+  .secs-emoji { font-size: 1.5rem; flex: 0 0 auto; }
+  .secs-txt { flex: 1 1 auto; min-width: 0; }
+  .secs-txt strong {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.02rem;
+    margin-bottom: 0.12rem;
+  }
+  .secs-txt em {
+    display: block;
+    font-style: normal;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    line-height: 1.45;
+  }
+  .secs-flecha { flex: 0 0 auto; color: var(--color-primary); font-size: 1.1rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .secs-lista a:hover { transform: none; }
+  }
+
   /* =========================================
      Hero / Módulo estacional
      ========================================= */

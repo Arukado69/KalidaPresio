@@ -167,10 +167,80 @@ if (!ES_FALLBACK && imbatiblesEstrictos.length < MIN_IMBATIBLES) {
   );
 }
 
+/**
+ * true si la rejilla se rellenó con el resto del catálogo porque el contenedor
+ * "imbatibles" de ML venía famélico. La portada lo usa para NO titular
+ * "Precios imbatibles" un montón que incluye liquidación: si el contenido
+ * cambia, el encabezado cambia con él.
+ */
+/**
+ * Los imbatibles ESTRICTOS: solo lo que ML puso en ese contenedor, sin rellenar.
+ * La portada puede completar su rejilla para no quedarse en tres tarjetas, pero
+ * la página dedicada tiene que enseñar lo que su título promete y nada más.
+ */
+export const ALL_IMBATIBLES_ESTRICTOS = imbatiblesEstrictos
+  .map((it) => ({ ...it, score_seccion: calcularScorePorSeccion(it, 'imbatibles') }))
+  .sort((a, b) => b.score_seccion - a.score_seccion);
+
+export const IMBATIBLES_COMPLETADO = !ES_FALLBACK && imbatiblesEstrictos.length < MIN_IMBATIBLES;
+
 export const ALL_IMBATIBLES = fuenteImbatibles
   .map((it) => ({ ...it, score_seccion: calcularScorePorSeccion(it, 'imbatibles') }))
   .sort((a, b) => b.score_seccion - a.score_seccion);
 
-// Backlog (datos listos, render en el siguiente sprint): liquidacion, menos-500.
-export const ALL_LIQUIDACION = base.filter((it) => it.secciones.includes('liquidacion'));
-export const ALL_MENOS_500 = base.filter((it) => it.secciones.includes('menos-500'));
+// Liquidación y menos-500 usan los pesos estándar (65/20/25 es solo para
+// imbatibles, donde ML no manda previous_price). Se ordenan igual que el resto.
+const porScore = (seccion) => base
+  .filter((it) => it.secciones.includes(seccion))
+  .map((it) => ({ ...it, score_seccion: calcularScorePorSeccion(it, 'default') }))
+  .sort((a, b) => b.score_seccion - a.score_seccion);
+
+export const ALL_LIQUIDACION = porScore('liquidacion');
+export const ALL_MENOS_500 = porScore('menos-500');
+
+/**
+ * Las secciones que tienen PÁGINA PROPIA (/ofertas/<slug>).
+ *
+ * Relámpago queda fuera a propósito: son ofertas por tiempo limitado y ML dejó
+ * de publicar su fecha de fin (2026), así que una página estática reconstruida
+ * cada pocas horas las presentaría como vigentes sin poder garantizarlo. Para
+ * eso está el carrusel, que se refresca en el navegador.
+ *
+ * `campana` alimenta el sufijo de matt_word: es la MISMA etiqueta que verás en
+ * el panel de afiliados de ML y en Umami, así que las tres vistas cuadran.
+ */
+export const SECCIONES_CON_PAGINA = [
+  {
+    slug: 'imbatibles',
+    campana: 'imbatibles',
+    emoji: '💪',
+    titulo: 'Precios imbatibles',
+    resumen: 'precio permanente bajo, ordenados por calidad real',
+    descripcion:
+      'Productos con precio permanente bajo en Mercado Libre México, ordenados por el Sello K-P: calificación real de compradores, descuento verificado y volumen de ventas.',
+    items: ALL_IMBATIBLES_ESTRICTOS,
+  },
+  {
+    slug: 'liquidacion',
+    campana: 'liquidacion',
+    emoji: '🏷️',
+    titulo: 'Liquidación',
+    resumen: 'salida de inventario: los descuentos más agresivos del catálogo',
+    descripcion:
+      'Ofertas de liquidación en Mercado Libre México. Salida de inventario con los descuentos más agresivos, filtradas por el Sello K-P para que barato no signifique malo.',
+    items: ALL_LIQUIDACION,
+  },
+  {
+    slug: 'menos-500',
+    campana: 'menos500',
+    emoji: '💵',
+    titulo: 'Por menos de $500',
+    resumen: 'lo mejor que se puede comprar con poco presupuesto',
+    descripcion:
+      'Las mejores ofertas calidad-precio por menos de $500 pesos en Mercado Libre México. Presupuesto ajustado sin renunciar a la calidad, según el Sello K-P.',
+    items: ALL_MENOS_500,
+  },
+// Una página con cuatro productos no le sirve a nadie ni rankea, y encima
+// diluye el rastreo del resto del sitio. Si una sección viene famélica,
+// simplemente no tiene página ese día — y la portada tampoco la enlaza.
+].filter((s) => s.items.length >= 8);

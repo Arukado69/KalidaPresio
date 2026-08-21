@@ -1,14 +1,19 @@
 ---
 /**
- * ImbatiblesGrid — Catálogo principal de la sección IMBATIBLES.
- * Sustituye al viejo "Más ofertas destacadas" (que leía ofertas.json).
+ * SeccionGrid — Rejilla de catálogo para CUALQUIER sección.
  *
- *  · Items: secciones.includes('imbatibles'), YA ordenados por score_seccion
- *    DESC (el recalibrado 65/10/25 lo aplica src/data/secciones.js).
- *  · Grid 3 col (desktop) / 2 (tablet) / 1 (móvil) con TarjetaOferta vertical:
- *    foto cuadrada ML, título clamp 2 líneas, K-P con tooltip, reseña al
- *    hover/tap y CTA "Ver oferta →" — todo ya vive en la tarjeta.
- *  · Filtros por categoría derivada del título (chips; initFiltros en Layout).
+ * Antes se llamaba ImbatiblesGrid y traía el título incrustado. Cuando ML dejó
+ * de llenar su contenedor de "imbatibles" (3 productos frente a 91 en los otros
+ * tres), la portada completaba el hueco con el resto del catálogo bajo un
+ * encabezado que decía "Precios imbatibles". Etiquetar liquidación como
+ * imbatible es exactamente el tipo de imprecisión que este proyecto no se
+ * permite, así que la rejilla pasó a recibir su identidad desde fuera.
+ *
+ *  · Grid 3 col (desktop) / 2 (tablet) / 1 (móvil) con TarjetaOferta vertical.
+ *  · Filtros por categoría + orden en vivo: los cablea el Layout con
+ *    `[data-grid-filtrable]`, que es SINGULAR — una rejilla por página.
+ *  · `campana` define el sufijo de matt_word: la misma etiqueta que verás en
+ *    el panel de afiliados de ML y en Umami.
  */
 import TarjetaOferta from './TarjetaOferta.astro';
 import { categorizar, ORDEN_CATEGORIAS } from '../utils/categorias.js';
@@ -17,8 +22,26 @@ import { GENERADO_EL } from '../data/secciones.js';
 
 export interface Props {
   productos: any[];
+  titulo: string;
+  emoji?: string;
+  /** Frase corta tras el conteo: «12 productos · <resumen>». */
+  resumen: string;
+  /** Sufijo de matt_word para atribuir los clics de esta sección. */
+  campana: string;
+  /** `h2` en la portada (hay un h1 arriba); `h1` en la página propia. */
+  encabezado?: 'h1' | 'h2';
 }
-const { productos } = Astro.props;
+
+const {
+  productos,
+  titulo,
+  emoji = '',
+  resumen,
+  campana,
+  encabezado = 'h2',
+} = Astro.props;
+
+const Titulo = encabezado;
 
 const conCategoria = productos.map((o) => ({ ...o, categoria: o.categoria ?? categorizar(o.titulo) }));
 const presentes = new Set(conCategoria.map((o) => o.categoria));
@@ -27,10 +50,10 @@ const categorias = ORDEN_CATEGORIAS.filter((c) => presentes.has(c));
 
 {conCategoria.length > 0 && (
   <section class="seccion-estructural imbatibles" data-reveal>
-    <h2 class="titulo-seccion">💪 Precios imbatibles</h2>
+    <Titulo class="titulo-seccion">{emoji ? `${emoji} ` : ''}{titulo}</Titulo>
     <!-- Stats de sección: tamaño real del catálogo, arriba y visible -->
     <p class="imb-stats">
-      <strong>{conCategoria.length}</strong> productos imbatibles · precio permanente bajo, ordenados por calidad real
+      <strong>{conCategoria.length}</strong> productos · {resumen}
     </p>
     <p class="imb-frescura"><SelloFrescura generadoEl={GENERADO_EL} /></p>
 
@@ -46,7 +69,7 @@ const categorias = ORDEN_CATEGORIAS.filter((c) => presentes.has(c));
       <!-- Orden en vivo (client-side, sin recargar) -->
       <label class="imb-orden">
         <span class="imb-orden-label">Ordenar:</span>
-        <select data-orden data-grid-target="imbatibles">
+        <select data-orden>
           <option value="recomendado">Recomendado</option>
           <option value="descuento">Mayor descuento</option>
           <option value="precio-asc">Menor precio</option>
@@ -58,7 +81,7 @@ const categorias = ORDEN_CATEGORIAS.filter((c) => presentes.has(c));
 
     <div class="imb-grid" data-grid-filtrable>
       {conCategoria.map((o, i) => (
-        <TarjetaOferta oferta={o} score={o.score_seccion ?? o.score_kalidad_presio} indice={i} categoria={o.categoria} campana="imbatibles" />
+        <TarjetaOferta oferta={o} score={o.score_seccion ?? o.score_kalidad_presio} indice={i} categoria={o.categoria} campana={campana} />
       ))}
     </div>
   </section>
