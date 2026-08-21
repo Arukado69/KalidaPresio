@@ -11,6 +11,7 @@
  */
 import Layout from '../layouts/Layout.astro';
 import { ALL_IMBATIBLES } from '../data/secciones.js';
+import { aLinkAfiliado } from '../utils/afiliado.js';
 
 // Tres sugerencias reales del catálogo vivo, no enlaces genéricos.
 const sugerencias = ALL_IMBATIBLES.slice(0, 3);
@@ -39,7 +40,7 @@ const sugerencias = ALL_IMBATIBLES.slice(0, 3);
         <ul class="e404-lista">
           {sugerencias.map((o) => (
             <li>
-              <a href={o.link_afiliado} target="_blank" rel="nofollow sponsored noopener noreferrer">
+              <a href={aLinkAfiliado(o.link_afiliado, 'sugerencia404')} target="_blank" rel="nofollow sponsored noopener noreferrer">
                 <span class="e404-sug-titulo">{o.titulo}</span>
                 <span class="e404-sug-precio">
                   {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(o.precio_actual)}

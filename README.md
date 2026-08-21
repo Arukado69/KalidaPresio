@@ -74,9 +74,20 @@ src/
   scripts/      Pipeline de datos (build-time y manual)
   utils/        Lógica pura y testeada: score, afiliado, categorías, veredicto
 backend/        API Express + SQLite: contacto y boletín con doble opt-in
-docker/         Caddyfile (+ redirects.caddy generado)
-docs/           deploy.md ← la guía de despliegue
+docker/         Caddyfile (+ redirects.caddy generado) · analitica/ (stack de Umami)
+docs/           deploy.md · analitica.md
 ```
+
+## Medición
+
+Umami autoalojado, sin cookies y en el mismo VPS. Lo que se mide de verdad es el
+**clic saliente** hacia Mercado Libre, etiquetado con la sección de la que
+salió — y esa etiqueta es el mismo sufijo de `matt_word` que registra el panel
+de afiliados de ML, así que las dos mitades del embudo se cruzan.
+Guía completa en **[`docs/analitica.md`](docs/analitica.md)**.
+
+Sin `PUBLIC_UMAMI_URL` y `PUBLIC_UMAMI_ID` el sitio no emite ni una etiqueta de
+rastreo.
 
 ## Despliegue
 

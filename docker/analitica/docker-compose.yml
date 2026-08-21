@@ -1,0 +1,86 @@
+# =============================================================================
+# Umami — analítica autoalojada, COMPARTIDA por todos los proyectos del VPS.
+#
+# Va en su propio stack (no dentro del compose de KalidaPresio) por dos razones:
+#   · NS Hub y cualquier proyecto futuro pueden usar la misma instancia; solo
+#     hay que dar de alta otro «website» en la interfaz.
+#   · Redesplegar el sitio no debe tirar la analítica, ni al revés.
+#
+# Se despliega en /opt/umami:
+#   sudo mkdir -p /opt/umami && cd /opt/umami
+#   # copia este archivo y crea .env.production (ver docs/analitica.md)
+#   docker compose --env-file .env.production up -d
+#
+# Publicado por Nginx Proxy Manager en analitica.kalidapresio.com, igual que el
+# resto: por nombre de contenedor a través de red_global.
+# =============================================================================
+
+services:
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    container_name: umami
+    restart: unless-stopped
+
+    environment:
+      DATABASE_TYPE: postgresql
+      DATABASE_URL: postgresql://umami:${POSTGRES_PASSWORD}@umami-db:5432/umami
+      # Firma las sesiones del panel. Si cambia, se cierran todas las sesiones.
+      APP_SECRET: ${APP_SECRET}
+      # Renombra el script del rastreador: los bloqueadores tienen reglas para
+      # la ruta /script.js de Umami. Con otro nombre, el sitio propio deja de
+      # coincidir con esas listas. Debe cuadrar con PUBLIC_UMAMI_SCRIPT del
+      # .env.production de KalidaPresio.
+      TRACKER_SCRIPT_NAME: ${TRACKER_SCRIPT_NAME:-kp.js}
+      # Sin telemetría hacia los autores de Umami.
+      DISABLE_TELEMETRY: '1'
+
+    depends_on:
+      umami-db:
+        condition: service_healthy
+
+    # Solo loopback, para poder hacer curl desde el VPS. NPM llega por nombre.
+    ports:
+      - "127.0.0.1:3100:3000"
+
+    networks:
+      - default
+      - npm
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/heartbeat >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s   # la primera migración de la base tarda
+
+  umami-db:
+    image: postgres:16-alpine
+    container_name: umami-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    # NO se publica ningún puerto: la base solo existe para Umami, dentro de la
+    # red `default` de este stack. Exponerla al host sería regalar la superficie.
+    volumes:
+      - umami_db:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  # Aquí viven TODAS las métricas históricas. Respáldalo (ver docs/analitica.md).
+  umami_db:
+
+networks:
+  # La misma red compartida de Nginx Proxy Manager que usan ns-hub y
+  # kalidapresio-web. Verifica el nombre real con `docker network ls`.
+  npm:
+    external: true
+    name: red_global

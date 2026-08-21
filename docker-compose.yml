@@ -28,6 +28,10 @@ services:
         ML_MATT_WORD: ${ML_MATT_WORD}
         PUBLIC_RELAMPAGO_URL: ${PUBLIC_RELAMPAGO_URL:-/data/relampago.json}
         IS_HOT_SALE: ${IS_HOT_SALE:-false}
+        # Analítica (Umami). Vacías = sitio sin rastreo, sin romper nada.
+        PUBLIC_UMAMI_URL: ${PUBLIC_UMAMI_URL:-}
+        PUBLIC_UMAMI_ID: ${PUBLIC_UMAMI_ID:-}
+        PUBLIC_UMAMI_SCRIPT: ${PUBLIC_UMAMI_SCRIPT:-kp.js}
     image: kalidapresio-web:latest
     container_name: kalidapresio-web
     restart: unless-stopped

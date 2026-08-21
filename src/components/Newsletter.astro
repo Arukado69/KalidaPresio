@@ -69,6 +69,11 @@
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.ok) {
               setStatus('Te mandamos un correo para confirmar. Ábrelo y listo (revisa spam por si acaso).', 'ok');
+              // Conversión del boletín. El componente no conoce la herramienta
+              // de analítica: solo anuncia lo que pasó (ver Analitica.astro).
+              document.dispatchEvent(new CustomEvent('kp:evento', {
+                detail: { nombre: 'boletin-alta', datos: { paso: 'correo-enviado' } },
+              }));
               email.value = '';
               txt.textContent = 'Revisa tu correo';
             } else {

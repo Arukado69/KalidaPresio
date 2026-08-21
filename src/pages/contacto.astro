@@ -115,6 +115,9 @@ import Layout from '../layouts/Layout.astro';
               const data = await res.json().catch(() => ({}));
               if (res.ok && data.ok) {
                 setStatus('¡Gracias! Recibimos tu mensaje y te responderemos pronto.', 'ok');
+                document.dispatchEvent(new CustomEvent('kp:evento', {
+                  detail: { nombre: 'contacto-enviado', datos: { asunto: asunto.value } },
+                }));
                 form.reset(); txt.textContent = 'Enviado ✓';
               } else {
                 setStatus('No pudimos enviar tu mensaje. Intenta de nuevo en un momento.', 'error');

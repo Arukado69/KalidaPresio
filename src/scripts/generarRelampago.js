@@ -19,6 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { categorizar } from '../utils/categorias.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -81,6 +82,8 @@ try {
     rating: o.rating ?? 0,
     opiniones: o.opiniones ?? 0,
     imagen: o.imagen ?? '',
+    // Para la analitica: permite responder que CATEGORIA convierte mejor.
+    categoria: categorizar(o.titulo ?? ''),
     urlAfiliado: o.link_afiliado,
     badge: o.mas_vendido ? 'MÁS VENDIDO'
          : o.destacado ? o.destacado

@@ -9,6 +9,8 @@ import Curados from '../components/Curados.astro';
 import ExplorarChips from '../components/ExplorarChips.astro';
 import { generarVeredicto, tierKP } from '../utils/veredicto.js';
 import { scoreEfectivo } from '../utils/scoreSecciones.js';
+import { aLinkAfiliado } from '../utils/afiliado.js';
+import { categorizar } from '../utils/categorias.js';
 import ofertas from '../data/ofertas.json';
 // Colecciones por sección (build-time, con fallback a ofertas.json si el
 // extractor aún no corrió). Relámpago e Imbatibles son el MVP; liquidación
@@ -170,7 +172,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
                 <strong>{showpiece.rating?.toFixed(1)}</strong>
                 <em>({showpiece.opiniones?.toLocaleString('es-MX')} opiniones)</em>
               </div>
-              <BotonCTA id={showpiece.id} enlace={showpiece.link_afiliado} texto="Ver oferta" magnetic />
+              <BotonCTA id={showpiece.id} enlace={aLinkAfiliado(showpiece.link_afiliado, 'hero')} texto="Ver oferta" magnetic />
               <!-- Puntos de progreso del rotador (los rellena initHeroSpotlight) -->
               <div class="hs-dots" data-hero-dots role="tablist" aria-label="Ofertas en rotación"></div>
             </div>
@@ -206,7 +208,12 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
 
       <div class="bento">
         <!-- Tile hero (oferta #1 evergreen). data-tilt: se inclina hacia el cursor -->
-        <article class="bento-hero" data-spotlight data-tilt>
+        <article class="bento-hero" data-spotlight data-tilt
+          data-ml-id={veredicto.id}
+          data-precio={veredicto.precio_actual}
+          data-kp={veredicto.score100}
+          data-descuento={Math.round(veredicto.descuento ?? 0)}
+          data-cat={categorizar(veredicto.titulo)}>
           <div class="bh-media">
             <img
               src={veredicto.imagen}
@@ -228,7 +235,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
             <!-- Título clicable: la card siempre tiene enlace a la vista,
                  aunque el CTA quede bajo el pliegue en pantallas chicas -->
             <h3 class="bh-titulo">
-              <a class="bh-titulo-link" href={veredicto.link_afiliado} target="_blank" rel="nofollow sponsored noopener noreferrer">{veredicto.titulo}</a>
+              <a class="bh-titulo-link" href={aLinkAfiliado(veredicto.link_afiliado, 'bento')} target="_blank" rel="nofollow sponsored noopener noreferrer">{veredicto.titulo}</a>
             </h3>
 
             <!-- El PRECIO va antes del bloque narrativo: es lo primero que
@@ -255,7 +262,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
               </div>
             </div>
 
-            <BotonCTA id={veredicto.id} enlace={veredicto.link_afiliado} texto="Ver oferta" />
+            <BotonCTA id={veredicto.id} enlace={aLinkAfiliado(veredicto.link_afiliado, 'bento')} texto="Ver oferta" />
           </div>
         </article>
 
@@ -268,7 +275,12 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
             class="bento-tile"
             data-spotlight
             data-ripple
-            href={o.link_afiliado}
+            data-ml-id={o.id}
+            data-precio={o.precio_actual}
+            data-kp={o.score100}
+            data-descuento={Math.round(o.descuento ?? 0)}
+            data-cat={categorizar(o.titulo)}
+            href={aLinkAfiliado(o.link_afiliado, 'bento')}
             target="_blank"
             rel="nofollow sponsored noopener noreferrer"
           >

@@ -1,0 +1,158 @@
+---
+/**
+ * Analitica — Umami autoalojado + rastreo de clics salientes.
+ *
+ * POR QUÉ UMAMI Y NO GOOGLE ANALYTICS
+ * Corre en tu propio VPS, no usa cookies y no comparte datos con terceros. Eso
+ * evita el banner de consentimiento y mantiene cierto el aviso de privacidad.
+ * Los datos son tuyos y viven junto al sitio.
+ *
+ * QUÉ MIDE QUE IMPORTE
+ * El pageview es ruido; el evento que se traduce en dinero es el CLIC SALIENTE
+ * hacia Mercado Libre. Cada uno se manda con la sección de la que salió, y esa
+ * sección se deduce del sufijo de `matt_word` — el MISMO identificador que ves
+ * en el panel de afiliados de ML. Por eso las dos mitades del embudo se pueden
+ * cruzar: Umami dice cuánta gente hizo clic en «imbatibles», ML dice cuánto se
+ * compró desde «imbatibles». Sin ese par, no se sabe si el problema es tráfico,
+ * clic o conversión — y son tres arreglos distintos.
+ *
+ * SI NO ESTÁ CONFIGURADO, NO EXISTE
+ * Sin PUBLIC_UMAMI_URL y PUBLIC_UMAMI_ID no se emite ni una etiqueta. En
+ * desarrollo no se ensucian las métricas y el sitio funciona idéntico.
+ */
+const URL_UMAMI = import.meta.env.PUBLIC_UMAMI_URL?.replace(/\/+$/, '') || '';
+const ID_UMAMI = import.meta.env.PUBLIC_UMAMI_ID || '';
+
+// NOMBRE del script, no ruta: se corresponde 1:1 con TRACKER_SCRIPT_NAME del
+// servidor de Umami (renombrarlo evita las reglas que los bloqueadores tienen
+// para /script.js). Se aceptan «kp.js» y «/kp.js» indistintamente: las barras
+// sobrantes se recortan aquí en vez de convertirse en una URL rota.
+// (Un valor con barra inicial además lo destroza MSYS/Git Bash en Windows,
+//  que lo reescribe como C:/Program Files/Git/kp.js.)
+const NOMBRE_SCRIPT = (import.meta.env.PUBLIC_UMAMI_SCRIPT || 'script.js')
+  .trim()
+  .replace(/^.*[\\/]/, '')   // se queda con el último segmento
+  || 'script.js';
+
+const activo = Boolean(URL_UMAMI && ID_UMAMI);
+const srcScript = activo ? `${URL_UMAMI}/${NOMBRE_SCRIPT}` : '';
+// Limita la recolección al dominio de producción: si alguien clona el sitio o
+// lo abre desde localhost con el .env de producción, no contamina los datos.
+const dominio = Astro.site?.hostname ?? '';
+---
+
+{activo && (
+  <>
+    <script
+      is:inline
+      defer
+      src={srcScript}
+      data-website-id={ID_UMAMI}
+      data-domains={dominio}
+      data-do-not-track="true"
+    ></script>
+
+    <script is:inline>
+      (function () {
+        // Una sola vez por pestaña: los listeners van en `document`, así que
+        // sobreviven a las View Transitions sin volver a registrarse.
+        if (window.__kpAnalitica) return;
+        window.__kpAnalitica = true;
+
+        var HOST_ML = /(^|\.)mercadolibre\.com\.mx$/i;
+        var RUTA_CLOAK = '/recomienda/';
+        var pendientes = [];
+        var intentos = 0;
+
+        // El script de Umami es `defer`: puede no estar listo cuando alguien
+        // hace clic en el primer segundo. Los eventos se encolan y se sueltan
+        // en cuanto aparece. Como los enlaces abren en pestaña nueva, la página
+        // sigue viva y da tiempo de sobra.
+        function vaciarCola() {
+          if (!window.umami || typeof window.umami.track !== 'function') {
+            if (++intentos > 20) { pendientes.length = 0; return; } // ~10 s y se rinde
+            setTimeout(vaciarCola, 500);
+            return;
+          }
+          while (pendientes.length) {
+            var e = pendientes.shift();
+            try { window.umami.track(e[0], e[1]); } catch (_) { /* nunca romper por analítica */ }
+          }
+        }
+
+        function enviar(nombre, datos) {
+          if (window.umami && typeof window.umami.track === 'function') {
+            try { window.umami.track(nombre, datos); } catch (_) {}
+            return;
+          }
+          pendientes.push([nombre, datos]);
+          vaciarCola();
+        }
+
+        // Cualquier componente puede reportar sin saber que Umami existe:
+        //   document.dispatchEvent(new CustomEvent('kp:evento', {
+        //     detail: { nombre: 'boletin-alta', datos: { origen: 'pie' } }
+        //   }));
+        // Si un día se cambia de herramienta, solo se toca este archivo.
+        document.addEventListener('kp:evento', function (e) {
+          var d = (e && e.detail) || {};
+          if (d.nombre) enviar(d.nombre, d.datos || {});
+        });
+
+        function esSaliente(u) {
+          if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+          return HOST_ML.test(u.hostname) || u.pathname.indexOf(RUTA_CLOAK) === 0;
+        }
+
+        // Sección desde el sufijo de matt_word. Se corta por el ÚLTIMO «_»:
+        // aLinkAfiliado sanea la campaña a alfanuméricos, así que la campaña
+        // nunca lo contiene y el matt_word base queda intacto aunque lo tenga.
+        function seccionDe(u) {
+          var w = u.searchParams.get('matt_word');
+          if (!w) return null;
+          var i = w.lastIndexOf('_');
+          return i === -1 ? null : (w.slice(i + 1) || null);
+        }
+
+        function idDe(u) {
+          var m = (u.pathname || '').match(/ML[A-Z]-?(\d{6,})/i);
+          return m ? m[0].slice(0, 3).toUpperCase() + m[1] : null;
+        }
+
+        function num(v) {
+          if (v === null || v === undefined || v === '') return null;
+          var n = Number(v);
+          return isFinite(n) ? n : null;
+        }
+
+        // Los data-* que ya usaban el filtro y el ordenador de las tarjetas se
+        // reaprovechan tal cual: cero marcado nuevo.
+        function atributo(el, nombre) {
+          var c = el.closest('[' + nombre + ']');
+          return c ? c.getAttribute(nombre) : null;
+        }
+
+        document.addEventListener('click', function (ev) {
+          // Sin `capture`: si algo cancela el clic antes, tampoco hubo visita.
+          var a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
+          if (!a) return;
+
+          var u;
+          try { u = new URL(a.getAttribute('href'), location.href); } catch (_) { return; }
+          if (!esSaliente(u)) return;
+
+          var href = u.href;
+          enviar('clic-oferta', {
+            seccion: seccionDe(u) || atributo(a, 'data-kp-seccion') || 'sin-etiqueta',
+            id: atributo(a, 'data-ml-id') || idDe(u),
+            precio: num(atributo(a, 'data-precio')),
+            score: num(atributo(a, 'data-kp')),
+            descuento: num(atributo(a, 'data-descuento')),
+            categoria: atributo(a, 'data-cat'),
+            destino: href.indexOf(RUTA_CLOAK) !== -1 ? 'recomienda' : 'directo',
+          });
+        }, { passive: true });
+      })();
+    </script>
+  </>
+)}

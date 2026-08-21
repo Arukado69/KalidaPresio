@@ -11,6 +11,7 @@
  */
 import curados from '../data/curados.json';
 import { aLinkAfiliado } from '../utils/afiliado.js';
+import { categorizar } from '../utils/categorias.js';
 
 const fmt = (n) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
@@ -36,6 +37,9 @@ const items = (Array.isArray(curados) ? curados : []).map((c) => {
           class="cur-card"
           data-spotlight
           data-ripple
+          data-precio={o.precio}
+          data-descuento={o.descuento}
+          data-cat={categorizar(o.titulo ?? '')}
           href={o.enlace}
           target="_blank"
           rel="nofollow sponsored noopener noreferrer"

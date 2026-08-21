@@ -3,6 +3,7 @@ import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Newsletter from '../components/Newsletter.astro';
 import { ClientRouter } from 'astro:transitions';
+import Analitica from '../components/Analitica.astro';
 
 export interface Props {
   title: string;
@@ -98,6 +99,9 @@ const datosSitio = {
 
     <!-- Canonical URL (absoluta; ver nota en el frontmatter) -->
     <link rel="canonical" href={urlCanonica} />
+
+    <!-- Analítica (Umami autoalojado). No emite nada si no está configurada. -->
+    <Analitica />
 
     <!-- Schema.org: quiénes somos. Solo hechos verificables del sitio. -->
     <script type="application/ld+json" set:html={JSON.stringify(datosSitio)} />
@@ -520,12 +524,24 @@ const datosSitio = {
       };
 
       // Card del rail (vertical). Mapea el schema runtime (camelCase) al markup.
+      // Mismos data-* que llevan las TarjetaOferta del SSG. El listener de
+      // analítica los busca con closest() desde el enlace, así que colgarlos
+      // del <li> basta para las dos plantillas. Sin esto, los clics de
+      // relámpago llegaban a Umami sin precio ni score y el conjunto quedaba
+      // desparejo — que invita a conclusiones falsas más que la falta de datos.
+      const datosCard = (o: any) =>
+        ` data-ml-id="${esc(o.id ?? '')}"`
+        + ` data-precio="${Number(o.precioActual) || 0}"`
+        + ` data-kp="${Math.round(Number(o.scoreKP) || 0)}"`
+        + ` data-descuento="${Math.round(Number(o.descuentoReal) || 0)}"`
+        + (o.categoria ? ` data-cat="${esc(o.categoria)}"` : '');
+
       function cardRail(o: any) {
         const d = Math.round(o.descuentoReal || 0);
         const img = o.imagen
           ? `<img src="${esc(o.imagen)}" alt="${esc(o.titulo)}" loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">`
           : '';
-        return `<li class="rs-item" data-fin="${esc(o.endsAt)}"><article class="rs-card">`
+        return `<li class="rs-item" data-fin="${esc(o.endsAt)}"${datosCard(o)}><article class="rs-card">`
           + `<div class="rs-media">${img}<span class="rs-img-fallback"${o.imagen ? ' style="display:none"' : ''} aria-hidden="true">⚡</span>`
           + (d > 0 ? `<span class="rs-desc">-${d}%</span>` : '')
           + `<span class="rs-kp" title="${esc(KP_LEYENDA)}"><strong>${Math.round(o.scoreKP || 0)}</strong><em>K-P</em></span></div>`
@@ -541,7 +557,7 @@ const datosSitio = {
         const img = o.imagen
           ? `<img src="${esc(o.imagen)}" alt="${esc(o.titulo)}" loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">`
           : '';
-        return `<li class="rs-fila-item" data-fin="${esc(o.endsAt)}"><a class="rs-mini" href="${esc(conCampana(o.urlAfiliado, 'relampago'))}" target="_blank" rel="nofollow sponsored noopener noreferrer">`
+        return `<li class="rs-fila-item" data-fin="${esc(o.endsAt)}"${datosCard(o)}><a class="rs-mini" href="${esc(conCampana(o.urlAfiliado, 'relampago'))}" target="_blank" rel="nofollow sponsored noopener noreferrer">`
           + `<span class="rs-mini-media">${img}<span class="rs-img-fallback"${o.imagen ? ' style="display:none"' : ''} aria-hidden="true">⚡</span></span>`
           + `<span class="rs-mini-info"><span class="rs-mini-titulo">${esc(o.titulo)}</span>`
           + `<span class="rs-mini-fila"><strong class="rs-precio">${fmtMXN(o.precioActual)}</strong>${d > 0 ? `<em class="rs-ahorro">-${d}%</em>` : ''}</span>`
@@ -691,7 +707,17 @@ const datosSitio = {
           }
           if (ratingNum) ratingNum.textContent = (o.rating || 0).toFixed(1);
           if (ratingOp) ratingOp.textContent = `(${(o.opiniones || 0).toLocaleString('es-MX')} opiniones)`;
-          if (cta) cta.setAttribute('href', conCampana(o.urlAfiliado || '#', 'hero'));
+          if (cta) {
+            cta.setAttribute('href', conCampana(o.urlAfiliado || '#', 'hero'));
+            // Los data-* viajan CON el producto: el rotador cambia de oferta
+            // cada pocos segundos, así que unos valores fijos en el HTML
+            // mentirían en cuanto rotara. Se refrescan aquí, junto al href.
+            cta.setAttribute('data-ml-id', String(o.id ?? ''));
+            cta.setAttribute('data-precio', String(Number(o.precioActual) || 0));
+            cta.setAttribute('data-kp', String(Math.round(Number(o.scoreKP) || 0)));
+            cta.setAttribute('data-descuento', String(d));
+            if (o.categoria) cta.setAttribute('data-cat', String(o.categoria));
+          }
           if (count) { const r = o.endsAt ? restante(o.endsAt) : null; count.textContent = r ? `⏱ Termina en ${r}` : ''; count.hidden = !r; }
           if (dots) dots.querySelectorAll('.hs-dot').forEach((b, bi) => {
             b.classList.toggle('is-active', bi === i);
