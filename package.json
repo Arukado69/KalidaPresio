@@ -11,6 +11,7 @@
     "obtener-secciones": "node src/scripts/extraer-secciones.mjs",
     "enriquecer-curados": "node src/scripts/enriquecerCurados.js",
     "generar-og": "node src/scripts/generarOgImage.js",
+    "verificar-frescura": "node src/scripts/verificarFrescura.js",
     "build": "node src/scripts/generadorRedirects.js && node src/scripts/generarRelampago.js && astro build",
     "build:completo": "node src/scripts/importarOfertas.js && npm run build",
     "test": "vitest run",

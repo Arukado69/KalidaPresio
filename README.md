@@ -32,6 +32,7 @@ npm run dev               # http://localhost:4321
 | `npm run obtener-secciones` | Refresca `src/data/secciones-feed.json` (por sección) |
 | `npm run enriquecer-curados` | Rellena título e imagen de `curados.json` vía API de catálogo |
 | `npm run generar-og` | Regenera `public/og-default.png` (solo si cambia la identidad) |
+| `npm run verificar-frescura` | ¿El feed sigue actual? Sale con error si no (lo usa la alarma) |
 | `npm run preview` | Sirve `dist/` localmente |
 
 `SITE_URL` **no es opcional**: alimenta `rel="canonical"`, `og:url`, `og:image`
