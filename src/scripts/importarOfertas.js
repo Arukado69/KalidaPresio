@@ -10,6 +10,8 @@
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { leerTarjeta } from '../utils/mlPayload.js';
+import { calcularScorePorSeccion, fraccionVolumen } from '../utils/scoreSecciones.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -53,91 +55,37 @@ function extraerDatosBase(html) {
   const match = html.match(regex);
   if (!match) throw new Error('No se encontró "appProps" en el HTML (¿cambió la estructura de ML?).');
 
-  const rawData = JSON.parse(match[1]);
-  const items = rawData.pageProps.data.items;
+  const items = JSON.parse(match[1]).pageProps.data.items;
 
-  return items.map((item) => {
-    const p = item.card;
-    if (!p) return null;
+  // La lectura de cada tarjeta vive en src/utils/mlPayload.js: una sola vez,
+  // pura y con tests. Antes estaba copiada aquí y en extraer-secciones.mjs con
+  // distinta resistencia, y cuando ML renombró sus componentes en julio de 2026
+  // esta copia —la que alimenta el sitio— se rompió en silencio 43 días.
+  const aAfiliado = (url) => `${url.split('?')[0]}?matt_tool=${MATT_TOOL}&matt_word=${MATT_WORD}`;
 
-    const reviews   = p.components.find((c) => c.type === 'reviews')?.reviews;
-    const priceData = p.components.find((c) => c.type === 'price')?.price;
-
-    // ── Descuento REAL ────────────────────────────────────────────────────────────
-    // ML no llena price.discount.value; el descuento vive en previous_price /
-    // discount_label. (El n8n original solo leía .discount.value → salía 0.)
-    const precioActual = priceData?.current_price?.value || 0;
-    const precioPrevio = priceData?.previous_price?.value || 0;
-    let descuento = priceData?.discount?.value || 0;
-    if (!descuento && precioPrevio > precioActual && precioActual > 0) {
-      descuento = Math.round((1 - precioActual / precioPrevio) * 100);
-    }
-    if (!descuento && priceData?.discount_label?.text) {
-      const md = priceData.discount_label.text.match(/(\d+)\s*%/);
-      if (md) descuento = parseInt(md[1], 10);
-    }
-
-    // ── Señales de confianza + temporales (todo viene en el mismo card) ──────────
-    const highlightTxt = p.components.find((c) => c.type === 'highlight')?.highlight?.text || '';
-    const countdown    = p.components.find((c) => c.type === 'highlight_countdown')?.highlight_countdown;
-    const sellerTxt    = p.components.find((c) => c.type === 'seller')?.seller?.text || '';
-    const shippingTxt  = p.components.find((c) => c.type === 'shipping')?.shipping?.text || '';
-    const marca        = p.components.find((c) => c.type === 'brand')?.brand?.text || null;
-
-    // Limpia tokens de icono tipo "{icon_cockade}" y espacios sobrantes
-    const limpiar = (s) => s.replace(/\{[^}]*\}/g, '').replace(/\s+/g, ' ').trim();
-
-    const ofertaRelampago = !!countdown && /rel[aá]mpago/i.test(countdown.text || '');
-    const destacadoTxt    = countdown?.text || highlightTxt;
-
-    const baseUrl = p.metadata.url.startsWith('http')
-      ? p.metadata.url
-      : `https://${p.metadata.url}`;
-
-    return {
-      id:            p.metadata.id,
-      titulo:        p.components.find((c) => c.type === 'title')?.title.text,
-      precio_actual: precioActual,
-      precio_previo: precioPrevio || null,
-      descuento:     descuento,
-      rating:        reviews?.rating_average || 0,
-      opiniones:     reviews?.total || 0,
-      link_afiliado: `${baseUrl.split('?')[0]}?matt_tool=${MATT_TOOL}&matt_word=${MATT_WORD}`,
-      imagen:        `https://http2.mlstatic.com/D_NQ_NP_${p.pictures.pictures[0]?.id}-O.webp`,
-      // ── Capa de confianza + temporal (enriquecimiento propio de la web) ───────
-      marca:              marca,
-      destacado:          limpiar(destacadoTxt) || null,
-      mas_vendido:        /m[aá]s\s+vendido/i.test(highlightTxt),
-      oferta_relampago:   ofertaRelampago,
-      relampago_fin:      countdown?.countdown?.period_end || null,
-      vendedor:           sellerTxt ? (limpiar(sellerTxt).replace(/^Por\s+/i, '') || null) : null,
-      vendedor_confiable: /cockade/i.test(sellerTxt),
-      envio_gratis:       /gratis/i.test(shippingTxt),
-    };
-  }).filter((i) => i !== null);
+  return items.map((item) => leerTarjeta(item, aAfiliado)).filter(Boolean);
 }
 
 // ════════════════════════════════════════════════════════
 // PASO 3 — "Calcular Score KalidaPresio" (port del nodo Code de n8n)
-//   Rating 65% · Descuento 20% (tope 40) · Volumen 15% (tope 500)
+//   Rating 65% · Descuento 20% (tope 40) · Volumen de ventas 15% (log)
 // ════════════════════════════════════════════════════════
 function calcularScore(data) {
-  const scoreRating     = (data.rating / 5) * 65;
-  const descuentoTopado = Math.min(data.descuento || 0, 40);
-  const scoreDescuento  = (descuentoTopado / 40) * 20;
-  const scoreOpiniones  = Math.min((data.opiniones / 500) * 15, 15);
-  return Math.round(scoreRating + scoreDescuento + scoreOpiniones);
+  // Delegado a la fuente única (src/utils/scoreSecciones.js). Era la tercera
+  // copia de la fórmula en el proyecto; ya no queda ninguna.
+  return calcularScorePorSeccion(data, 'default');
 }
 
-// CONFIANZA (0–100): ¿qué tan respaldada está la compra? Distinto del K-P (qué tan
-// buena es la oferta). Solo señales objetivas y difíciles de falsear:
-//   "MÁS VENDIDO" de ML 40% · Volumen de opiniones 35% · Vendedor reputado 25%
-// (Nivel Alta ≥ 80 — exigente: pide best-seller + reputación + reseñas.)
+// CONFIANZA (0–100): ¿qué tan respaldada está la compra? Distinto del K-P (qué
+// tan buena es la oferta). Solo señales objetivas y difíciles de falsear.
+//
+// Reponderado el 2026-08-20: ML retiró la insignia "MÁS VENDIDO" de las
+// tarjetas, que valía 40 puntos. Su papel lo absorbe el volumen de ventas, que
+// además es más granular — un producto con 50 mil unidades vendidas está más
+// respaldado que uno con una etiqueta editorial.
+//   Volumen de ventas 60% (escala log) · Vendedor reputado 40%
 function calcularConfianza(data) {
-  let c = 0;
-  if (data.mas_vendido)        c += 40;
-  c += Math.min((data.opiniones || 0) / 500, 1) * 35;
-  if (data.vendedor_confiable) c += 25;
+  const c = fraccionVolumen(data.vendidos) * 60 + (data.vendedor_confiable ? 40 : 0);
   return Math.round(Math.min(c, 100));
 }
 
@@ -176,8 +124,23 @@ async function main() {
     throw new Error('0 ofertas tras el filtro. No se sobrescribe ofertas.json para no dejar la web vacía.');
   }
 
-  await writeFile(OUTPUT, JSON.stringify(joyas, null, 2), 'utf-8');
-  console.log(`💾  ofertas.json actualizado con ${joyas.length} productos.`);
+  // Sobre con SELLO DE FECHA, igual que secciones-feed.json.
+  //
+  // Antes era un array pelón: no había forma de saber CUÁNDO se detectaron esos
+  // precios, y el pie del sitio acababa mostrando la fecha del build como si
+  // fuera la de los datos. Con esto el sitio puede decir la verdad («precios
+  // detectados hace 2 h») en vez de una frescura que no se ha ganado.
+  //
+  // `src/data/ofertas.js` acepta las dos formas, así que el sitio sigue
+  // funcionando con un ofertas.json viejo hasta que el bot escriba el nuevo.
+  const sobre = {
+    generadoEl: new Date().toISOString(),
+    fuente: URL_OFERTAS,
+    total: joyas.length,
+    items: joyas,
+  };
+  await writeFile(OUTPUT, JSON.stringify(sobre, null, 2), 'utf-8');
+  console.log(`💾  ofertas.json actualizado con ${joyas.length} productos (sellado ${sobre.generadoEl}).`);
   console.log(`🏆  Mejor: "${joyas[0].titulo?.slice(0, 50)}" (score ${joyas[0].score_kalidad_presio}).\n`);
 }
 

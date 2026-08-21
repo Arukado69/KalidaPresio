@@ -1,0 +1,99 @@
+---
+/**
+ * SelloFrescura — «Precios detectados hace 2 horas».
+ *
+ * Convierte la advertencia defensiva del pie («los precios son una referencia»)
+ * en algo comprobable. La regla: nunca esconder la edad real. Si el feed lleva
+ * tres días parado, se dice — un dato viejo señalado es información útil; uno
+ * viejo disfrazado de fresco quema la confianza.
+ *
+ * OJO CON EL SITIO ESTÁTICO: el HTML se genera una vez y se sirve durante
+ * horas. Un «hace 5 minutos» horneado en el build es mentira a la media hora.
+ * Por eso el texto se recalcula en el cliente a partir del atributo `datetime`,
+ * que sí es absoluto, y se refresca cada minuto.
+ */
+import { describirFrescura, fraseFrescura } from '../utils/frescura.js';
+
+export interface Props {
+  /** Marca ISO 8601 de cuándo se detectaron los precios. null = se desconoce. */
+  generadoEl?: string | null;
+  /** `linea` (bajo un título de sección) · `pie` (dentro del párrafo del pie). */
+  variante?: 'linea' | 'pie';
+}
+
+const { generadoEl = null, variante = 'linea' } = Astro.props;
+const f = describirFrescura(generadoEl);
+---
+
+<span
+  class:list={['frescura', `frescura--${variante}`]}
+  data-nivel={f.nivel}
+  data-frescura
+>
+  <span class="frescura-punto" aria-hidden="true"></span>
+  {f.iso ? (
+    <time datetime={f.iso} title={f.absoluto} data-frescura-texto>{fraseFrescura(f)}</time>
+  ) : (
+    <span data-frescura-texto>{fraseFrescura(f)}</span>
+  )}
+</span>
+
+<script>
+  // Recalcula el texto relativo en el navegador: el HTML es estático y su
+  // «hace 2 horas» envejece con él. La fuente de verdad es el `datetime`.
+  import { describirFrescura, fraseFrescura } from '../utils/frescura.js';
+
+  function refrescar() {
+    document.querySelectorAll('[data-frescura]').forEach((sello) => {
+      const t = sello.querySelector('time[datetime]') as HTMLTimeElement | null;
+      if (!t) return; // sin fecha conocida: no hay nada que recalcular
+      const f = describirFrescura(t.getAttribute('datetime'));
+      const destino = sello.querySelector('[data-frescura-texto]');
+      if (destino) destino.textContent = fraseFrescura(f);
+      if (f.absoluto) t.setAttribute('title', f.absoluto);
+      sello.setAttribute('data-nivel', f.nivel);
+    });
+  }
+
+  // Una sola vez por pestaña: el intervalo y el listener sobreviven a las
+  // View Transitions, y refrescar() es idempotente.
+  if (!(window as any).__kpFrescura) {
+    (window as any).__kpFrescura = true;
+    document.addEventListener('astro:page-load', refrescar);
+    setInterval(refrescar, 60_000);
+  }
+  refrescar();
+</script>
+
+<style>
+  .frescura {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* El punto es la señal que se lee de un vistazo, antes que el texto. */
+  .frescura-punto {
+    width: 0.5em;
+    height: 0.5em;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    background: currentColor;
+  }
+
+  .frescura[data-nivel='fresco'] { color: var(--color-primary); }
+  .frescura[data-nivel='reciente'] { color: var(--color-text-muted); }
+  /* Viejo o sin fecha: se avisa, no se disimula. */
+  .frescura[data-nivel='viejo'],
+  .frescura[data-nivel='desconocido'] { color: var(--color-warm, #e8a33d); }
+
+  .frescura time { border: none; text-decoration: none; }
+
+  /* En el pie va incrustado en el párrafo: hereda tamaño y no lleva punto. */
+  .frescura--pie { font-size: inherit; gap: 0; }
+  .frescura--pie .frescura-punto { display: none; }
+</style>

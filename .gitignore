@@ -3,6 +3,8 @@ node_modules/
 
 # Variables de entorno sensibles
 .env
+.env.production
+.env.local
 
 # Caché de sesión OAuth — contiene access_token y refresh_token activos
 src/scripts/.ml_token_cache.json
@@ -10,8 +12,18 @@ src/scripts/.ml_token_cache.json
 # Catálogo editorial — activo de negocio, no código público
 src/data/ids_curados.json
 
+# ── DATOS DERIVADOS (se regeneran en cada build; NUNCA versionar) ────────────
+# Versionar estos archivos es lo que dejó la portada sirviendo precios de junio
+# durante dos meses: el extractor falló, nadie se enteró, y el JSON viejo
+# seguía en el repo listo para desplegarse.
+src/data/secciones-feed.json
+public/_redirects
+docker/redirects.caddy
+public/data/relampago.json
+
 # Output de compilación
 dist/
+.astro/
 
 # Sistema operativo
 .DS_Store
@@ -20,3 +32,10 @@ Thumbs.db
 # Backend SQLite DB
 backend/database.sqlite*
 backend/node_modules/
+
+# ── Volcados para pegar en el chat (útiles en local, ruido en el repo) ───────
+web.zip
+codigo_para_claude.txt
+proyecto_completo_claude.txt
+estado_actual.txt
+SKILL.md

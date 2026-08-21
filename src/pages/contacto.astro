@@ -59,6 +59,7 @@ import Layout from '../layouts/Layout.astro';
           </button>
 
           <p class="c-status" data-c-status role="status" aria-live="polite" hidden></p>
+          <p class="c-legal">Tratamos tu mensaje conforme a nuestro <a href="/privacidad">aviso de privacidad</a>.</p>
         </form>
       </div>
 
@@ -114,6 +115,9 @@ import Layout from '../layouts/Layout.astro';
               const data = await res.json().catch(() => ({}));
               if (res.ok && data.ok) {
                 setStatus('¡Gracias! Recibimos tu mensaje y te responderemos pronto.', 'ok');
+                document.dispatchEvent(new CustomEvent('kp:evento', {
+                  detail: { nombre: 'contacto-enviado', datos: { asunto: asunto.value } },
+                }));
                 form.reset(); txt.textContent = 'Enviado ✓';
               } else {
                 setStatus('No pudimos enviar tu mensaje. Intenta de nuevo en un momento.', 'error');
@@ -143,6 +147,14 @@ import Layout from '../layouts/Layout.astro';
   /* Honeypot oculto + estados del formulario (Bloque D) */
   .c-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
   .c-status { margin: var(--spacing-sm) 0 0; font-size: 0.88rem; line-height: 1.45; }
+  .c-legal {
+    margin: 0.7rem 0 0;
+    font-size: 0.76rem;
+    line-height: 1.5;
+    color: var(--color-text-muted);
+  }
+  .c-legal a { color: var(--color-text-muted); text-decoration: underline; text-underline-offset: 0.2em; }
+  .c-legal a:hover { color: var(--color-primary); }
   .c-status[data-tipo="ok"] { color: var(--color-primary); }
   .c-status[data-tipo="error"] { color: var(--color-error); }
 

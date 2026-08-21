@@ -1,23 +1,37 @@
 name: Actualizar feed de ofertas
 
-# Refresca src/data/ofertas.json cada 3 horas (imita el ciclo de tu n8n).
-# ÚNICA fuente de datos del sitio: re-escanea precios y los commitea al repo.
-# El despliegue lo hace el cron de Hetzner (/opt/kalida/deploy.sh), que baja
-# este feed fresco, reconstruye y sirve. Ver docs/despliegue-hetzner.md §5.
-# NO añadir otro scraper en el VPS: rompería el pipeline (working-tree sucio).
+# Refresca src/data/ofertas.json cada 3 horas. Ese push dispara deploy.yml →
+# rebuild en el VPS → precios frescos en la web.
+#
+# ── LA ALARMA ──────────────────────────────────────────────────────────────
+# Este pipeline estuvo muerto 43 días sin que nadie se enterara: el scraper
+# tronaba, el step fallaba, no commiteaba y la web conservaba el feed viejo.
+# Esa degradación es intencional (mejor precios viejos que una web vacía); lo
+# que faltaba era el aviso.
+#
+# La alarma NO vigila "¿falló el scraper?" sino "¿están viejos los datos?".
+# Un fallo suelto con datos de hace 3 h es un hipo, no una avería — alarmar ahí
+# genera ruido, y una alarma ruidosa se acaba silenciando, que es exactamente
+# como se pierden 43 días. En cambio "el feed tiene más de 12 h" cubre TODAS
+# las causas con una sola señal: scraper roto, ML cambiando su payload, cron
+# que no dispara, o el propio GitHub desactivando el workflow por inactividad.
 on:
   schedule:
     - cron: '0 */3 * * *' # cada 3 horas (UTC)
   workflow_dispatch: {}     # permite ejecutarlo a mano desde la pestaña Actions
 
-# Necesario para que el bot pueda commitear el JSON actualizado
 permissions:
   contents: write
+  issues: write     # para abrir y cerrar la alarma
 
-# Evita solapamientos si una corrida tarda más de lo previsto
 concurrency:
   group: actualizar-ofertas
   cancel-in-progress: false
+
+env:
+  # 4 ciclos perdidos del bot de 3 h. Por debajo de eso no se avisa.
+  MAX_HORAS: '12'
+  ETIQUETA: alarma-feed
 
 jobs:
   refrescar:
@@ -30,29 +44,166 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
 
       - name: Instalar dependencias
         run: npm ci
 
-      # Si el scraper falla (ML cambió el HTML o bloqueó la IP), el step falla
-      # y NO se commitea nada: la web conserva el último feed bueno.
+      # continue-on-error para poder llegar a los pasos de diagnóstico y alarma.
+      # El job acaba en rojo igualmente: lo fuerza el último step.
       - name: Descargar y puntuar ofertas
+        id: scrape
+        continue-on-error: true
         env:
           ML_MATT_TOOL: ${{ secrets.ML_MATT_TOOL }}
           ML_MATT_WORD: ${{ secrets.ML_MATT_WORD }}
         run: |
-          node src/scripts/importarOfertas.js
-          node src/scripts/generadorRedirects.js
+          set -o pipefail
+          node src/scripts/importarOfertas.js 2>&1 | tee /tmp/scraper.log
 
-      - name: Commit y push si hubo cambios
+      # El feed nuevo debe poder construir el sitio ANTES de commitearse. Un
+      # ofertas.json malformado hacía fallar el build ya en el VPS.
+      - name: Verificar que el feed construye
+        if: steps.scrape.outcome == 'success'
+        env:
+          SITE_URL: https://kalidapresio.com
+          SKIP_EXTRACCION: 'true'
+          ML_MATT_TOOL: ${{ secrets.ML_MATT_TOOL }}
+          ML_MATT_WORD: ${{ secrets.ML_MATT_WORD }}
+        run: npm run build
+
+      # ── Decisión de commit ────────────────────────────────────────────────
+      # `generadoEl` cambia en CADA corrida, así que un `git diff` a secas
+      # commitearía siempre: 8 commits y 8 redespliegues al día aunque ML no
+      # hubiera movido un peso. Se commitea si cambian las OFERTAS, o si el
+      # sello ya lleva 6 h — para que "precios detectados hace X" no envejezca
+      # de más cuando el catálogo está quieto.
+      - name: ¿Hay algo que publicar?
+        if: steps.scrape.outcome == 'success'
+        id: decidir
+        run: |
+          git show HEAD:src/data/ofertas.json > /tmp/anterior.json 2>/dev/null || echo 'null' > /tmp/anterior.json
+          node -e '
+            const fs = require("fs");
+            const leer = (p) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; } };
+            const items = (x) => JSON.stringify(Array.isArray(x) ? x : (x?.items ?? []));
+            const antes = leer("/tmp/anterior.json");
+            const ahora = leer("src/data/ofertas.json");
+
+            const cambiaron = items(antes) !== items(ahora);
+            const selloPrevio = Date.parse(antes?.generadoEl ?? "");
+            const horas = Number.isNaN(selloPrevio) ? Infinity : (Date.now() - selloPrevio) / 3.6e6;
+
+            const publicar = cambiaron || horas >= 6;
+            console.log(cambiaron ? "Las ofertas cambiaron." : `Ofertas idénticas; sello previo de hace ${horas.toFixed(1)} h.`);
+            console.log(publicar ? "→ se publica." : "→ no se publica (evita un redespliegue inútil).");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `publicar=${publicar}\n`);
+          '
+
+      - name: Commit y push
+        if: steps.scrape.outcome == 'success' && steps.decidir.outputs.publicar == 'true'
         run: |
           git config user.name  "kalidapresio-bot"
           git config user.email "bot@users.noreply.github.com"
-          if [ -n "$(git status --porcelain src/data/ofertas.json public/_redirects)" ]; then
-            git add src/data/ofertas.json public/_redirects
+          if [ -n "$(git status --porcelain src/data/ofertas.json)" ]; then
+            git add src/data/ofertas.json
             git commit -m "chore: actualización automática del feed de ofertas"
             git push
             echo "Feed actualizado y enviado."
           else
-            echo "Sin cambios en el feed; no se hace push."
+            echo "Sin cambios en el archivo; no se hace push."
+          fi
+
+      # ── DIAGNÓSTICO ───────────────────────────────────────────────────────
+      - name: ¿Sigue fresco el feed?
+        id: salud
+        if: always()
+        run: |
+          if node src/scripts/verificarFrescura.js --horas "$MAX_HORAS" > /tmp/frescura.log 2>&1; then
+            echo "sano=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "sano=false" >> "$GITHUB_OUTPUT"
+          fi
+          cat /tmp/frescura.log
+          {
+            echo '### Estado del feed'
+            echo '```'
+            cat /tmp/frescura.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── ALARMA ────────────────────────────────────────────────────────────
+      # Un único issue abierto: si ya existe, no se duplica. Así la alarma no
+      # se convierte en un buzón de spam que se acaba filtrando.
+      - name: Abrir la alarma
+        if: always() && steps.salud.outputs.sano == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "$ETIQUETA" --color B60205 \
+            --description "El feed de ofertas dejó de refrescarse" 2>/dev/null || true
+
+          ABIERTOS=$(gh issue list --label "$ETIQUETA" --state open --json number --jq 'length')
+          if [ "$ABIERTOS" != "0" ]; then
+            echo "Ya hay una alarma abierta; no se duplica."
+            exit 0
+          fi
+
+          {
+            echo "El feed de ofertas lleva más de **$MAX_HORAS h** sin refrescarse."
+            echo
+            echo "El sitio sigue en pie sirviendo el último feed bueno — eso es intencional."
+            echo "Lo que hay que averiguar es por qué dejó de actualizarse."
+            echo
+            echo '### Diagnóstico'
+            echo '```'
+            cat /tmp/frescura.log 2>/dev/null || echo '(sin salida)'
+            echo '```'
+            echo
+            echo "### Salida del scraper (\`${{ steps.scrape.outcome }}\`)"
+            echo '```'
+            tail -n 25 /tmp/scraper.log 2>/dev/null || echo '(el scraper no llegó a ejecutarse)'
+            echo '```'
+            echo
+            echo '### Por dónde empezar'
+            echo '1. `npm run obtener-ofertas` en local: ¿reproduce el fallo?'
+            echo '2. `npm test` — si fallan los de `mlPayload`, Mercado Libre cambió el payload'
+            echo '   de sus tarjetas (pasó en julio de 2026) y los tests dicen qué campo.'
+            echo '3. Si el scraper funciona en local pero no aquí, ML está bloqueando las IPs'
+            echo '   de los runners.'
+            echo '4. ¿Sigue activo el cron? GitHub desactiva los workflows programados tras'
+            echo '   60 días sin actividad en el repositorio.'
+            echo
+            echo "_Este issue se cierra solo en cuanto el feed vuelva a estar fresco._"
+            echo
+            echo "[Ver la ejecución](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } > /tmp/cuerpo.md
+
+          gh issue create \
+            --title "🔴 El feed de ofertas dejó de refrescarse" \
+            --label "$ETIQUETA" \
+            --body-file /tmp/cuerpo.md
+
+      # La alarma se apaga sola. Una que hay que cerrar a mano se queda abierta
+      # para siempre y deja de significar nada.
+      - name: Cerrar la alarma si ya se recuperó
+        if: always() && steps.salud.outputs.sano == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for n in $(gh issue list --label "$ETIQUETA" --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "Feed recuperado: $(cat /tmp/frescura.log 2>/dev/null | head -1)"
+            echo "Alarma #$n cerrada."
+          done
+
+      # Que el job quede en rojo si algo va mal, aunque el scraper "no fallara".
+      - name: Reflejar el estado real
+        if: always()
+        run: |
+          if [ "${{ steps.salud.outputs.sano }}" != "true" ]; then
+            echo "::error::El feed no está fresco. Revisa el issue con la etiqueta $ETIQUETA."
+            exit 1
+          fi
+          if [ "${{ steps.scrape.outcome }}" != "success" ]; then
+            echo "::warning::El scraper falló, pero el feed sigue dentro de las $MAX_HORAS h. Sin alarma todavía."
           fi

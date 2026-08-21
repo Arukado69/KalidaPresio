@@ -2,31 +2,61 @@
 import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Newsletter from '../components/Newsletter.astro';
-import PrecioEnVivo from '../components/PrecioEnVivo.astro';
 import { ClientRouter } from 'astro:transitions';
+import Analitica from '../components/Analitica.astro';
+import SelloFrescura from '../components/SelloFrescura.astro';
+// La fecha REAL de deteccion de los precios que se estan sirviendo.
+import { GENERADO_EL } from '../data/secciones.js';
 
 export interface Props {
   title: string;
   description: string;
   ogImage?: string;
   ogType?: string;
-  productData?: {
-    precio: number;
-    nombre: string;
-    pros: string[];
-  };
 }
 
 const {
   title,
   description,
-  ogImage = '/og-default.jpg',
+  ogImage = '/og-default.png',
   ogType = 'website',
-  productData
 } = Astro.props;
 
 const metaTitle = title.length > 60 ? title.substring(0, 57) + '...' : title;
 const metaDescription = description.length > 160 ? description.substring(0, 157) + '...' : description;
+
+// Open Graph exige URLs ABSOLUTAS: una ruta relativa como "/og-default.png" no
+// la resuelve ningún scraper (WhatsApp, Facebook, X) y la vista previa sale sin
+// imagen. `Astro.site` viene de `site` en astro.config.mjs.
+const urlCanonica = new URL(Astro.url.pathname, Astro.site).href.replace(/\/$/, '') || Astro.site!.href;
+const ogImageAbsoluta = new URL(ogImage, Astro.site).href;
+
+// JSON-LD de sitio y organización. Describe lo que KalidaPresio ES; nada de
+// ratings agregados inventados (la versión anterior emitía un aggregateRating
+// fijo de 4.5 con un reviewCount derivado del número de bullets del texto, que
+// es exactamente el marcado de reseñas falso que Google sanciona).
+const datosSitio = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': `${Astro.site}#website`,
+      url: Astro.site?.href,
+      name: 'KalidaPresio',
+      inLanguage: 'es-MX',
+      description:
+        'Rastreamos precios, calificaciones y ventas reales de Mercado Libre México para encontrar las mejores ofertas calidad-precio.',
+      publisher: { '@id': `${Astro.site}#org` },
+    },
+    {
+      '@type': 'Organization',
+      '@id': `${Astro.site}#org`,
+      name: 'KalidaPresio',
+      url: Astro.site?.href,
+      logo: new URL('/favicon.svg', Astro.site).href,
+    },
+  ],
+};
 ---
 
 <!DOCTYPE html>
@@ -56,9 +86,10 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
     <!-- Open Graph Protocol -->
     <meta property="og:title" content={metaTitle} />
     <meta property="og:description" content={metaDescription} />
-    <meta property="og:image" content={ogImage} />
+    <meta property="og:image" content={ogImageAbsoluta} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:url" content={urlCanonica} />
     <meta property="og:type" content={ogType} />
     <meta property="og:site_name" content="KalidaPresio" />
     <meta property="og:locale" content="es_MX" />
@@ -67,34 +98,16 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={metaTitle} />
     <meta name="twitter:description" content={metaDescription} />
-    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image" content={ogImageAbsoluta} />
 
-    <!-- Canonical URL -->
-    <link rel="canonical" href={Astro.url.href} />
+    <!-- Canonical URL (absoluta; ver nota en el frontmatter) -->
+    <link rel="canonical" href={urlCanonica} />
 
-    <!-- Schema.org Product JSON-LD (solo páginas de producto) -->
-    {productData && (
-      <script type="application/ld+json" set:html={JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "Product",
-        "name": productData.nombre,
-        "description": productData.pros[0] ?? metaDescription,
-        "image": ogImage,
-        "brand": { "@type": "Brand", "name": "KalidaPresio" },
-        "offers": {
-          "@type": "Offer",
-          "priceCurrency": "MXN",
-          "price": productData.precio,
-          "availability": "https://schema.org/InStock",
-          "seller": { "@type": "Organization", "name": "Mercado Libre México" }
-        },
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": "4.5",
-          "reviewCount": productData.pros.length + 2
-        }
-      })} />
-    )}
+    <!-- Analítica (Umami autoalojado). No emite nada si no está configurada. -->
+    <Analitica />
+
+    <!-- Schema.org: quiénes somos. Solo hechos verificables del sitio. -->
+    <script type="application/ld+json" set:html={JSON.stringify(datosSitio)} />
   </head>
   <body>
     <Header transition:persist />
@@ -113,42 +126,90 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
           <a href="/blog">Cómo aprovechar al máximo las ofertas</a>
           <a href="/sobre-mi">Quiénes somos</a>
           <a href="/contacto">Contacto</a>
+          <a href="/privacidad">Aviso de privacidad</a>
         </nav>
-        <!-- Divulgación enfocada en misión (sin mención de monetización) -->
+        <!-- Divulgación honesta: los precios son una foto, no un contrato.
+             La compra ocurre en ML a su precio; por eso pedimos verificar. -->
         <p class="footer-disclaimer">
-          KalidaPresio rastrea precios y opiniones reales de Mercado Libre México
-          para ayudarte a tomar mejores decisiones de compra. Los precios mostrados
-          son verificados al momento de cada actualización.
+          KalidaPresio rastrea precios, calificaciones y ventas reales de Mercado Libre México
+          para ayudarte a decidir mejor. Los precios son una referencia del momento
+          en que se detectaron — <strong>verifica siempre el precio final en Mercado
+          Libre antes de comprar</strong>. <SelloFrescura generadoEl={GENERADO_EL} variante="pie" />.
         </p>
         <p class="footer-copy">&copy; {new Date().getFullYear()} KalidaPresio. Todos los derechos reservados.</p>
       </div>
     </footer>
 
     <script>
-      import { gsap } from 'gsap';
-      import { ScrollTrigger } from 'gsap/ScrollTrigger';
-      gsap.registerPlugin(ScrollTrigger);
+      import { formatearVendidos } from '../utils/mlPayload.js';
 
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       const W = window as any;
+
+      // ════════════════════════════════════════════════════════════════
+      // GSAP DIFERIDO — 132 KB que no todo el mundo necesita.
+      //
+      // Antes se importaba de forma estática arriba de este script: el
+      // navegador descargaba y parseaba GSAP + ScrollTrigger en TODAS las
+      // páginas y sólo DESPUÉS se comprobaba prefers-reduced-motion para
+      // saltarse las animaciones. Quien las tiene desactivadas pagaba el
+      // bundle completo para no usarlo.
+      //
+      // Ahora: con reduced-motion no se descarga nunca; sin él, se carga en
+      // paralelo al primer initPage(). Todos los call sites ya estaban
+      // protegidos con `reduce` o comprueban que gsap exista, así que basta
+      // con esperar la promesa antes de animar.
+      // ════════════════════════════════════════════════════════════════
+      let gsap: any = null;
+      let ScrollTrigger: any = null;
+      let cargando: Promise<void> | null = null;
+
+      function cargarGsap(): Promise<void> {
+        if (reduce) return Promise.resolve();
+        if (gsap) return Promise.resolve();
+        if (!cargando) {
+          cargando = Promise.all([import('gsap'), import('gsap/ScrollTrigger')])
+            .then(([g, st]) => {
+              gsap = g.gsap;
+              ScrollTrigger = st.ScrollTrigger;
+              gsap.registerPlugin(ScrollTrigger);
+              // initHeroSpotlight comprueba window.gsap para decidir si anima.
+              W.gsap = gsap;
+            })
+            .catch((e) => {
+              // Sin GSAP el sitio sigue siendo perfectamente usable: el CSS ya
+              // deja el contenido visible. Solo se pierde el movimiento.
+              console.warn('[KalidaPresio] GSAP no se pudo cargar; se sigue sin animaciones.', e);
+            });
+        }
+        return cargando;
+      }
 
       // ════════════════════════════════════════════════════════════════
       // ANIMACIONES (GSAP) — entrada del hero, reveals en scroll, parallax.
       // Con prefers-reduced-motion TODO se salta y el contenido aparece
       // visible al instante (el CSS de [data-reveal].is-visible lo garantiza).
       // ════════════════════════════════════════════════════════════════
-      function initAnims() {
-        // Mata triggers Y loops de la página anterior (View Transitions
-        // re-monta el DOM: sin esto, los tweens viejos quedarían latiendo
-        // sobre nodos muertos).
-        ScrollTrigger.getAll().forEach((t) => t.kill());
-        (W.__kpLoops || []).forEach((t: any) => t.kill());
-        W.__kpLoops = [];
-
+      async function initAnims() {
+        // Con reduced-motion se sale ANTES de tocar GSAP: así ni se descarga.
         if (reduce) {
           document.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-visible'));
           return;
         }
+
+        await cargarGsap();
+        if (!gsap) {
+          // GSAP no cargó (red caída, bloqueador): el contenido debe verse igual.
+          document.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-visible'));
+          return;
+        }
+
+        // Mata triggers Y loops de la página anterior (View Transitions
+        // re-monta el DOM: sin esto, los tweens viejos quedarían latiendo
+        // sobre nodos muertos).
+        ScrollTrigger.getAll().forEach((t: any) => t.kill());
+        (W.__kpLoops || []).forEach((t: any) => t.kill());
+        W.__kpLoops = [];
 
         // --- Reveals en scroll: lotes con stagger, una sola vez ---
         const reveals = gsap.utils.toArray('[data-reveal]:not(.is-visible)') as HTMLElement[];
@@ -261,6 +322,7 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
         const soltar = (el: HTMLElement) =>
           gsap.to(el, { x: 0, y: 0, duration: 0.5, ease: 'elastic.out(1, 0.45)' });
         document.addEventListener('pointermove', (e) => {
+          if (!gsap) return; // aún cargando: sin imán, pero el CTA funciona
           const el = (e.target as HTMLElement).closest?.('[data-magnetic]') as HTMLElement | null;
           if (activo && activo !== el) { soltar(activo); activo = null; }
           if (!el) return;
@@ -286,7 +348,7 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
         const panel = card.querySelector('[data-resena]') as HTMLElement | null;
         if (!panel) return;
         card.toggleAttribute('data-resena-open', abrir);
-        if (reduce) {
+        if (reduce || !gsap) {
           // Sin animación: aparece/desaparece al instante
           panel.style.opacity = abrir ? '1' : '0';
           panel.style.visibility = abrir ? 'visible' : 'hidden';
@@ -341,6 +403,7 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
         if (W.__kpVis) return;
         W.__kpVis = true;
         document.addEventListener('visibilitychange', () => {
+          if (!gsap) return; // con reduced-motion no hay timeline que pausar
           if (document.hidden) gsap.globalTimeline.pause();
           else gsap.globalTimeline.resume();
         });
@@ -454,20 +517,43 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
       const fmtMXN = (n: number) =>
         new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
 
+      // Re-etiqueta un link de afiliado ya armado con una campaña de sección:
+      // le suma un sufijo al matt_word para medir esa superficie en el panel de ML.
+      const conCampana = (url: string, campana: string) => {
+        try {
+          const u = new URL(url);
+          const w = u.searchParams.get('matt_word');
+          if (w && !w.endsWith('_' + campana)) u.searchParams.set('matt_word', `${w}_${campana}`);
+          return u.toString();
+        } catch { return url; }
+      };
+
       // Card del rail (vertical). Mapea el schema runtime (camelCase) al markup.
+      // Mismos data-* que llevan las TarjetaOferta del SSG. El listener de
+      // analítica los busca con closest() desde el enlace, así que colgarlos
+      // del <li> basta para las dos plantillas. Sin esto, los clics de
+      // relámpago llegaban a Umami sin precio ni score y el conjunto quedaba
+      // desparejo — que invita a conclusiones falsas más que la falta de datos.
+      const datosCard = (o: any) =>
+        ` data-ml-id="${esc(o.id ?? '')}"`
+        + ` data-precio="${Number(o.precioActual) || 0}"`
+        + ` data-kp="${Math.round(Number(o.scoreKP) || 0)}"`
+        + ` data-descuento="${Math.round(Number(o.descuentoReal) || 0)}"`
+        + (o.categoria ? ` data-cat="${esc(o.categoria)}"` : '');
+
       function cardRail(o: any) {
         const d = Math.round(o.descuentoReal || 0);
         const img = o.imagen
           ? `<img src="${esc(o.imagen)}" alt="${esc(o.titulo)}" loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">`
           : '';
-        return `<li class="rs-item" data-fin="${esc(o.endsAt)}"><article class="rs-card">`
+        return `<li class="rs-item" data-fin="${esc(o.endsAt)}"${datosCard(o)}><article class="rs-card">`
           + `<div class="rs-media">${img}<span class="rs-img-fallback"${o.imagen ? ' style="display:none"' : ''} aria-hidden="true">⚡</span>`
           + (d > 0 ? `<span class="rs-desc">-${d}%</span>` : '')
           + `<span class="rs-kp" title="${esc(KP_LEYENDA)}"><strong>${Math.round(o.scoreKP || 0)}</strong><em>K-P</em></span></div>`
           + (o.endsAt ? `<span class="rs-count">⏱ Termina en <strong data-rs-count data-fin="${esc(o.endsAt)}">—</strong></span>` : '')
           + `<h3 class="rs-titulo">${esc(o.titulo)}</h3>`
           + `<div class="rs-precios"><span class="rs-precio">${fmtMXN(o.precioActual)}</span>${d > 0 ? `<em class="rs-ahorro">-${d}%</em>` : ''}</div>`
-          + `<a class="rs-cta" href="${esc(o.urlAfiliado)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Ver oferta →</a>`
+          + `<a class="rs-cta" href="${esc(conCampana(o.urlAfiliado, 'relampago'))}" target="_blank" rel="nofollow sponsored noopener noreferrer">Ver oferta →</a>`
           + `</article></li>`;
       }
       // Card de la franja móvil (horizontal compacta).
@@ -476,7 +562,7 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
         const img = o.imagen
           ? `<img src="${esc(o.imagen)}" alt="${esc(o.titulo)}" loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">`
           : '';
-        return `<li class="rs-fila-item" data-fin="${esc(o.endsAt)}"><a class="rs-mini" href="${esc(o.urlAfiliado)}" target="_blank" rel="nofollow sponsored noopener noreferrer">`
+        return `<li class="rs-fila-item" data-fin="${esc(o.endsAt)}"${datosCard(o)}><a class="rs-mini" href="${esc(conCampana(o.urlAfiliado, 'relampago'))}" target="_blank" rel="nofollow sponsored noopener noreferrer">`
           + `<span class="rs-mini-media">${img}<span class="rs-img-fallback"${o.imagen ? ' style="display:none"' : ''} aria-hidden="true">⚡</span></span>`
           + `<span class="rs-mini-info"><span class="rs-mini-titulo">${esc(o.titulo)}</span>`
           + `<span class="rs-mini-fila"><strong class="rs-precio">${fmtMXN(o.precioActual)}</strong>${d > 0 ? `<em class="rs-ahorro">-${d}%</em>` : ''}</span>`
@@ -625,8 +711,18 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
             stars.setAttribute('aria-label', `${(o.rating || 0).toFixed(1)} de 5 estrellas`);
           }
           if (ratingNum) ratingNum.textContent = (o.rating || 0).toFixed(1);
-          if (ratingOp) ratingOp.textContent = `(${(o.opiniones || 0).toLocaleString('es-MX')} opiniones)`;
-          if (cta) cta.setAttribute('href', o.urlAfiliado || '#');
+          if (ratingOp) ratingOp.textContent = formatearVendidos(o.vendidos);
+          if (cta) {
+            cta.setAttribute('href', conCampana(o.urlAfiliado || '#', 'hero'));
+            // Los data-* viajan CON el producto: el rotador cambia de oferta
+            // cada pocos segundos, así que unos valores fijos en el HTML
+            // mentirían en cuanto rotara. Se refrescan aquí, junto al href.
+            cta.setAttribute('data-ml-id', String(o.id ?? ''));
+            cta.setAttribute('data-precio', String(Number(o.precioActual) || 0));
+            cta.setAttribute('data-kp', String(Math.round(Number(o.scoreKP) || 0)));
+            cta.setAttribute('data-descuento', String(d));
+            if (o.categoria) cta.setAttribute('data-cat', String(o.categoria));
+          }
           if (count) { const r = o.endsAt ? restante(o.endsAt) : null; count.textContent = r ? `⏱ Termina en ${r}` : ''; count.hidden = !r; }
           if (dots) dots.querySelectorAll('.hs-dot').forEach((b, bi) => {
             b.classList.toggle('is-active', bi === i);
@@ -737,7 +833,9 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
 
         // ── Loop de cola (solo el rail vertical, solo con movimiento permitido)
         const rail = document.querySelector('[data-rs-queue]') as HTMLElement | null;
-        if (!rail || reduce) return;
+        // Sin GSAP (reduced-motion o carga fallida) la cola simplemente no rota:
+        // el rail sigue mostrando sus items, que es lo que importa.
+        if (!rail || reduce || !gsap) return;
         const track = rail.querySelector('[data-rs-track]') as HTMLElement | null;
         if (!track) return;
 
@@ -860,11 +958,42 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
         });
       }
 
+      // --- Orden en vivo del catálogo (client-side, sin recargar) ---
+      function initOrden() {
+        const grid = document.querySelector('[data-grid-filtrable]') as HTMLElement | null;
+        const select = document.querySelector('[data-orden]') as HTMLSelectElement | null;
+        if (!grid || !select || select.hasAttribute('data-orden-bound')) return;
+        select.setAttribute('data-orden-bound', '');
+        const original = Array.from(grid.children) as HTMLElement[]; // orden 'recomendado'
+        const num = (c: HTMLElement, k: string) => parseFloat(c.getAttribute(k) || '0') || 0;
+        select.addEventListener('change', () => {
+          const v = select.value;
+          const orden = [...original];
+          if (v === 'descuento') orden.sort((a, b) => num(b, 'data-descuento') - num(a, 'data-descuento'));
+          else if (v === 'precio-asc') orden.sort((a, b) => num(a, 'data-precio') - num(b, 'data-precio'));
+          else if (v === 'precio-desc') orden.sort((a, b) => num(b, 'data-precio') - num(a, 'data-precio'));
+          else if (v === 'kp') orden.sort((a, b) => num(b, 'data-kp') - num(a, 'data-kp'));
+          // 'recomendado' deja el orden original. Re-inserta en el nuevo orden.
+          orden.forEach((c) => grid.appendChild(c));
+          if (!reduce) {
+            let shown = 0;
+            orden.forEach((c) => {
+              if (c.style.display === 'none') return; // respeta el filtro de categoría activo
+              c.style.animationDelay = `${(shown % 8) * 45}ms`;
+              c.classList.remove('filter-in');
+              void c.offsetWidth;
+              c.classList.add('filter-in');
+              shown++;
+            });
+          }
+        });
+      }
+
       // initPage es idempotente (los selectores filtran lo ya inicializado),
       // así que es seguro llamarlo más de una vez.
       // initRelampagoFetch (async) descarga los datos y al terminar invoca
       // initRelampago() para cablear countdown + loop sobre el DOM pintado.
-      function initPage() { initAnims(); initResenas(); initCountUp(); initCountdowns(); initNavActive(); initRelampagoFetch(); initFiltros(); }
+      function initPage() { initAnims(); initResenas(); initCountUp(); initCountdowns(); initNavActive(); initRelampagoFetch(); initFiltros(); initOrden(); }
 
       // Listeners de documento: se atan una vez y sobreviven a las View Transitions.
       bindSpotlight();
@@ -881,8 +1010,6 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
       if (document.readyState !== 'loading') initPage();
       else document.addEventListener('DOMContentLoaded', initPage);
     </script>
-    <!-- Hidratación dinámica de precios (post-render, Vanilla JS) -->
-    <PrecioEnVivo />
   </body>
 </html>
 

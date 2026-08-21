@@ -1,0 +1,101 @@
+---
+/**
+ * ExplorarChips — Fila de acceso rápido a las colecciones (precio + categoría).
+ * Da la sensación de "explorar por presupuesto" directo en el home. Cada chip
+ * lleva a su página de colección (SEO), generada desde colecciones.js.
+ */
+import { COLECCIONES_ACTIVAS } from '../data/colecciones.js';
+
+// Etiqueta corta por slug (los títulos completos son muy largos para un chip).
+const ETIQUETAS = {
+  'ofertas-menos-de-500': 'Menos de $500',
+  'gangas-bajo-300': 'Bajo $300',
+  'ofertas-relampago-hoy': 'Mayor descuento',
+  'mas-vendidos-del-mes': 'Más vendidos',
+  'mejores-ofertas-tecnologia': 'Tecnología',
+};
+
+// Orden preferido: primero las bandas de precio (lo que el usuario busca navegar).
+const ORDEN = ['ofertas-menos-de-500', 'gangas-bajo-300', 'ofertas-relampago-hoy', 'mas-vendidos-del-mes', 'mejores-ofertas-tecnologia'];
+const chips = [...COLECCIONES_ACTIVAS].sort(
+  (a, b) => (ORDEN.indexOf(a.slug) + 1 || 99) - (ORDEN.indexOf(b.slug) + 1 || 99)
+);
+---
+
+{chips.length > 0 && (
+  <nav class="explora" aria-label="Explorar por precio y categoría" data-reveal>
+    <span class="explora-label">Explora:</span>
+    <div class="explora-chips">
+      {chips.map((col) => (
+        <a class="explora-chip" href={`/colecciones/${col.slug}`}>
+          <span class="explora-emoji" aria-hidden="true">{col.emoji}</span>
+          {ETIQUETAS[col.slug] ?? col.titulo}
+          <span class="explora-n">{col.items.length}</span>
+        </a>
+      ))}
+    </div>
+  </nav>
+)}
+
+<style>
+  .explora {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 0 auto var(--spacing-xl);
+    max-width: 1200px;
+    padding: 0 var(--spacing-md);
+  }
+  .explora-label {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .explora-chips {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.3rem;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .explora-chip {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-text);
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    padding: 0.5rem 0.9rem;
+    border-radius: var(--radius-pill);
+    white-space: nowrap;
+    transition: border-color var(--dur-fast) var(--ease-soft),
+                transform var(--dur-fast) var(--ease-soft),
+                color var(--dur-fast) var(--ease-soft);
+  }
+  .explora-chip:hover {
+    border-color: rgba(31, 210, 142, 0.4);
+    color: #fff;
+    transform: translateY(-2px);
+  }
+  .explora-emoji { font-size: 1rem; line-height: 1; }
+  .explora-n {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--color-accent-ink);
+    background: var(--color-accent);
+    border-radius: var(--radius-pill);
+    padding: 0.05rem 0.4rem;
+  }
+
+  @media (max-width: 560px) {
+    .explora-label { display: none; }
+  }
+</style>

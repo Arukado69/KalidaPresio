@@ -41,7 +41,10 @@
       "Bash(git fetch *)",
       "Bash(git -c 'user.name=Irving Omar' -c user.email=omar.dimir69@gmail.com merge -X ours origin/main -m 'merge: integrar auto-feed del remoto manteniendo precios frescos de v1.2 *)",
       "Bash(git push *)",
-      "Bash(git -c 'user.name=Irving Omar' -c user.email=omar.dimir69@gmail.com commit -q -m 'docs: pipeline de datos único y limpio \\(Action=fuente, Hetzner=deploy efímero\\) *)"
+      "Bash(git -c 'user.name=Irving Omar' -c user.email=omar.dimir69@gmail.com commit -q -m 'docs: pipeline de datos único y limpio \\(Action=fuente, Hetzner=deploy efímero\\) *)",
+      "mcp__codebase-memory-mcp__list_projects",
+      "mcp__codebase-memory-mcp__index_status",
+      "mcp__codebase-memory-mcp__index_repository"
     ]
   }
 }

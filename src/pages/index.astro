@@ -4,32 +4,37 @@ import SelloKP from '../components/SelloKP.astro';
 import Estrellas from '../components/Estrellas.astro';
 import BotonCTA from '../components/BotonCTA.astro';
 import RelampagoSticky from '../components/RelampagoSticky.astro';
-import ImbatiblesGrid from '../components/ImbatiblesGrid.astro';
+import SeccionGrid from '../components/SeccionGrid.astro';
+import Curados from '../components/Curados.astro';
+import ExplorarChips from '../components/ExplorarChips.astro';
 import { generarVeredicto, tierKP } from '../utils/veredicto.js';
-import ofertas from '../data/ofertas.json';
+import { scoreEfectivo } from '../utils/scoreSecciones.js';
+import { aLinkAfiliado } from '../utils/afiliado.js';
+import { categorizar } from '../utils/categorias.js';
+import { formatearVendidos } from '../utils/mlPayload.js';
+import { OFERTAS as ofertas } from '../data/ofertas.js';
 // Colecciones por sección (build-time, con fallback a ofertas.json si el
 // extractor aún no corrió). Relámpago e Imbatibles son el MVP; liquidación
 // y menos-500 quedan en backlog (los datos ya existen).
 // Relámpago ya NO se importa: es runtime (RelampagoSticky + initRelampagoFetch).
-import { ALL_IMBATIBLES } from '../data/secciones.js';
+import { ALL_IMBATIBLES, IMBATIBLES_COMPLETADO, SECCIONES_CON_PAGINA } from '../data/secciones.js';
+
+// El encabezado de la rejilla sigue al CONTENIDO, no al revés: si hubo que
+// completarla con el resto del catálogo, no se titula "Precios imbatibles".
+const rejilla = IMBATIBLES_COMPLETADO
+  ? { emoji: '⭐', titulo: 'Lo mejor del catálogo', resumen: 'seleccionados y ordenados por el Sello K-P', campana: 'catalogo' }
+  : { emoji: '💪', titulo: 'Precios imbatibles', resumen: 'precio permanente bajo, ordenados por calidad real', campana: 'imbatibles' };
 
 const isHotSale = import.meta.env.IS_HOT_SALE === 'true';
 
 // ════════════════════════════════════════════════════════
-// SCORING — Mismo algoritmo que n8n (importarOfertas.js ya lo calcula y ordena).
-// Aquí solo reordenamos de forma defensiva por si el JSON se edita a mano.
+// SCORING — La fórmula vive en src/utils/scoreSecciones.js (fuente única).
+// importarOfertas.js ya la calcula y ordena; aquí solo reordenamos de forma
+// defensiva por si el JSON se edita a mano.
 //   Rating 65% · Descuento 20% (tope 40) · Volumen 15% (tope 500)
 // ════════════════════════════════════════════════════════
-function scoreDe(o) {
-  if (typeof o.score_kalidad_presio === 'number') return o.score_kalidad_presio;
-  const r = ((o.rating ?? 0) / 5) * 65;
-  const d = (Math.min(o.descuento ?? 0, 40) / 40) * 20;
-  const op = Math.min(((o.opiniones ?? 0) / 500) * 15, 15);
-  return Math.round(r + d + op);
-}
-
 const ofertasScored = ofertas
-  .map((o) => ({ ...o, score100: scoreDe(o) }))
+  .map((o) => ({ ...o, score100: scoreEfectivo(o) }))
   // Mismo criterio que el scraper: K-P y, ante empate, mayor confianza.
   .sort((a, b) => b.score100 - a.score100 || (b.confianza ?? 0) - (a.confianza ?? 0));
 
@@ -172,9 +177,9 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
               <div class="hs-rating">
                 <Estrellas rating={showpiece.rating} size={14} />
                 <strong>{showpiece.rating?.toFixed(1)}</strong>
-                <em>({showpiece.opiniones?.toLocaleString('es-MX')} opiniones)</em>
+                <em>{formatearVendidos(showpiece.vendidos)}</em>
               </div>
-              <BotonCTA id={showpiece.id} enlace={showpiece.link_afiliado} texto="Ver oferta" magnetic />
+              <BotonCTA id={showpiece.id} enlace={aLinkAfiliado(showpiece.link_afiliado, 'hero')} texto="Ver oferta" magnetic />
               <!-- Puntos de progreso del rotador (los rellena initHeroSpotlight) -->
               <div class="hs-dots" data-hero-dots role="tablist" aria-label="Ofertas en rotación"></div>
             </div>
@@ -183,6 +188,9 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
       </div>
     )}
   </section>
+
+  <!-- Acceso rápido: explorar por precio (menos de $500 / bajo $300) y más -->
+  <ExplorarChips />
 
   <!-- RELÁMPAGO móvil/tablet: franja colapsable bajo el hero (tap revela).
        Datos en RUNTIME: el componente muestra skeleton y el cliente lo llena
@@ -207,7 +215,12 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
 
       <div class="bento">
         <!-- Tile hero (oferta #1 evergreen). data-tilt: se inclina hacia el cursor -->
-        <article class="bento-hero" data-spotlight data-tilt>
+        <article class="bento-hero" data-spotlight data-tilt
+          data-ml-id={veredicto.id}
+          data-precio={veredicto.precio_actual}
+          data-kp={veredicto.score100}
+          data-descuento={Math.round(veredicto.descuento ?? 0)}
+          data-cat={categorizar(veredicto.titulo)}>
           <div class="bh-media">
             <img
               src={veredicto.imagen}
@@ -229,7 +242,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
             <!-- Título clicable: la card siempre tiene enlace a la vista,
                  aunque el CTA quede bajo el pliegue en pantallas chicas -->
             <h3 class="bh-titulo">
-              <a class="bh-titulo-link" href={veredicto.link_afiliado} target="_blank" rel="nofollow sponsored noopener noreferrer">{veredicto.titulo}</a>
+              <a class="bh-titulo-link" href={aLinkAfiliado(veredicto.link_afiliado, 'bento')} target="_blank" rel="nofollow sponsored noopener noreferrer">{veredicto.titulo}</a>
             </h3>
 
             <!-- El PRECIO va antes del bloque narrativo: es lo primero que
@@ -249,14 +262,14 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
                   <span class="bh-signal">
                     <Estrellas rating={veredicto.rating} size={13} />
                     <strong>{veredicto.rating?.toFixed(1)}</strong>
-                    <em>({veredicto.opiniones?.toLocaleString('es-MX')})</em>
+                    <em>{formatearVendidos(veredicto.vendidos)}</em>
                   </span>
                   {vDescuento > 0 && <span class="bh-signal bh-dscto">−{vDescuento}% real</span>}
                 </div>
               </div>
             </div>
 
-            <BotonCTA id={veredicto.id} enlace={veredicto.link_afiliado} texto="Ver oferta" />
+            <BotonCTA id={veredicto.id} enlace={aLinkAfiliado(veredicto.link_afiliado, 'bento')} texto="Ver oferta" />
           </div>
         </article>
 
@@ -269,7 +282,12 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
             class="bento-tile"
             data-spotlight
             data-ripple
-            href={o.link_afiliado}
+            data-ml-id={o.id}
+            data-precio={o.precio_actual}
+            data-kp={o.score100}
+            data-descuento={Math.round(o.descuento ?? 0)}
+            data-cat={categorizar(o.titulo)}
+            href={aLinkAfiliado(o.link_afiliado, 'bento')}
             target="_blank"
             rel="nofollow sponsored noopener noreferrer"
           >
@@ -300,16 +318,101 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
     </section>
   )}
 
+  <!-- ELEGIDOS: tus productos curados a mano (curados.json). Camino del dinero:
+       pegas links → tarjetas con tu código de afiliado. No depende de scraping. -->
+  <Curados />
+
   <!-- Catálogo principal: IMBATIBLES (grid 3/2/1, score recalibrado 65/10/25).
        Liquidación y menos-500: datos listos en secciones.js, render en el
        siguiente sprint (backlog). -->
-  <ImbatiblesGrid productos={ALL_IMBATIBLES} />
+  <SeccionGrid
+      productos={ALL_IMBATIBLES}
+      titulo={rejilla.titulo}
+      emoji={rejilla.emoji}
+      resumen={rejilla.resumen}
+      campana={rejilla.campana}
+    />
+
+    {SECCIONES_CON_PAGINA.length > 0 && (
+      <nav class="secs" aria-label="Secciones de ofertas" data-reveal>
+        <h2 class="titulo-seccion secs-titulo">Explora por sección</h2>
+        <ul class="secs-lista">
+          {SECCIONES_CON_PAGINA.map((sec) => (
+            <li>
+              <a href={`/ofertas/${sec.slug}`} data-spotlight data-ripple>
+                <span class="secs-emoji" aria-hidden="true">{sec.emoji}</span>
+                <span class="secs-txt">
+                  <strong>{sec.titulo}</strong>
+                  <em>{sec.items.length} productos · {sec.resumen}</em>
+                </span>
+                <span class="secs-flecha" aria-hidden="true">→</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )}
 
     </div><!-- /.kp-main -->
   </div><!-- /.kp-shell -->
 </Layout>
 
 <style>
+  /* Banda de secciones: enlaza el catálogo que NO cabe en la portada.
+     Pesa unos cientos de bytes en vez de las 91 tarjetas que representaría. */
+  .secs { margin-top: var(--spacing-2xl); }
+  .secs-titulo { text-align: center; }
+
+  .secs-lista {
+    list-style: none;
+    margin: var(--spacing-md) auto 0;
+    padding: 0;
+    max-width: 1000px;
+    display: grid;
+    gap: var(--spacing-sm);
+  }
+  @media (min-width: 720px) {
+    .secs-lista { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .secs-lista a {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    height: 100%;
+    padding: 1.05rem 1.2rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--color-violet-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--color-text);
+    position: relative;
+    overflow: hidden;
+    transition: border-color var(--dur-fast) var(--ease-soft), transform var(--dur-fast) var(--ease-soft);
+  }
+  .secs-lista a:hover { border-color: var(--color-primary); transform: translateY(-2px); }
+
+  .secs-emoji { font-size: 1.5rem; flex: 0 0 auto; }
+  .secs-txt { flex: 1 1 auto; min-width: 0; }
+  .secs-txt strong {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.02rem;
+    margin-bottom: 0.12rem;
+  }
+  .secs-txt em {
+    display: block;
+    font-style: normal;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    line-height: 1.45;
+  }
+  .secs-flecha { flex: 0 0 auto; color: var(--color-primary); font-size: 1.1rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .secs-lista a:hover { transform: none; }
+  }
+
   /* =========================================
      Hero / Módulo estacional
      ========================================= */

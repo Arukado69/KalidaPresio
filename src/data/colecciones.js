@@ -16,21 +16,17 @@
  * emoji, filtro (función), y orden (función de sort).
  */
 import { categorizar } from '../utils/categorias.js';
-import ofertas from './ofertas.json';
-
-// ── Scoring (idéntico al de index.astro — Single Source of Truth) ────────────
-function scoreDe(o) {
-  if (typeof o.score_kalidad_presio === 'number') return o.score_kalidad_presio;
-  const r = ((o.rating ?? 0) / 5) * 65;
-  const d = (Math.min(o.descuento ?? 0, 40) / 40) * 20;
-  const op = Math.min(((o.opiniones ?? 0) / 500) * 15, 15);
-  return Math.round(r + d + op);
-}
+// Fuente UNICA de la formula del score: antes estaba copiada literalmente
+// aqui y en index.astro, con un comentario que la llamaba "Single Source of
+// Truth" siendo dos copias distintas.
+import { scoreEfectivo } from '../utils/scoreSecciones.js';
+// Pasa por el cargador: acepta el feed con o sin sello de fecha.
+import { OFERTAS as ofertas } from './ofertas.js';
 
 // Pre-calcular score y categoría para todos los productos (una sola vez)
 const ofertasEnriquecidas = ofertas.map(o => ({
   ...o,
-  score100: scoreDe(o),
+  score100: scoreEfectivo(o),
   categoria_inferida: categorizar(o.titulo ?? ''),
 }));
 
@@ -55,12 +51,14 @@ export const COLECCIONES = [
   {
     slug: 'mas-vendidos-del-mes',
     titulo: 'Los Más Vendidos del Mes',
-    descripcion: 'Los productos más populares según miles de reseñas verificadas de compradores en Mercado Libre México. Volumen de ventas real, no posicionamiento pagado.',
+    descripcion: 'Los productos con más unidades vendidas en Mercado Libre México. Volumen de ventas real publicado por la propia plataforma, no posicionamiento pagado.',
     emoji: '🏆',
     color: 'var(--color-warm)',
     items: ofertasEnriquecidas
-      .filter(o => o.mas_vendido === true || (o.opiniones ?? 0) > 1000)
-      .sort((a, b) => (b.opiniones ?? 0) - (a.opiniones ?? 0)),
+      // Ahora el nombre de la colección es literal: ML publica unidades
+      // vendidas, así que "más vendidos" ya no es una inferencia.
+      .filter(o => (o.vendidos ?? 0) >= 5000)
+      .sort((a, b) => (b.vendidos ?? 0) - (a.vendidos ?? 0)),
   },
 
   {
@@ -72,6 +70,29 @@ export const COLECCIONES = [
     items: ofertasEnriquecidas
       .filter(o => (o.descuento ?? 0) >= 35)
       .sort((a, b) => (b.descuento ?? 0) - (a.descuento ?? 0)),
+  },
+
+  // ── Bandas de precio (navegación por presupuesto) ──────────────────────────
+  {
+    slug: 'ofertas-menos-de-500',
+    titulo: 'Ofertas por Menos de $500',
+    descripcion: 'Las mejores ofertas calidad-precio por menos de $500 pesos en Mercado Libre México. Compras inteligentes con presupuesto ajustado, ordenadas por nuestro sello K-P.',
+    emoji: '💵',
+    color: 'var(--color-primary)',
+    items: ofertasEnriquecidas
+      .filter(o => (o.precio_actual ?? 0) > 0 && o.precio_actual < 500)
+      .sort((a, b) => b.score100 - a.score100),
+  },
+
+  {
+    slug: 'gangas-bajo-300',
+    titulo: 'Gangas por Menos de $300',
+    descripcion: 'Productos que valen la pena por menos de $300 pesos en Mercado Libre México. Lo mejor del presupuesto bajo, sin sacrificar calidad — verificado por KalidaPresio.',
+    emoji: '🪙',
+    color: 'var(--color-warm)',
+    items: ofertasEnriquecidas
+      .filter(o => (o.precio_actual ?? 0) > 0 && o.precio_actual < 300)
+      .sort((a, b) => b.score100 - a.score100),
   },
 ];
 

@@ -5,6 +5,8 @@ import EstrellasKP from './EstrellasKP.astro';
 import BotonCTA from './BotonCTA.astro';
 import { generarVeredicto } from '../utils/veredicto.js';
 import { resenaKP } from '../utils/resenaKP.js';
+import { aLinkAfiliado } from '../utils/afiliado.js';
+import { formatearVendidos } from '../utils/mlPayload.js';
 
 export interface Oferta {
   id: string;
@@ -13,7 +15,7 @@ export interface Oferta {
   precio_previo?: number | null;
   descuento: number;
   rating: number;
-  opiniones: number;
+  vendidos: number;
   score_kalidad_presio?: number;
   link_afiliado: string;
   imagen: string;
@@ -29,7 +31,7 @@ export interface Oferta {
   confianza?: number;
   // Opcional (esquema propuesto): resumen de reseñas curado.
   // Si falta, el panel se arma con señales objetivas; si no hay rating ni
-  // opiniones, el panel se oculta por completo.
+  // vendidos, el panel se oculta por completo.
   opiniones_sentimiento?: {
     resumen?: string;
     puntos_clave?: string[];
@@ -46,9 +48,15 @@ export interface Props {
   categoria?: string;
   /** Layout: 'grid' (vertical, por defecto) o 'deal' (horizontal). */
   variant?: 'grid' | 'deal';
+  /** Etiqueta de sección para el matt_word (medición por sección en ML). */
+  campana?: string;
 }
 
-const { oferta, score, indice = 0, categoria, variant = 'grid' } = Astro.props;
+const { oferta, score, indice = 0, categoria, variant = 'grid', campana } = Astro.props;
+
+// Si se pasa `campana`, re-etiqueta el link con matt_word de esa sección
+// (para medir en el panel de ML). Si no, usa el link_afiliado tal cual.
+const enlaceCTA = campana ? aLinkAfiliado(oferta.link_afiliado, campana) : oferta.link_afiliado;
 
 const score100 = Math.round(score ?? oferta.score_kalidad_presio ?? 0);
 
@@ -70,7 +78,7 @@ const revealDelay = (indice % 8) * 70;
 const veredictoTxt = generarVeredicto(oferta);
 
 // "Segunda reseña" K-P: estrellas DETERMINISTAS derivadas de datos reales
-// (score/rating/opiniones/descuento). Se calcula en build — el panel es
+// (score/rating/vendidos/descuento). Se calcula en build — el panel es
 // estático; el cliente solo anima el revelado (hover/tap).
 const resena = resenaKP(oferta, score100);
 
@@ -82,7 +90,7 @@ const fmt = (n: number) =>
   }).format(n);
 ---
 
-<article class={`oferta-card${variant === 'deal' ? ' is-deal' : ''}`} data-spotlight data-reveal data-cat={categoria} data-ml-id={oferta.id} data-build-price={oferta.precio_actual} style={`--reveal-delay:${revealDelay}ms`}>
+<article class={`oferta-card${variant === 'deal' ? ' is-deal' : ''}`} data-spotlight data-reveal data-cat={categoria} data-ml-id={oferta.id} data-build-price={oferta.precio_actual} data-precio={oferta.precio_actual} data-descuento={descuento} data-kp={score100} style={`--reveal-delay:${revealDelay}ms`}>
   <div class="oferta-media">
     <img
       src={oferta.imagen}
@@ -157,11 +165,11 @@ const fmt = (n: number) =>
     <div class="oferta-rating">
       <Estrellas rating={oferta.rating} size={15} />
       <span class="oferta-rating-num">{oferta.rating?.toFixed(1)}</span>
-      <span class="oferta-opiniones">({oferta.opiniones?.toLocaleString('es-MX')})</span>
+      <span class="oferta-opiniones">{formatearVendidos(oferta.vendidos)}</span>
     </div>
 
     <div class="oferta-confianza">
-      <span class={`conf-chip conf-${confClase}`} title="Qué tan respaldada está la compra (opiniones, ventas y reputación del vendedor)">
+      <span class={`conf-chip conf-${confClase}`} title="Qué tan respaldada está la compra (unidades vendidas y reputación del vendedor)">
         Confianza: {confNivel}
       </span>
       {oferta.envio_gratis && <span class="meta-chip">Envío gratis</span>}
@@ -170,7 +178,7 @@ const fmt = (n: number) =>
 
     <div class="oferta-cta">
       <!-- CTA fijo del piloto: "Ver oferta →" (la flecha la pone el icono del botón) -->
-      <BotonCTA id={oferta.id} enlace={oferta.link_afiliado} texto="Ver oferta" />
+      <BotonCTA id={oferta.id} enlace={enlaceCTA} texto="Ver oferta" />
     </div>
   </div>
 </article>

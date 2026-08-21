@@ -1,0 +1,286 @@
+---
+/**
+ * Aviso de Privacidad — LFPDPPP (México).
+ *
+ * KalidaPresio recoge correo electrónico (boletín y contacto) e IP. La Ley
+ * Federal de Protección de Datos Personales en Posesión de los Particulares
+ * exige un aviso accesible en el punto de recolección: por eso está enlazado
+ * desde el pie de página y desde ambos formularios.
+ *
+ * Los datos concretos (responsable, correo de contacto, dominio) viven en la
+ * constante RESPONSABLE para que actualizarlos sea una sola edición.
+ */
+import Layout from '../layouts/Layout.astro';
+
+const RESPONSABLE = {
+  nombre: 'KalidaPresio',
+  sitio: 'kalidapresio.com',
+  correo: 'hola@kalidapresio.com',
+  pais: 'México',
+};
+
+const ACTUALIZADO = '20 de agosto de 2026';
+---
+
+<Layout
+  title="Aviso de Privacidad — KalidaPresio"
+  description="Qué datos personales recogemos en KalidaPresio, para qué los usamos, cuánto los conservamos y cómo ejercer tus derechos ARCO."
+>
+  <article class="legal">
+    <header class="legal-head">
+      <p class="legal-eyebrow">Documento legal</p>
+      <h1>Aviso de Privacidad</h1>
+      <p class="legal-fecha">Última actualización: {ACTUALIZADO}</p>
+    </header>
+
+    <section>
+      <h2>1. Quién es responsable de tus datos</h2>
+      <p>
+        <strong>{RESPONSABLE.nombre}</strong>, sitio web <strong>{RESPONSABLE.sitio}</strong>,
+        con operación en {RESPONSABLE.pais}, es responsable del tratamiento de los datos
+        personales que nos proporcionas. Para cualquier asunto relacionado con este aviso
+        puedes escribir a <a href={`mailto:${RESPONSABLE.correo}`}>{RESPONSABLE.correo}</a>
+        o usar el <a href="/contacto">formulario de contacto</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>2. Qué datos recogemos</h2>
+      <p>Solo lo mínimo para que el sitio funcione. Nada más.</p>
+      <ul class="legal-lista">
+        <li>
+          <strong>Boletín:</strong> tu correo electrónico y la dirección IP desde la que
+          confirmaste la suscripción.
+        </li>
+        <li>
+          <strong>Formulario de contacto:</strong> tu nombre, tu correo electrónico, el
+          asunto, el mensaje que escribes y la dirección IP desde la que lo enviaste.
+        </li>
+      </ul>
+      <p>
+        No pedimos datos financieros, ni domicilio, ni teléfono, ni datos personales
+        sensibles. Las compras <strong>no ocurren en este sitio</strong>: al pulsar
+        cualquier oferta sales hacia Mercado Libre, y a partir de ahí aplica la
+        política de privacidad de ellos, no la nuestra.
+      </p>
+    </section>
+
+    <section>
+      <h2>3. Para qué los usamos</h2>
+      <ul class="legal-lista">
+        <li>Enviarte el correo de confirmación de la suscripción (doble opt-in).</li>
+        <li>Enviarte avisos ocasionales de ofertas, solo si confirmaste la suscripción.</li>
+        <li>Responder los mensajes que nos mandas por el formulario de contacto.</li>
+        <li>
+          La dirección IP se guarda únicamente como evidencia de tu consentimiento y para
+          contener abuso automatizado (bots que envían formularios en masa).
+        </li>
+      </ul>
+      <p>
+        <strong>No vendemos, rentamos ni compartimos tus datos con terceros</strong> con
+        fines comerciales, ni te perfilamos para publicidad.
+      </p>
+    </section>
+
+    <section>
+      <h2>4. Con quién los compartimos</h2>
+      <p>
+        Solo con los proveedores estrictamente necesarios para operar, y únicamente para
+        eso:
+      </p>
+      <ul class="legal-lista">
+        <li>
+          <strong>Proveedor de correo transaccional</strong> (Resend): procesa el envío de
+          los correos de confirmación y del boletín.
+        </li>
+        <li>
+          <strong>Proveedor de alojamiento</strong> (Hetzner, servidores en la Unión
+          Europea): almacena la base de datos donde viven las suscripciones y los mensajes.
+        </li>
+      </ul>
+      <p>
+        Estos proveedores actúan como encargados: tratan los datos por instrucción nuestra
+        y no pueden usarlos para fines propios. Fuera de eso, solo entregaríamos datos si
+        una autoridad competente lo requiriera legalmente.
+      </p>
+    </section>
+
+    <section>
+      <h2>5. Cuánto tiempo los conservamos</h2>
+      <ul class="legal-lista">
+        <li>
+          <strong>Suscripciones:</strong> mientras sigas suscrito. Al darte de baja
+          conservamos únicamente el registro de la baja, para no volver a escribirte por
+          error si alguien introduce tu correo de nuevo.
+        </li>
+        <li>
+          <strong>Mensajes de contacto:</strong> hasta 24 meses desde el envío, por si
+          hace falta retomar la conversación.
+        </li>
+        <li>
+          <strong>Direcciones IP:</strong> se conservan junto al registro correspondiente y
+          se eliminan con él.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>6. Tus derechos ARCO</h2>
+      <p>
+        Tienes derecho a <strong>acceder</strong> a tus datos, <strong>rectificarlos</strong>
+        si son inexactos, <strong>cancelarlos</strong> cuando consideres que no se
+        requieren, y <strong>oponerte</strong> a su uso para fines específicos. También
+        puedes revocar tu consentimiento en cualquier momento.
+      </p>
+      <p>
+        <strong>Para el boletín, la vía más rápida es el enlace «Date de baja» que va al
+        pie de cada correo que te enviamos</strong>: un clic y queda hecho, sin pedir nada
+        a cambio.
+      </p>
+      <p>
+        Para cualquier otro derecho, escribe a
+        <a href={`mailto:${RESPONSABLE.correo}`}>{RESPONSABLE.correo}</a> indicando qué
+        quieres ejercer. Respondemos en un máximo de 20 días hábiles. No cobramos por
+        ejercer estos derechos.
+      </p>
+    </section>
+
+    <section>
+      <h2>7. Cookies y medición</h2>
+      <p>
+        Este sitio <strong>no instala cookies</strong> de ningún tipo: ni de publicidad,
+        ni de rastreo, ni de medición. Por eso no verás un banner de consentimiento:
+        no hay nada que consentir. El navegador puede guardar preferencias locales de la
+        interfaz (por ejemplo, el filtro de categoría que elegiste), que no salen de tu
+        dispositivo y no permiten identificarte.
+      </p>
+      <p>
+        Sí medimos de forma <strong>agregada y anónima</strong> qué páginas se visitan y
+        qué ofertas reciben clic, para saber qué contenido resulta útil. Usamos
+        <strong>Umami</strong>, una herramienta de software libre que corre en
+        <strong>nuestro propio servidor</strong>: los datos no se comparten con Google ni
+        con ninguna plataforma publicitaria, y nunca salen de nuestra infraestructura.
+      </p>
+      <p>
+        No se guarda tu dirección IP completa, no se crea un identificador que te siga
+        entre visitas y no se te puede reconocer entre distintos sitios web. Lo que
+        registramos es del tipo «alguien desde México, en un móvil, hizo clic en la
+        sección Imbatibles». Si tu navegador manda la señal
+        <strong>Do&nbsp;Not&nbsp;Track</strong>, no se registra absolutamente nada.
+      </p>
+      <p>
+        Los enlaces a Mercado Libre llevan parámetros de afiliado
+        (<code>matt_tool</code> y <code>matt_word</code>) que le indican a Mercado Libre
+        que la visita vino de aquí. Ese registro lo lleva Mercado Libre, no nosotros: no
+        recibimos tu identidad, solo un conteo agregado de clics y comisiones.
+      </p>
+    </section>
+
+    <section>
+      <h2>8. Relación de afiliación</h2>
+      <p>
+        KalidaPresio participa en el Programa de Afiliados de Mercado Libre México. Si
+        compras a través de nuestros enlaces podemos recibir una comisión,
+        <strong>sin costo adicional para ti</strong>. Esa comisión no altera el orden ni la
+        selección de las ofertas: el sello K-P se calcula solo con calificación real,
+        descuento real y volumen de ventas. Puedes leer el detalle en
+        <a href="/sobre-mi">Quiénes somos</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>9. Cambios a este aviso</h2>
+      <p>
+        Si cambiamos este aviso, publicaremos la versión nueva en esta misma dirección y
+        actualizaremos la fecha del encabezado. Si el cambio afecta de forma sustancial al
+        uso de tus datos, te lo avisaremos por correo antes de aplicarlo.
+      </p>
+      <p>
+        Si consideras que tu derecho a la protección de datos ha sido vulnerado, puedes
+        acudir al INAI (<a href="https://home.inai.org.mx" target="_blank" rel="noopener noreferrer">home.inai.org.mx</a>).
+      </p>
+    </section>
+  </article>
+</Layout>
+
+<style>
+  .legal {
+    max-width: 68ch;
+    margin: 0 auto;
+    padding: var(--spacing-xl) var(--spacing-md) var(--spacing-2xl);
+  }
+
+  .legal-head {
+    border-bottom: 1px solid var(--color-violet-border);
+    padding-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .legal-eyebrow {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--color-text-muted);
+    margin: 0 0 0.4rem;
+    font-weight: 600;
+  }
+
+  .legal h1 {
+    font-size: clamp(1.8rem, 5vw, 2.4rem);
+    color: #fff;
+    margin: 0 0 0.3rem;
+    line-height: 1.1;
+  }
+
+  .legal-fecha {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  .legal section { margin-bottom: var(--spacing-lg); }
+
+  .legal h2 {
+    font-size: 1.12rem;
+    color: var(--color-primary);
+    margin: 0 0 0.55rem;
+    line-height: 1.3;
+  }
+
+  .legal p {
+    color: var(--color-text-muted);
+    font-size: 0.97rem;
+    line-height: 1.72;
+    margin: 0 0 0.9em;
+  }
+
+  .legal strong { color: var(--color-text); font-weight: 600; }
+
+  .legal a {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  .legal a:hover { color: var(--color-secondary); }
+
+  .legal code {
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 0.88em;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+
+  .legal-lista {
+    margin: 0 0 0.9em;
+    padding-left: 1.15rem;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .legal-lista li {
+    color: var(--color-text-muted);
+    font-size: 0.97rem;
+    line-height: 1.65;
+  }
+</style>

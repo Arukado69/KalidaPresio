@@ -1,0 +1,164 @@
+---
+/**
+ * /ofertas/<seccion> — Una página por sección de Mercado Libre.
+ *
+ * POR QUÉ EXISTEN: el extractor traía 91 productos frescos de liquidación y
+ * menos-500 que el sitio no renderizaba en ningún sitio. `ALL_LIQUIDACION` y
+ * `ALL_MENOS_500` se exportaban y nadie los importaba. Catálogo pagado con
+ * peticiones a ML y tirado a la basura en cada build.
+ *
+ * POR QUÉ PÁGINAS Y NO MÁS BLOQUES EN LA PORTADA: la portada ya pesa más de
+ * medio mega de HTML con una sola rejilla; sumarle 91 tarjetas la haría
+ * impracticable en móvil. Además, páginas separadas dan tres cosas que un
+ * bloque más no da: contenido propio que Google puede indexar, una etiqueta
+ * `matt_word` distinta por sección para saber cuál convierte, y un filtro y
+ * orden que no compiten con los de la portada (el Layout cablea
+ * `[data-grid-filtrable]` en singular, una rejilla por página).
+ *
+ * Relámpago no tiene página: son ofertas por tiempo limitado y ML dejó de
+ * publicar su fecha de fin, así que una página estática las presentaría como
+ * vigentes sin poder garantizarlo. Para eso está el carrusel, que se refresca
+ * en el navegador.
+ */
+import Layout from '../../layouts/Layout.astro';
+import SeccionGrid from '../../components/SeccionGrid.astro';
+import ExplorarChips from '../../components/ExplorarChips.astro';
+import { SECCIONES_CON_PAGINA } from '../../data/secciones.js';
+
+export function getStaticPaths() {
+  return SECCIONES_CON_PAGINA.map((s) => ({
+    params: { seccion: s.slug },
+    props: { seccion: s },
+  }));
+}
+
+const { seccion } = Astro.props;
+const otras = SECCIONES_CON_PAGINA.filter((s) => s.slug !== seccion.slug);
+---
+
+<Layout
+  title={`${seccion.titulo} — Ofertas de Mercado Libre | KalidaPresio`}
+  description={seccion.descripcion}
+>
+  <article class="sec">
+    <nav class="sec-bc" aria-label="Ruta de navegación">
+      <a href="/">Inicio</a>
+      <span aria-hidden="true">›</span>
+      <span aria-current="page">{seccion.titulo}</span>
+    </nav>
+
+    <SeccionGrid
+      productos={seccion.items}
+      titulo={seccion.titulo}
+      emoji={seccion.emoji}
+      resumen={seccion.resumen}
+      campana={seccion.campana}
+      encabezado="h1"
+    />
+
+    <p class="sec-intro">{seccion.descripcion}</p>
+
+    {otras.length > 0 && (
+      <nav class="sec-otras" aria-label="Otras secciones">
+        <h2 class="sec-otras-titulo">Sigue explorando</h2>
+        <ul>
+          {otras.map((o) => (
+            <li>
+              <a href={`/ofertas/${o.slug}`}>
+                <span class="sec-otras-emoji" aria-hidden="true">{o.emoji}</span>
+                <span>
+                  <strong>{o.titulo}</strong>
+                  <em>{o.items.length} productos · {o.resumen}</em>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )}
+
+    <ExplorarChips />
+  </article>
+</Layout>
+
+<style>
+  .sec { padding-top: var(--spacing-md); }
+
+  .sec-bc {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-sm);
+  }
+  .sec-bc a { color: var(--color-text-muted); text-decoration: none; }
+  .sec-bc a:hover { color: var(--color-primary); }
+  .sec-bc [aria-current] { color: var(--color-primary); font-weight: 600; }
+
+  /* La descripción va DESPUÉS de la rejilla: quien llega busca productos, no
+     un párrafo. Pero tiene que estar, porque es el contenido estable que
+     Google puede indexar de una página cuyo catálogo cambia cada pocas horas. */
+  .sec-intro {
+    max-width: 68ch;
+    margin: var(--spacing-xl) auto 0;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    text-align: center;
+  }
+
+  .sec-otras { margin-top: var(--spacing-2xl); }
+
+  .sec-otras-titulo {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    margin: 0 0 var(--spacing-sm);
+    text-align: center;
+  }
+
+  .sec-otras ul {
+    list-style: none;
+    margin: 0 auto;
+    padding: 0;
+    max-width: 720px;
+    display: grid;
+    gap: var(--spacing-sm);
+  }
+  @media (min-width: 640px) {
+    .sec-otras ul { grid-template-columns: 1fr 1fr; }
+  }
+
+  .sec-otras a {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.95rem 1.1rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--color-violet-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--color-text);
+    transition: border-color var(--dur-fast) var(--ease-soft);
+  }
+  .sec-otras a:hover { border-color: var(--color-primary); }
+
+  .sec-otras-emoji { font-size: 1.4rem; flex: 0 0 auto; }
+  .sec-otras strong {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    margin-bottom: 0.1rem;
+  }
+  .sec-otras em {
+    display: block;
+    font-style: normal;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    line-height: 1.45;
+  }
+</style>

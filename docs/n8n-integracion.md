@@ -1,3 +1,9 @@
+> ⚠️ **OBSOLETO (agosto 2026).** Este documento describe el flujo n8n → `productos.json`,
+> un archivo que ya no existe: `/productos/*` se retiró por servir fichas de ejemplo con
+> datos inventados. El pipeline vivo es `src/scripts/importarOfertas.js` → `src/data/ofertas.json`,
+> refrescado cada 3 h por `.github/workflows/actualizar-ofertas.yml`. Se conserva solo como
+> referencia histórica del scoring portado desde n8n.
+
 # Integración n8n → KalidaPresio Web
 
 > Guía operativa para conectar el flujo de automatización de n8n

@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import sitemap from '@astrojs/sitemap';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -9,8 +10,8 @@ import { fileURLToPath } from 'node:url';
  * fresco (las lightning rotan cada pocas horas) e imbatibles del día.
  *
  *  · Silencioso: el detalle del sondeo no ensucia el log del build.
- *  · NUNCA truena el build: si ML no responde, se usa el JSON existente y,
- *    si tampoco hay, src/data/secciones.js degrada a ofertas.json.
+ *  · NUNCA truena el build: si ML no responde, src/data/secciones.js descarta
+ *    el JSON viejo por edad (TTL de 12 h) y degrada a ofertas.json.
  *  · Solo en `astro build` (no en dev) y saltable con SKIP_EXTRACCION=true
  *    (útil para builds locales repetidos sin golpear a ML).
  *  · El flujo de ofertas.json (n8n / GitHub Action) NO se toca: ambos
@@ -36,16 +37,34 @@ function extractorSecciones() {
             hijo.on('exit', (code) => (code === 0 ? resolve(undefined) : reject(new Error(`código de salida ${code}`))));
             hijo.on('error', reject);
           });
-          logger.info('secciones-prueba.json refrescado ✓');
+          logger.info('secciones-feed.json refrescado ✓');
         } catch (e) {
-          logger.warn(`Extractor falló (${e.message}). Se usa el JSON previo o el fallback a ofertas.json.`);
+          logger.warn(`Extractor falló (${e.message}). Se degrada a ofertas.json (feed del bot de 3 h).`);
         }
       },
     },
   };
 }
 
+// URL pública del sitio. NO es cosmética: alimenta rel="canonical", las URLs
+// absolutas de Open Graph y el sitemap. Sin ella, Astro resuelve Astro.url
+// contra el servidor de desarrollo y CADA página de producción sale declarando
+// su canónica en http://localhost:4321 (Google las descarta).
+// Se puede sobrescribir con SITE_URL para despliegues en un dominio distinto.
+const SITE = process.env.SITE_URL || 'https://kalidapresio.com';
+
 // https://astro.build/config
 export default defineConfig({
-  integrations: [extractorSecciones()],
+  site: SITE,
+  trailingSlash: 'ignore',
+  integrations: [
+    extractorSecciones(),
+    sitemap({
+      // El sitemap es una invitación a rastrear: solo entra lo que queremos
+      // indexado. /api/* no existe como página estática, pero el filtro deja
+      // constancia de la intención.
+      filter: (page) => !page.includes('/api/'),
+      i18n: undefined,
+    }),
+  ],
 });

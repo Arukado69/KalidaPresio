@@ -10,7 +10,8 @@
   <div class="nl-inner">
     <div class="nl-copy">
       <h2 id="nl-titulo" class="nl-titulo">Ofertas que sí valen la pena, en tu correo</h2>
-      <p class="nl-sub">De vez en cuando te avisamos de las mejores oportunidades calidad-precio. Te das de baja cuando quieras.</p>
+      <p class="nl-sub">De vez en cuando te avisamos de las mejores oportunidades calidad-precio.
+        Te mandamos un correo para confirmar que eres tu, y cada envio lleva un enlace de baja en un clic.</p>
     </div>
 
     <div class="nl-form">
@@ -29,6 +30,7 @@
         </button>
       </div>
       <p class="nl-status" data-nl-status role="status" aria-live="polite" hidden></p>
+      <p class="nl-legal">Al suscribirte aceptas nuestro <a href="/privacidad">aviso de privacidad</a>.</p>
     </div>
   </div>
 </section>
@@ -66,9 +68,14 @@
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.ok) {
-              setStatus('¡Gracias por suscribirte! Te avisaremos de las mejores ofertas.', 'ok');
+              setStatus('Te mandamos un correo para confirmar. Ábrelo y listo (revisa spam por si acaso).', 'ok');
+              // Conversión del boletín. El componente no conoce la herramienta
+              // de analítica: solo anuncia lo que pasó (ver Analitica.astro).
+              document.dispatchEvent(new CustomEvent('kp:evento', {
+                detail: { nombre: 'boletin-alta', datos: { paso: 'correo-enviado' } },
+              }));
               email.value = '';
-              txt.textContent = '¡Listo!';
+              txt.textContent = 'Revisa tu correo';
             } else {
               const m = data.error === 'email_invalido' ? 'Ese correo no parece válido.'
                 : 'No pudimos completar la suscripción. Intenta de nuevo en un momento.';
@@ -177,4 +184,13 @@
   }
   .nl-status[data-tipo="ok"] { color: var(--color-primary); }
   .nl-status[data-tipo="error"] { color: var(--color-error); }
+
+  .nl-legal {
+    margin: 0.6rem 0 0;
+    font-size: 0.76rem;
+    line-height: 1.5;
+    color: var(--color-text-muted);
+  }
+  .nl-legal a { color: var(--color-text-muted); text-decoration: underline; text-underline-offset: 0.2em; }
+  .nl-legal a:hover { color: var(--color-primary); }
 </style>

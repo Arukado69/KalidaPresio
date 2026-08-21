@@ -14,11 +14,12 @@
  *
  * El schema de salida es idéntico al que espera initRelampagoFetch() en Layout:
  *   { detectadoEl, ofertas: [{ id, titulo, precioActual, precioOriginal,
- *     descuentoReal, scoreKP, rating, opiniones, imagen, urlAfiliado, badge, endsAt }] }
+ *     descuentoReal, scoreKP, rating, vendidos, imagen, urlAfiliado, badge, endsAt }] }
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { categorizar } from '../utils/categorias.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,7 +40,12 @@ try {
   console.log('\n⚡ [Relámpago] Generando carrusel desde ofertas.json...');
 
   const raw = fs.readFileSync(OFERTAS_PATH, 'utf-8');
-  const ofertas = JSON.parse(raw);
+  const crudo = JSON.parse(raw);
+  // Array (formato antiguo) o sobre con sello `{ generadoEl, items }`.
+  const ofertas = Array.isArray(crudo) ? crudo : (crudo?.items ?? []);
+  // El carrusel hereda la fecha de DETECCION del feed, no la del build:
+  // es el dato honesto, y `detectadoEl` ya lo pinta el rail en runtime.
+  const detectadoEl = (!Array.isArray(crudo) && crudo?.generadoEl) || new Date().toISOString();
 
   if (!Array.isArray(ofertas) || ofertas.length === 0) {
     console.warn('⚠ [Relámpago] ofertas.json vacío o inválido. Se genera JSON vacío.');
@@ -79,10 +85,12 @@ try {
     descuentoReal: Math.round(o.descuento ?? 0),
     scoreKP: o.score_kalidad_presio ?? 0,
     rating: o.rating ?? 0,
-    opiniones: o.opiniones ?? 0,
+    vendidos: o.vendidos ?? 0,
     imagen: o.imagen ?? '',
+    // Para la analitica: permite responder que CATEGORIA convierte mejor.
+    categoria: categorizar(o.titulo ?? ''),
     urlAfiliado: o.link_afiliado,
-    badge: o.mas_vendido ? 'MÁS VENDIDO'
+    badge: (o.vendidos ?? 0) >= 10000 ? 'MÁS VENDIDO'
          : o.destacado ? o.destacado
          : (o.descuento ?? 0) >= 50 ? 'OFERTA IMPERDIBLE'
          : null,
@@ -90,7 +98,7 @@ try {
   }));
 
   const output = {
-    detectadoEl: ahora.toISOString(),
+    detectadoEl,
     ofertas: seleccionadas,
   };
 

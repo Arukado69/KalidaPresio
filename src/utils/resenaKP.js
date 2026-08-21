@@ -7,7 +7,7 @@
  * UI oculta esa sub-stat (degradación elegante, nunca falseo).
  *
  * Campos del feed que consume (todos existen hoy en ofertas.json):
- *   score_kalidad_presio (0–100) · rating (0–5) · opiniones (int) · descuento (%)
+ *   score_kalidad_presio (0–100) · rating (0–5) · vendidos (int) · descuento (%)
  */
 
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
@@ -38,16 +38,18 @@ export function estrellasCalidad(rating) {
 }
 
 /**
- * "Respaldo (volumen)": umbrales fijos sobre el nº de opiniones.
+ * "Respaldo (volumen)": umbrales fijos sobre las unidades vendidas.
+ * (Antes eran opiniones; ML dejó de publicarlas. Los cortes sirven igual:
+ * son los mismos órdenes de magnitud.)
  *   <100 → 2★ · <1,000 → 3★ · <10,000 → 4★ · ≥10,000 → 5★
- * @param {number} opiniones
+ * @param {number} vendidos
  * @returns {number|null}
  */
-export function estrellasRespaldo(opiniones) {
-  if (typeof opiniones !== 'number' || Number.isNaN(opiniones) || opiniones < 0) return null;
-  if (opiniones >= 10000) return 5;
-  if (opiniones >= 1000) return 4;
-  if (opiniones >= 100) return 3;
+export function estrellasRespaldo(vendidos) {
+  if (typeof vendidos !== 'number' || Number.isNaN(vendidos) || vendidos < 0) return null;
+  if (vendidos >= 10000) return 5;
+  if (vendidos >= 1000) return 4;
+  if (vendidos >= 100) return 3;
   return 2;
 }
 
@@ -79,9 +81,9 @@ export function resenaKP(oferta, scoreOverride) {
   if (global === null) return null;
   const subs = [
     ['Calidad (compradores)', estrellasCalidad(oferta?.rating)],
-    // "Recomendación masiva": el volumen de opiniones dicho como beneficio
+    // "Recomendación masiva": el volumen de VENTAS dicho como beneficio
     // real al comprador ("miles ya lo compraron") en vez de jerga corporativa.
-    ['Recomendación masiva', estrellasRespaldo(oferta?.opiniones)],
+    ['Recomendación masiva', estrellasRespaldo(oferta?.vendidos)],
     ['Ahorro real', estrellasAhorro(oferta?.descuento)],
   ]
     .filter(([, v]) => v !== null)

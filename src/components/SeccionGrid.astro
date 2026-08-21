@@ -1,0 +1,187 @@
+---
+/**
+ * SeccionGrid — Rejilla de catálogo para CUALQUIER sección.
+ *
+ * Antes se llamaba ImbatiblesGrid y traía el título incrustado. Cuando ML dejó
+ * de llenar su contenedor de "imbatibles" (3 productos frente a 91 en los otros
+ * tres), la portada completaba el hueco con el resto del catálogo bajo un
+ * encabezado que decía "Precios imbatibles". Etiquetar liquidación como
+ * imbatible es exactamente el tipo de imprecisión que este proyecto no se
+ * permite, así que la rejilla pasó a recibir su identidad desde fuera.
+ *
+ *  · Grid 3 col (desktop) / 2 (tablet) / 1 (móvil) con TarjetaOferta vertical.
+ *  · Filtros por categoría + orden en vivo: los cablea el Layout con
+ *    `[data-grid-filtrable]`, que es SINGULAR — una rejilla por página.
+ *  · `campana` define el sufijo de matt_word: la misma etiqueta que verás en
+ *    el panel de afiliados de ML y en Umami.
+ */
+import TarjetaOferta from './TarjetaOferta.astro';
+import { categorizar, ORDEN_CATEGORIAS } from '../utils/categorias.js';
+import SelloFrescura from './SelloFrescura.astro';
+import { GENERADO_EL } from '../data/secciones.js';
+
+export interface Props {
+  productos: any[];
+  titulo: string;
+  emoji?: string;
+  /** Frase corta tras el conteo: «12 productos · <resumen>». */
+  resumen: string;
+  /** Sufijo de matt_word para atribuir los clics de esta sección. */
+  campana: string;
+  /** `h2` en la portada (hay un h1 arriba); `h1` en la página propia. */
+  encabezado?: 'h1' | 'h2';
+}
+
+const {
+  productos,
+  titulo,
+  emoji = '',
+  resumen,
+  campana,
+  encabezado = 'h2',
+} = Astro.props;
+
+const Titulo = encabezado;
+
+const conCategoria = productos.map((o) => ({ ...o, categoria: o.categoria ?? categorizar(o.titulo) }));
+const presentes = new Set(conCategoria.map((o) => o.categoria));
+const categorias = ORDEN_CATEGORIAS.filter((c) => presentes.has(c));
+---
+
+{conCategoria.length > 0 && (
+  <section class="seccion-estructural imbatibles" data-reveal>
+    <Titulo class="titulo-seccion">{emoji ? `${emoji} ` : ''}{titulo}</Titulo>
+    <!-- Stats de sección: tamaño real del catálogo, arriba y visible -->
+    <p class="imb-stats">
+      <strong>{conCategoria.length}</strong> productos · {resumen}
+    </p>
+    <p class="imb-frescura"><SelloFrescura generadoEl={GENERADO_EL} /></p>
+
+    <div class="imb-controles">
+      {categorias.length > 1 && (
+        <div class="filtros" role="tablist" aria-label="Filtrar por categoría">
+          <button class="chip is-active" type="button" data-filter="*" data-ripple role="tab" aria-selected="true">Todas</button>
+          {categorias.map((c) => (
+            <button class="chip" type="button" data-filter={c} data-ripple role="tab" aria-selected="false">{c}</button>
+          ))}
+        </div>
+      )}
+      <!-- Orden en vivo (client-side, sin recargar) -->
+      <label class="imb-orden">
+        <span class="imb-orden-label">Ordenar:</span>
+        <select data-orden>
+          <option value="recomendado">Recomendado</option>
+          <option value="descuento">Mayor descuento</option>
+          <option value="precio-asc">Menor precio</option>
+          <option value="precio-desc">Mayor precio</option>
+          <option value="kp">Mejor K-P</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="imb-grid" data-grid-filtrable>
+      {conCategoria.map((o, i) => (
+        <TarjetaOferta oferta={o} score={o.score_seccion ?? o.score_kalidad_presio} indice={i} categoria={o.categoria} campana={campana} />
+      ))}
+    </div>
+  </section>
+)}
+
+<style>
+  .imb-frescura {
+    /* Pegado al conteo: el "cuantos" y el "de cuando" se leen juntos. */
+    margin: calc(-1 * var(--spacing-sm)) 0 var(--spacing-md);
+  }
+
+  .imb-stats {
+    margin: calc(-1 * var(--spacing-sm)) 0 0.35rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+  .imb-stats strong {
+    color: var(--color-primary);
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+  }
+
+  /* Grid 1 → 2 → 3 columnas (la tarjeta vertical con foto cuadrada manda) */
+  .imb-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+  @media (min-width: 640px) {
+    .imb-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1024px) {
+    .imb-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* Fila de controles: filtros (izq) + orden (dcha) */
+  .imb-controles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+  }
+  .imb-orden {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+  .imb-orden-label { font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.75rem; }
+  .imb-orden select {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-text);
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-pill);
+    padding: 0.4rem 0.9rem;
+    cursor: pointer;
+    transition: border-color var(--dur-fast) var(--ease-soft);
+  }
+  .imb-orden select:hover { border-color: var(--color-primary-border); }
+  .imb-orden select:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+  /* Chips de filtro (estilos propios: el scoping de Astro no hereda los de index) */
+  .filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0;
+  }
+  .chip {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.45rem 1.05rem;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color var(--dur-fast) var(--ease-soft),
+                border-color var(--dur-fast) var(--ease-soft),
+                background-color var(--dur-fast) var(--ease-soft),
+                transform var(--dur-fast) var(--ease-soft);
+  }
+  .chip:hover {
+    color: var(--color-text);
+    border-color: var(--color-primary-border);
+    transform: translateY(-1px);
+  }
+  .chip.is-active {
+    color: #0b231a;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    border-color: transparent;
+    box-shadow: var(--glow-primary-sm);
+  }
+</style>
