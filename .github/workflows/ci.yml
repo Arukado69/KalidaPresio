@@ -40,7 +40,7 @@ jobs:
         # seccionado se genera en el VPS, y si allí falla el sitio degrada a
         # ofertas.json (que este mismo repo mantiene fresco cada 3 h).
         env:
-          SITE_URL: https://kalidapresio.com
+          SITE_URL: ${{ vars.SITE_URL || 'https://kalidapresio.albis-labs.xyz' }}
           SKIP_EXTRACCION: 'true'
         run: npm run build
 

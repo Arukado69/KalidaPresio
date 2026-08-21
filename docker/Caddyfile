@@ -5,15 +5,15 @@
 # VPS ni pide certificados. Quien termina TLS y publica el dominio es **Nginx
 # Proxy Manager**, que ya es dueño de 80/443 en el host. Caddy escucha en
 # HTTP plano dentro de la red de Docker y NPM le hace proxy por nombre de
-# contenedor (kalidapresio-web:80).
+# contenedor (kalidapresio_web:80).
 #
-#   Internet → NPM (TLS, :443) → kalidapresio-web:80 (este Caddy)
+#   Internet → NPM (TLS, :443) → kalidapresio_web:80 (este Caddy)
 #                                        ├── /api/*  → kalidapresio-api:3001
 #                                        └── resto   → sitio estático /srv
 #
 # SITE_ADDRESS lo define docker-compose desde .env.production:
 #   · Detrás de NPM (lo normal): SITE_ADDRESS=:80   ← HTTP plano, sin TLS
-#   · Caddy solo, con dominio:   SITE_ADDRESS=kalidapresio.com  (TLS automático)
+#   · Caddy solo, con dominio:   SITE_ADDRESS=tu-dominio  (TLS automático)
 # =============================================================================
 {
 	# Sin TLS propio detrás de NPM: no hace falta cuenta ACME ni puerto 443.

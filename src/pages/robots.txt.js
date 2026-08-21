@@ -6,9 +6,9 @@
  * real. Un sitemap apuntando al dominio equivocado es peor que no tenerlo.
  */
 export function GET({ site }) {
-  const base = String(site ?? 'https://kalidapresio.com').replace(/\/$/, '');
+  const base = String(site ?? 'https://kalidapresio.albis-labs.xyz').replace(/\/$/, '');
 
-  const cuerpo = `# KalidaPresio — https://kalidapresio.com
+  const cuerpo = `# KalidaPresio — ${base}
 User-agent: *
 Allow: /
 

@@ -51,7 +51,7 @@ function extractorSecciones() {
 // contra el servidor de desarrollo y CADA página de producción sale declarando
 // su canónica en http://localhost:4321 (Google las descarta).
 // Se puede sobrescribir con SITE_URL para despliegues en un dominio distinto.
-const SITE = process.env.SITE_URL || 'https://kalidapresio.com';
+const SITE = process.env.SITE_URL || 'https://kalidapresio.albis-labs.xyz';
 
 // https://astro.build/config
 export default defineConfig({

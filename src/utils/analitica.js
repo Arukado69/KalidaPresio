@@ -26,7 +26,7 @@ const RUTA_CLOAK = '/recomienda/';
  * @param {string} [origenActual] - origin del sitio, para resolver relativas.
  * @returns {boolean}
  */
-export function esEnlaceSaliente(href, origenActual = 'https://kalidapresio.com') {
+export function esEnlaceSaliente(href, origenActual = 'https://kalidapresio.albis-labs.xyz') {
   if (!href || typeof href !== 'string') return false;
   let u;
   try {
@@ -54,7 +54,7 @@ export function seccionDesdeHref(href) {
   if (!href || typeof href !== 'string') return null;
   let word;
   try {
-    word = new URL(href, 'https://kalidapresio.com').searchParams.get('matt_word');
+    word = new URL(href, 'https://kalidapresio.albis-labs.xyz').searchParams.get('matt_word');
   } catch {
     return null;
   }

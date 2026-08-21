@@ -25,7 +25,7 @@ no tira la analítica.
 
 ## 1. DNS
 
-En Porkbun, un **A record**: `analitica.kalidapresio.com` → IP del VPS.
+En Porkbun, un **A record**: `analitica.albis-labs.xyz` → IP del VPS.
 
 ## 2. Levantar Umami
 
@@ -62,7 +62,7 @@ curl -sI http://127.0.0.1:3100/ | head -1
 
 Proxy Host nuevo:
 
-- **Domain Names:** `analitica.kalidapresio.com`
+- **Domain Names:** `analitica.albis-labs.xyz`
 - **Scheme:** `http` · **Forward Hostname/IP:** `umami` · **Forward Port:** `3000`
   (solo el nombre; una URL completa ahí da 500 de openresty)
 - **Block Common Exploits:** on
@@ -76,13 +76,13 @@ docker exec proxy-app-1 curl -sI http://umami:3000 | head -1   # → HTTP/1.1 20
 
 ## 4. Configurar Umami
 
-1. Entra a `https://analitica.kalidapresio.com`.
+1. Entra a `https://analitica.albis-labs.xyz`.
    Credenciales iniciales: usuario `admin`, contraseña `umami`.
 2. **Cámbialas de inmediato** (Settings → Profile). El panel es público en
    internet: con la contraseña por defecto, tus métricas también lo son.
 3. Settings → Websites → **Add website**:
    - Name: `KalidaPresio`
-   - Domain: `kalidapresio.com`
+   - Domain: `kalidapresio.albis-labs.xyz`
 4. Copia el **Website ID** (un UUID). Es lo que va en `PUBLIC_UMAMI_ID`.
 
 ## 5. Conectar el sitio
@@ -90,7 +90,7 @@ docker exec proxy-app-1 curl -sI http://umami:3000 | head -1   # → HTTP/1.1 20
 En `/opt/kalidapresio/.env.production`:
 
 ```bash
-PUBLIC_UMAMI_URL=https://analitica.kalidapresio.com
+PUBLIC_UMAMI_URL=https://analitica.albis-labs.xyz
 PUBLIC_UMAMI_ID=<el UUID del paso 4>
 PUBLIC_UMAMI_SCRIPT=kp.js           # el NOMBRE, igual que TRACKER_SCRIPT_NAME
 ```
@@ -204,7 +204,7 @@ de cron, no pegada en la terminal.
 ## Troubleshooting
 
 - **No aparece ninguna visita.** Comprueba que el HTML lleve la etiqueta:
-  `curl -s https://kalidapresio.com/ | grep data-website-id`. Si no está,
+  `curl -s https://kalidapresio.albis-labs.xyz/ | grep data-website-id`. Si no está,
   faltan las variables **en el build** — hace falta `--build`, no basta con
   `up -d`.
 - **La etiqueta está pero Umami no registra nada.** Suele ser el `data-domains`:

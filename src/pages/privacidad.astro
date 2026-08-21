@@ -12,10 +12,13 @@
  */
 import Layout from '../layouts/Layout.astro';
 
+// El dominio se toma de `site` (astro.config) para que un cambio de dominio no
+// deje el aviso legal señalando a otro sitio. El correo sí se escribe a mano:
+// es una decisión, no un derivado.
 const RESPONSABLE = {
   nombre: 'KalidaPresio',
-  sitio: 'kalidapresio.com',
-  correo: 'hola@kalidapresio.com',
+  sitio: Astro.site?.hostname ?? 'kalidapresio.albis-labs.xyz',
+  correo: 'hola@albis-labs.xyz',
   pais: 'México',
 };
 

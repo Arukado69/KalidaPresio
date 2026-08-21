@@ -11,7 +11,7 @@
 #   # copia este archivo y crea .env.production (ver docs/analitica.md)
 #   docker compose --env-file .env.production up -d
 #
-# Publicado por Nginx Proxy Manager en analitica.kalidapresio.com, igual que el
+# Publicado por Nginx Proxy Manager en analitica.albis-labs.xyz, igual que el
 # resto: por nombre de contenedor a través de red_global.
 # =============================================================================
 
