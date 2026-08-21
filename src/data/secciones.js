@@ -139,8 +139,35 @@ export const ALL_RELAMPAGO = base
  * descuento). Un solo campo persistido (score_kalidad_presio global); el
  * seccional vive solo aquí como `score_seccion` y ordena/se muestra en el grid.
  */
-export const ALL_IMBATIBLES = base
-  .filter((it) => it.secciones.includes('imbatibles'))
+/**
+ * Mínimo para que la rejilla de la portada valga la pena. Por debajo se
+ * completa con el resto del catálogo fresco.
+ *
+ * POR QUÉ: el contenedor "imbatibles" de ML es caprichoso — en una lectura del
+ * 2026-08-20 rendía 3 productos mientras los otros tres contenedores daban 91.
+ * Sin este suelo pasaba algo absurdo: con el extractor CAÍDO la portada
+ * mostraba 41 tarjetas (fallback a ofertas.json) y con el extractor FUNCIONANDO
+ * mostraba 3. El éxito no puede empeorar el sitio.
+ */
+const MIN_IMBATIBLES = 12;
+
+const imbatiblesEstrictos = base.filter((it) => it.secciones.includes('imbatibles'));
+
+// Si la sección viene famélica, se completa con el resto del catálogo (todo
+// menos relámpago, que tiene su propio carrusel). Es la misma regla que ya
+// aplica el fallback a ofertas.json, escrita arriba: que el grid no quede vacío.
+const fuenteImbatibles = imbatiblesEstrictos.length >= MIN_IMBATIBLES
+  ? imbatiblesEstrictos
+  : base.filter((it) => !it.secciones.includes('relampago'));
+
+if (!ES_FALLBACK && imbatiblesEstrictos.length < MIN_IMBATIBLES) {
+  console.warn(
+    `⚠ [secciones] El contenedor "imbatibles" solo trajo ${imbatiblesEstrictos.length} items ` +
+    `(mínimo ${MIN_IMBATIBLES}). La rejilla se completa con el resto del catálogo: ${fuenteImbatibles.length}.`,
+  );
+}
+
+export const ALL_IMBATIBLES = fuenteImbatibles
   .map((it) => ({ ...it, score_seccion: calcularScorePorSeccion(it, 'imbatibles') }))
   .sort((a, b) => b.score_seccion - a.score_seccion);
 
