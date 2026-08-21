@@ -8,7 +8,7 @@
 //   - Dedup por id across secciones (campo `secciones` es ARRAY acumulativo).
 //   - Score/filtro: COPIA 1:1 del pipeline existente (importarOfertas.js),
 //     aplicado DESPUÉS del dedup. Marcado como hook por si el original cambia.
-//   - Salida: src/data/secciones-prueba.json (NO toca ofertas.json).
+//   - Salida: src/data/secciones-feed.json, con sello `generadoEl` (NO toca ofertas.json).
 //
 // Ejecutar:  node src/scripts/extraer-secciones.mjs
 // Requiere:  Node.js >= 22 (fetch nativo, loadEnvFile). Solo build-time/local:
@@ -31,7 +31,10 @@ if (!MATT_TOOL) {
   console.warn('⚠  ML_MATT_TOOL no está en el entorno. Los link_afiliado saldrán SIN matt_tool (solo prototipo).');
 }
 
-const OUTPUT = path.resolve(__dirname, '../data/secciones-prueba.json');
+// Salida DERIVADA: no se versiona (está en .gitignore). Cada build la
+// regenera; si el extractor falla, secciones.js la descarta por edad y sirve
+// ofertas.json en su lugar. Un archivo viejo aquí NO debe poder sobrevivir.
+const OUTPUT = path.resolve(__dirname, '../data/secciones-feed.json');
 
 // ════════════════════════════════════════════════════════
 // LAS 4 URLS A SONDEAR
@@ -388,7 +391,16 @@ async function main() {
     fila.trasFiltro = finales.filter((p) => p.secciones.includes(fila.seccion)).length;
   }
 
-  await writeFile(OUTPUT, JSON.stringify(finales, null, 2), 'utf-8');
+  // Sobre con SELLO DE FECHA. Es lo que permite a secciones.js distinguir un
+  // feed de hace 10 minutos de uno de hace dos meses; sin `generadoEl` el
+  // archivo se ignora por diseño.
+  const sobre = {
+    generadoEl: new Date().toISOString(),
+    fuente: 'extraer-secciones.mjs',
+    total: finales.length,
+    items: finales,
+  };
+  await writeFile(OUTPUT, JSON.stringify(sobre, null, 2), 'utf-8');
 
   // ── REPORTE ────────────────────────────────────────────────────────────────
   console.log('\n════════ REPORTE POR URL ════════');
@@ -398,7 +410,7 @@ async function main() {
   const multiSeccion = finales.filter((p) => p.secciones.length > 1).length;
   console.log(`\nΣ Global: ${combinados.length} únicos tras dedup → ${finales.length} tras score/filtro.`);
   console.log(`  Productos en MÁS de una sección: ${multiSeccion} (solape esperado relampago/menos-500).`);
-  console.log(`💾 Prototipo escrito en src/data/secciones-prueba.json (producción intacta).\n`);
+  console.log(`💾 Feed seccionado escrito en src/data/secciones-feed.json (sellado, producción intacta).\n`);
 }
 
 main().catch((err) => {

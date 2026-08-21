@@ -9,23 +9,50 @@ export interface Props {
   description: string;
   ogImage?: string;
   ogType?: string;
-  productData?: {
-    precio: number;
-    nombre: string;
-    pros: string[];
-  };
 }
 
 const {
   title,
   description,
-  ogImage = '/og-default.jpg',
+  ogImage = '/og-default.png',
   ogType = 'website',
-  productData
 } = Astro.props;
 
 const metaTitle = title.length > 60 ? title.substring(0, 57) + '...' : title;
 const metaDescription = description.length > 160 ? description.substring(0, 157) + '...' : description;
+
+// Open Graph exige URLs ABSOLUTAS: una ruta relativa como "/og-default.png" no
+// la resuelve ningún scraper (WhatsApp, Facebook, X) y la vista previa sale sin
+// imagen. `Astro.site` viene de `site` en astro.config.mjs.
+const urlCanonica = new URL(Astro.url.pathname, Astro.site).href.replace(/\/$/, '') || Astro.site!.href;
+const ogImageAbsoluta = new URL(ogImage, Astro.site).href;
+
+// JSON-LD de sitio y organización. Describe lo que KalidaPresio ES; nada de
+// ratings agregados inventados (la versión anterior emitía un aggregateRating
+// fijo de 4.5 con un reviewCount derivado del número de bullets del texto, que
+// es exactamente el marcado de reseñas falso que Google sanciona).
+const datosSitio = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': `${Astro.site}#website`,
+      url: Astro.site?.href,
+      name: 'KalidaPresio',
+      inLanguage: 'es-MX',
+      description:
+        'Rastreamos precios y opiniones reales de Mercado Libre México para encontrar las mejores ofertas calidad-precio.',
+      publisher: { '@id': `${Astro.site}#org` },
+    },
+    {
+      '@type': 'Organization',
+      '@id': `${Astro.site}#org`,
+      name: 'KalidaPresio',
+      url: Astro.site?.href,
+      logo: new URL('/favicon.svg', Astro.site).href,
+    },
+  ],
+};
 ---
 
 <!DOCTYPE html>
@@ -55,9 +82,10 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
     <!-- Open Graph Protocol -->
     <meta property="og:title" content={metaTitle} />
     <meta property="og:description" content={metaDescription} />
-    <meta property="og:image" content={ogImage} />
+    <meta property="og:image" content={ogImageAbsoluta} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:url" content={urlCanonica} />
     <meta property="og:type" content={ogType} />
     <meta property="og:site_name" content="KalidaPresio" />
     <meta property="og:locale" content="es_MX" />
@@ -66,34 +94,13 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={metaTitle} />
     <meta name="twitter:description" content={metaDescription} />
-    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image" content={ogImageAbsoluta} />
 
-    <!-- Canonical URL -->
-    <link rel="canonical" href={Astro.url.href} />
+    <!-- Canonical URL (absoluta; ver nota en el frontmatter) -->
+    <link rel="canonical" href={urlCanonica} />
 
-    <!-- Schema.org Product JSON-LD (solo páginas de producto) -->
-    {productData && (
-      <script type="application/ld+json" set:html={JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "Product",
-        "name": productData.nombre,
-        "description": productData.pros[0] ?? metaDescription,
-        "image": ogImage,
-        "brand": { "@type": "Brand", "name": "KalidaPresio" },
-        "offers": {
-          "@type": "Offer",
-          "priceCurrency": "MXN",
-          "price": productData.precio,
-          "availability": "https://schema.org/InStock",
-          "seller": { "@type": "Organization", "name": "Mercado Libre México" }
-        },
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": "4.5",
-          "reviewCount": productData.pros.length + 2
-        }
-      })} />
-    )}
+    <!-- Schema.org: quiénes somos. Solo hechos verificables del sitio. -->
+    <script type="application/ld+json" set:html={JSON.stringify(datosSitio)} />
   </head>
   <body>
     <Header transition:persist />
@@ -112,6 +119,7 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
           <a href="/blog">Cómo aprovechar al máximo las ofertas</a>
           <a href="/sobre-mi">Quiénes somos</a>
           <a href="/contacto">Contacto</a>
+          <a href="/privacidad">Aviso de privacidad</a>
         </nav>
         <!-- Divulgación honesta: los precios son una foto, no un contrato.
              La compra ocurre en ML a su precio; por eso pedimos verificar. -->
@@ -126,30 +134,73 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
     </footer>
 
     <script>
-      import { gsap } from 'gsap';
-      import { ScrollTrigger } from 'gsap/ScrollTrigger';
-      gsap.registerPlugin(ScrollTrigger);
-
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       const W = window as any;
+
+      // ════════════════════════════════════════════════════════════════
+      // GSAP DIFERIDO — 132 KB que no todo el mundo necesita.
+      //
+      // Antes se importaba de forma estática arriba de este script: el
+      // navegador descargaba y parseaba GSAP + ScrollTrigger en TODAS las
+      // páginas y sólo DESPUÉS se comprobaba prefers-reduced-motion para
+      // saltarse las animaciones. Quien las tiene desactivadas pagaba el
+      // bundle completo para no usarlo.
+      //
+      // Ahora: con reduced-motion no se descarga nunca; sin él, se carga en
+      // paralelo al primer initPage(). Todos los call sites ya estaban
+      // protegidos con `reduce` o comprueban que gsap exista, así que basta
+      // con esperar la promesa antes de animar.
+      // ════════════════════════════════════════════════════════════════
+      let gsap: any = null;
+      let ScrollTrigger: any = null;
+      let cargando: Promise<void> | null = null;
+
+      function cargarGsap(): Promise<void> {
+        if (reduce) return Promise.resolve();
+        if (gsap) return Promise.resolve();
+        if (!cargando) {
+          cargando = Promise.all([import('gsap'), import('gsap/ScrollTrigger')])
+            .then(([g, st]) => {
+              gsap = g.gsap;
+              ScrollTrigger = st.ScrollTrigger;
+              gsap.registerPlugin(ScrollTrigger);
+              // initHeroSpotlight comprueba window.gsap para decidir si anima.
+              W.gsap = gsap;
+            })
+            .catch((e) => {
+              // Sin GSAP el sitio sigue siendo perfectamente usable: el CSS ya
+              // deja el contenido visible. Solo se pierde el movimiento.
+              console.warn('[KalidaPresio] GSAP no se pudo cargar; se sigue sin animaciones.', e);
+            });
+        }
+        return cargando;
+      }
 
       // ════════════════════════════════════════════════════════════════
       // ANIMACIONES (GSAP) — entrada del hero, reveals en scroll, parallax.
       // Con prefers-reduced-motion TODO se salta y el contenido aparece
       // visible al instante (el CSS de [data-reveal].is-visible lo garantiza).
       // ════════════════════════════════════════════════════════════════
-      function initAnims() {
-        // Mata triggers Y loops de la página anterior (View Transitions
-        // re-monta el DOM: sin esto, los tweens viejos quedarían latiendo
-        // sobre nodos muertos).
-        ScrollTrigger.getAll().forEach((t) => t.kill());
-        (W.__kpLoops || []).forEach((t: any) => t.kill());
-        W.__kpLoops = [];
-
+      async function initAnims() {
+        // Con reduced-motion se sale ANTES de tocar GSAP: así ni se descarga.
         if (reduce) {
           document.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-visible'));
           return;
         }
+
+        await cargarGsap();
+        if (!gsap) {
+          // GSAP no cargó (red caída, bloqueador): el contenido debe verse igual.
+          document.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-visible'));
+          return;
+        }
+
+        // Mata triggers Y loops de la página anterior (View Transitions
+        // re-monta el DOM: sin esto, los tweens viejos quedarían latiendo
+        // sobre nodos muertos).
+        ScrollTrigger.getAll().forEach((t: any) => t.kill());
+        (W.__kpLoops || []).forEach((t: any) => t.kill());
+        W.__kpLoops = [];
 
         // --- Reveals en scroll: lotes con stagger, una sola vez ---
         const reveals = gsap.utils.toArray('[data-reveal]:not(.is-visible)') as HTMLElement[];
@@ -262,6 +313,7 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
         const soltar = (el: HTMLElement) =>
           gsap.to(el, { x: 0, y: 0, duration: 0.5, ease: 'elastic.out(1, 0.45)' });
         document.addEventListener('pointermove', (e) => {
+          if (!gsap) return; // aún cargando: sin imán, pero el CTA funciona
           const el = (e.target as HTMLElement).closest?.('[data-magnetic]') as HTMLElement | null;
           if (activo && activo !== el) { soltar(activo); activo = null; }
           if (!el) return;
@@ -287,7 +339,7 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
         const panel = card.querySelector('[data-resena]') as HTMLElement | null;
         if (!panel) return;
         card.toggleAttribute('data-resena-open', abrir);
-        if (reduce) {
+        if (reduce || !gsap) {
           // Sin animación: aparece/desaparece al instante
           panel.style.opacity = abrir ? '1' : '0';
           panel.style.visibility = abrir ? 'visible' : 'hidden';
@@ -342,6 +394,7 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
         if (W.__kpVis) return;
         W.__kpVis = true;
         document.addEventListener('visibilitychange', () => {
+          if (!gsap) return; // con reduced-motion no hay timeline que pausar
           if (document.hidden) gsap.globalTimeline.pause();
           else gsap.globalTimeline.resume();
         });
@@ -749,7 +802,9 @@ const metaDescription = description.length > 160 ? description.substring(0, 157)
 
         // ── Loop de cola (solo el rail vertical, solo con movimiento permitido)
         const rail = document.querySelector('[data-rs-queue]') as HTMLElement | null;
-        if (!rail || reduce) return;
+        // Sin GSAP (reduced-motion o carga fallida) la cola simplemente no rota:
+        // el rail sigue mostrando sus items, que es lo que importa.
+        if (!rail || reduce || !gsap) return;
         const track = rail.querySelector('[data-rs-track]') as HTMLElement | null;
         if (!track) return;
 

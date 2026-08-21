@@ -8,6 +8,7 @@ import ImbatiblesGrid from '../components/ImbatiblesGrid.astro';
 import Curados from '../components/Curados.astro';
 import ExplorarChips from '../components/ExplorarChips.astro';
 import { generarVeredicto, tierKP } from '../utils/veredicto.js';
+import { scoreEfectivo } from '../utils/scoreSecciones.js';
 import ofertas from '../data/ofertas.json';
 // Colecciones por sección (build-time, con fallback a ofertas.json si el
 // extractor aún no corrió). Relámpago e Imbatibles son el MVP; liquidación
@@ -18,20 +19,13 @@ import { ALL_IMBATIBLES } from '../data/secciones.js';
 const isHotSale = import.meta.env.IS_HOT_SALE === 'true';
 
 // ════════════════════════════════════════════════════════
-// SCORING — Mismo algoritmo que n8n (importarOfertas.js ya lo calcula y ordena).
-// Aquí solo reordenamos de forma defensiva por si el JSON se edita a mano.
+// SCORING — La fórmula vive en src/utils/scoreSecciones.js (fuente única).
+// importarOfertas.js ya la calcula y ordena; aquí solo reordenamos de forma
+// defensiva por si el JSON se edita a mano.
 //   Rating 65% · Descuento 20% (tope 40) · Volumen 15% (tope 500)
 // ════════════════════════════════════════════════════════
-function scoreDe(o) {
-  if (typeof o.score_kalidad_presio === 'number') return o.score_kalidad_presio;
-  const r = ((o.rating ?? 0) / 5) * 65;
-  const d = (Math.min(o.descuento ?? 0, 40) / 40) * 20;
-  const op = Math.min(((o.opiniones ?? 0) / 500) * 15, 15);
-  return Math.round(r + d + op);
-}
-
 const ofertasScored = ofertas
-  .map((o) => ({ ...o, score100: scoreDe(o) }))
+  .map((o) => ({ ...o, score100: scoreEfectivo(o) }))
   // Mismo criterio que el scraper: K-P y, ante empate, mayor confianza.
   .sort((a, b) => b.score100 - a.score100 || (b.confianza ?? 0) - (a.confianza ?? 0));
 

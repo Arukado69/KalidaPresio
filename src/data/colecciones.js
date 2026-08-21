@@ -16,21 +16,16 @@
  * emoji, filtro (función), y orden (función de sort).
  */
 import { categorizar } from '../utils/categorias.js';
+// Fuente UNICA de la formula del score: antes estaba copiada literalmente
+// aqui y en index.astro, con un comentario que la llamaba "Single Source of
+// Truth" siendo dos copias distintas.
+import { scoreEfectivo } from '../utils/scoreSecciones.js';
 import ofertas from './ofertas.json';
-
-// ── Scoring (idéntico al de index.astro — Single Source of Truth) ────────────
-function scoreDe(o) {
-  if (typeof o.score_kalidad_presio === 'number') return o.score_kalidad_presio;
-  const r = ((o.rating ?? 0) / 5) * 65;
-  const d = (Math.min(o.descuento ?? 0, 40) / 40) * 20;
-  const op = Math.min(((o.opiniones ?? 0) / 500) * 15, 15);
-  return Math.round(r + d + op);
-}
 
 // Pre-calcular score y categoría para todos los productos (una sola vez)
 const ofertasEnriquecidas = ofertas.map(o => ({
   ...o,
-  score100: scoreDe(o),
+  score100: scoreEfectivo(o),
   categoria_inferida: categorizar(o.titulo ?? ''),
 }));
 

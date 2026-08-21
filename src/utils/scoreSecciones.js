@@ -33,6 +33,29 @@ const TOPE_OPINIONES = 500;
  * @returns {number} entero 0–100
  */
 export function calcularScorePorSeccion(item, seccion) {
+  return calcular(item, seccion);
+}
+
+/**
+ * Score EFECTIVO con pesos estándar: respeta el `score_kalidad_presio` que ya
+ * viene persistido en el feed y solo lo recalcula si falta o no es un número.
+ *
+ * ESTA es la única definición de la fórmula estándar en todo el proyecto.
+ * Antes vivía copiada literalmente en `src/pages/index.astro` y en
+ * `src/data/colecciones.js` —este último con un comentario que la llamaba
+ * "Single Source of Truth", que era justo lo contrario— más una tercera
+ * variante en `importarOfertas.js`. Tres copias de una regla de negocio son
+ * tres oportunidades de que se separen sin que nadie lo note.
+ *
+ * @param {{score_kalidad_presio?: number, rating?: number, descuento?: number, opiniones?: number}} item
+ * @returns {number} entero 0–100
+ */
+export function scoreEfectivo(item) {
+  if (typeof item?.score_kalidad_presio === 'number') return item.score_kalidad_presio;
+  return calcular(item, 'default');
+}
+
+function calcular(item, seccion) {
   const p = PESOS_SECCION[seccion] ?? PESOS_SECCION.default;
   const rating = Math.max(0, Math.min(item?.rating ?? 0, 5));
   const descuento = Math.max(0, Math.min(item?.descuento ?? 0, TOPE_DESCUENTO));

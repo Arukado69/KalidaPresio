@@ -12,6 +12,12 @@ const dataPath = path.resolve(__dirname, '../data/ofertas.json');
 const envPath = path.resolve(__dirname, '../../.env');
 const outputDir = path.resolve(__dirname, '../../public');
 const outputPath = path.resolve(outputDir, '_redirects');
+// Snippet que IMPORTA el Caddyfile. Es la salida que de verdad se aplica en
+// producción: `_redirects` es un formato de Cloudflare Pages / Netlify y Caddy
+// no lo lee — con el despliegue en Hetzner esas rutas quedaban muertas y, por
+// el `try_files … /index.html`, devolvían la portada con HTTP 200.
+const caddyDir = path.resolve(__dirname, '../../docker');
+const caddyPath = path.resolve(caddyDir, 'redirects.caddy');
 
 // ── Carga de credenciales de afiliado ───────────────────────────────────────────
 // En local: desde .env. En Cloudflare Pages: desde las Environment Variables del
@@ -99,11 +105,20 @@ try {
   }
   console.log('');
 
-  // Generación del archivo _redirects
-  let redirectsContent = '# Redirecciones Perimetrales Automáticas - KalidaPresio\n';
-  redirectsContent += '# Generado en Build-Time desde ofertas.json. No editar manualmente.\n\n';
+  // ── Generación de las DOS salidas ─────────────────────────────────────────
+  const cabecera = (comentario) =>
+    `${comentario} Redirecciones de afiliado — KalidaPresio\n` +
+    `${comentario} GENERADO en build-time desde ofertas.json. No editar a mano.\n` +
+    `${comentario} Fecha: ${new Date().toISOString()}\n\n`;
+
+  // 1) Formato Caddy — el que SÍ se aplica en producción (Hetzner + Docker).
+  let caddyContent = cabecera('#');
+  // 2) Formato _redirects — compatibilidad con Cloudflare Pages / Netlify.
+  //    Se conserva por si algún día se vuelve a desplegar ahí; Caddy lo ignora.
+  let netlifyContent = cabecera('#');
 
   let sinRastreo = 0;
+  let rutas = 0;
   ofertas.forEach((oferta) => {
     if (oferta.id && oferta.link_afiliado) {
       const { url, faltanParams } = asegurarParametrosAfiliado(oferta.link_afiliado);
@@ -111,18 +126,23 @@ try {
         sinRastreo++;
         console.warn(`   ⚠ "${oferta.id}" no pudo asegurar matt_tool/matt_word.`);
       }
-      redirectsContent += `/recomienda/${oferta.id}  ${url}  302\n`;
+      // 302 (temporal) a propósito: el destino cambia con cada refresco del feed.
+      caddyContent += `redir /recomienda/${oferta.id} ${url} 302\n`;
+      netlifyContent += `/recomienda/${oferta.id}  ${url}  302\n`;
+      rutas++;
     }
   });
 
   // Escritura segura con sobrescritura automática
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
+  for (const dir of [outputDir, caddyDir]) {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   }
 
-  fs.writeFileSync(outputPath, redirectsContent, 'utf-8');
+  fs.writeFileSync(outputPath, netlifyContent, 'utf-8');
+  fs.writeFileSync(caddyPath, caddyContent, 'utf-8');
 
-  console.log(`✅ [KalidaPresio] Archivo _redirects inyectado en /public exitosamente.`);
+  console.log(`✅ [KalidaPresio] ${rutas} redirects escritos en docker/redirects.caddy (los que aplica el servidor).`);
+  console.log(`✅ [KalidaPresio] Copia en public/_redirects (compatibilidad Cloudflare/Netlify).`);
   console.log(`✅ ${ofertas.length - sinRastreo}/${ofertas.length} rutas con registro de afiliado garantizado (Cloaking Nativo).\n`);
 
 } catch (error) {

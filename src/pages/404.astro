@@ -1,0 +1,169 @@
+---
+/**
+ * 404 — Página de "no encontrado" real.
+ *
+ * Antes no existía y el Caddyfile hacía `try_files … /index.html`: CUALQUIER
+ * URL inexistente devolvía la portada con HTTP 200. Google lo registra como
+ * soft-404 y diluye el rastreo de las páginas que sí importan.
+ *
+ * La ruta más común para caer aquí es un /recomienda/<id> de una oferta que ya
+ * salió del feed, así que el copy empuja de vuelta a las ofertas vivas.
+ */
+import Layout from '../layouts/Layout.astro';
+import { ALL_IMBATIBLES } from '../data/secciones.js';
+
+// Tres sugerencias reales del catálogo vivo, no enlaces genéricos.
+const sugerencias = ALL_IMBATIBLES.slice(0, 3);
+---
+
+<Layout
+  title="Página no encontrada — KalidaPresio"
+  description="Esa página no existe o la oferta ya caducó. Te dejamos las mejores oportunidades calidad-precio activas ahora mismo."
+>
+  <section class="e404">
+    <p class="e404-codigo">404</p>
+    <h1 class="e404-titulo">Esta página ya no está aquí</h1>
+    <p class="e404-texto">
+      Puede que la oferta haya caducado —las buenas duran poco— o que el enlace
+      esté mal escrito. Ninguna de las dos cosas es culpa tuya.
+    </p>
+
+    <div class="e404-acciones">
+      <a class="e404-btn" href="/">Ver las ofertas de hoy</a>
+      <a class="e404-link" href="/colecciones">Explorar por categoría</a>
+    </div>
+
+    {sugerencias.length > 0 && (
+      <div class="e404-sugerencias">
+        <h2 class="e404-sub">Mientras tanto, esto sí está vivo</h2>
+        <ul class="e404-lista">
+          {sugerencias.map((o) => (
+            <li>
+              <a href={o.link_afiliado} target="_blank" rel="nofollow sponsored noopener noreferrer">
+                <span class="e404-sug-titulo">{o.titulo}</span>
+                <span class="e404-sug-precio">
+                  {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(o.precio_actual)}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </section>
+</Layout>
+
+<style>
+  .e404 {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: var(--spacing-2xl) var(--spacing-md);
+    text-align: center;
+  }
+
+  .e404-codigo {
+    font-family: var(--font-display);
+    font-size: clamp(3.5rem, 14vw, 6rem);
+    font-weight: 800;
+    line-height: 1;
+    margin: 0;
+    color: var(--color-primary);
+    opacity: 0.35;
+    letter-spacing: -0.04em;
+  }
+
+  .e404-titulo {
+    font-size: clamp(1.5rem, 5vw, 2.1rem);
+    color: #fff;
+    margin: 0.2em 0 0.5em;
+    line-height: 1.15;
+  }
+
+  .e404-texto {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    line-height: 1.65;
+    margin: 0 auto var(--spacing-lg);
+    max-width: 46ch;
+  }
+
+  .e404-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    justify-content: center;
+    align-items: center;
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .e404-btn {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: #0b231a;
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-decoration: none;
+    padding: 0.85rem 1.6rem;
+    border-radius: var(--radius-md);
+  }
+  .e404-btn:hover { box-shadow: var(--glow-primary-md); }
+
+  .e404-link {
+    color: var(--color-text-muted);
+    font-size: 0.92rem;
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+  .e404-link:hover { color: var(--color-primary); }
+
+  .e404-sub {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-text-muted);
+    margin: 0 0 var(--spacing-sm);
+    font-weight: 600;
+  }
+
+  .e404-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1px;
+    background: var(--color-violet-border);
+    border: 1px solid var(--color-violet-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    text-align: left;
+  }
+
+  .e404-lista a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    background: var(--color-surface);
+    padding: 0.85rem 1rem;
+    text-decoration: none;
+    color: var(--color-text);
+  }
+  .e404-lista a:hover { background: var(--glass-bg); }
+
+  .e404-sug-titulo {
+    font-size: 0.88rem;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .e404-sug-precio {
+    flex: 0 0 auto;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--color-primary);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

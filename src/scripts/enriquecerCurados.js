@@ -20,7 +20,7 @@ try { process.loadEnvFile(path.resolve(__dirname, '../../.env')); } catch {}
 const CURADOS = path.resolve(__dirname, '../data/curados.json');
 const CACHE = path.resolve(__dirname, '.ml_token_cache.json');
 
-// ── Token OAuth (reusa la caché de importarMercadoLibre) ────────────────────
+// ── Token OAuth (caché compartida en src/scripts/.ml_token_cache.json) ──────
 async function obtenerToken() {
   if (existsSync(CACHE)) {
     try {
