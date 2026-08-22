@@ -95,6 +95,18 @@ const fmt = (n: number) =>
     currency: 'MXN',
     maximumFractionDigits: 0,
   }).format(n);
+
+// ── Compartir por WhatsApp ─────────────────────────────────────────────────
+// México es WhatsApp-first y las ofertas circulan en grupos familiares. Cada
+// visitante puede convertirse en un canal, y el enlace lleva `whatsapp` como
+// campaña: en el panel de afiliados de ML verás por separado lo que vuelve
+// por ahí, sin mezclarlo con el clic directo desde la tarjeta.
+const enlaceCompartir = aLinkAfiliado(oferta.link_afiliado, 'whatsapp');
+const mensajeWhatsApp = `${oferta.titulo} — ${fmt(oferta.precio_actual)}${descuento > 0 ? ` (-${descuento}%)` : ''}
+
+Visto en KalidaPresio:
+${enlaceCompartir}`;
+const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`;
 ---
 
 <article class={`oferta-card${variant === 'deal' ? ' is-deal' : ''}`} data-spotlight data-reveal data-cat={categoria} data-ml-id={oferta.id} data-build-price={oferta.precio_actual} data-precio={oferta.precio_actual} data-descuento={descuento} data-kp={score100} style={`--reveal-delay:${revealDelay}ms`}>
@@ -192,6 +204,21 @@ const fmt = (n: number) =>
     <div class="oferta-cta">
       <!-- CTA fijo del piloto: "Ver oferta →" (la flecha la pone el icono del botón) -->
       <BotonCTA id={oferta.id} enlace={enlaceCTA} texto="Ver oferta" />
+      <a
+        class="oferta-compartir"
+        href={urlWhatsApp}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-compartir="whatsapp"
+        data-ml-id={oferta.id}
+        aria-label={`Compartir ${oferta.titulo} por WhatsApp`}
+        title="Compartir por WhatsApp"
+      >
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
+          <path d="M12.04 2a9.9 9.9 0 0 0-8.5 14.9L2 22l5.25-1.38A9.9 9.9 0 1 0 12.04 2Zm0 1.8a8.1 8.1 0 1 1-4.13 15.06l-.3-.18-3.12.82.83-3.04-.2-.31A8.1 8.1 0 0 1 12.04 3.8Zm4.5 10.2c-.24-.12-1.44-.71-1.66-.8-.22-.08-.39-.12-.55.13-.16.24-.63.79-.77.95-.14.16-.28.18-.52.06a6.6 6.6 0 0 1-3.3-2.89c-.25-.43.25-.4.71-1.32.08-.16.04-.3-.02-.42-.06-.12-.55-1.33-.76-1.82-.2-.47-.4-.4-.55-.41h-.47c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2 0 1.18.86 2.32.98 2.48.12.16 1.7 2.6 4.12 3.64 1.53.66 2.13.72 2.9.6.46-.06 1.44-.58 1.64-1.15.2-.57.2-1.05.14-1.15-.06-.1-.22-.16-.46-.28Z"/>
+        </svg>
+        <span>Compartir</span>
+      </a>
     </div>
   </div>
 </article>
@@ -634,6 +661,29 @@ const fmt = (n: number) =>
   .conf-basica {
     color: var(--color-text-muted);
     background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  /* Deliberadamente discreto: es un canal, no una llamada a la acción.
+     Si compitiera con "Ver oferta" restaría clics al enlace que paga. */
+  .oferta-compartir {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35em;
+    margin-top: 0.5rem;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    border-radius: var(--radius-pill);
+    border: 1px solid transparent;
+    transition: color var(--dur-fast) var(--ease-soft), border-color var(--dur-fast) var(--ease-soft);
+  }
+  .oferta-compartir:hover,
+  .oferta-compartir:focus-visible {
+    color: #25d366;
+    border-color: rgba(37, 211, 102, 0.35);
+    outline: none;
   }
 
   .oferta-cta {

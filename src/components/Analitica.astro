@@ -132,6 +132,18 @@ const dominio = Astro.site?.hostname ?? '';
           return c ? c.getAttribute(nombre) : null;
         }
 
+        // Compartir no lleva a ML, así que el listener de abajo no lo vería.
+        // Se registra aparte para poder responder «¿cuánto tráfico vuelve por
+        // WhatsApp?», que es justo lo que decide si vale la pena insistir ahí.
+        document.addEventListener('click', function (ev) {
+          var c = ev.target && ev.target.closest ? ev.target.closest('[data-compartir]') : null;
+          if (!c) return;
+          enviar('compartir', {
+            canal: c.getAttribute('data-compartir'),
+            id: c.getAttribute('data-ml-id'),
+          });
+        }, { passive: true });
+
         document.addEventListener('click', function (ev) {
           // Sin `capture`: si algo cancela el clic antes, tampoco hubo visita.
           var a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
