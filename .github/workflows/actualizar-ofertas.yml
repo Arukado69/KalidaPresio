@@ -72,6 +72,15 @@ jobs:
           ML_MATT_WORD: ${{ secrets.ML_MATT_WORD }}
         run: npm run build
 
+      # ── Histórico de precios ─────────────────────────────────────
+      # Cada corrida deja su foto. Es la ÚNICA parte del pipeline cuyo valor
+      # depende de haber empezado antes: un día sin registrar es un día que no
+      # se recupera. Se acumula por día (min/max), así que ocho pasadas con el
+      # mismo precio no generan ocho cambios.
+      - name: Registrar el histórico de precios
+        if: steps.scrape.outcome == 'success'
+        run: node src/scripts/registrarHistorico.js
+
       # ── Decisión de commit ────────────────────────────────────────────────
       # `generadoEl` cambia en CADA corrida, así que un `git diff` a secas
       # commitearía siempre: 8 commits y 8 redespliegues al día aunque ML no
@@ -94,7 +103,14 @@ jobs:
             const selloPrevio = Date.parse(antes?.generadoEl ?? "");
             const horas = Number.isNaN(selloPrevio) ? Infinity : (Date.now() - selloPrevio) / 3.6e6;
 
-            const publicar = cambiaron || horas >= 6;
+            // El histórico cambia también en un día NUEVO aunque los precios
+            // sean idénticos (entra una fila nueva). Ignorarlo perdería ese
+            // día de observación para siempre.
+            const historico = require("child_process")
+              .execSync("git status --porcelain src/data/historico-precios.json")
+              .toString().trim().length > 0;
+            const publicar = cambiaron || historico || horas >= 6;
+            console.log(historico ? "El histórico tiene datos nuevos." : "El histórico no cambió.");
             console.log(cambiaron ? "Las ofertas cambiaron." : `Ofertas idénticas; sello previo de hace ${horas.toFixed(1)} h.`);
             console.log(publicar ? "→ se publica." : "→ no se publica (evita un redespliegue inútil).");
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `publicar=${publicar}\n`);
@@ -105,13 +121,14 @@ jobs:
         run: |
           git config user.name  "kalidapresio-bot"
           git config user.email "bot@users.noreply.github.com"
-          if [ -n "$(git status --porcelain src/data/ofertas.json)" ]; then
-            git add src/data/ofertas.json
+          ARCHIVOS="src/data/ofertas.json src/data/historico-precios.json"
+          if [ -n "$(git status --porcelain $ARCHIVOS)" ]; then
+            git add $ARCHIVOS
             git commit -m "chore: actualización automática del feed de ofertas"
             git push
-            echo "Feed actualizado y enviado."
+            echo "Feed e histórico actualizados y enviados."
           else
-            echo "Sin cambios en el archivo; no se hace push."
+            echo "Sin cambios en los archivos; no se hace push."
           fi
 
       # ── DIAGNÓSTICO ───────────────────────────────────────────────────────

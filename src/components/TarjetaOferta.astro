@@ -7,6 +7,7 @@ import { generarVeredicto } from '../utils/veredicto.js';
 import { resenaKP } from '../utils/resenaKP.js';
 import { aLinkAfiliado } from '../utils/afiliado.js';
 import { formatearVendidos } from '../utils/mlPayload.js';
+import { veredictoDe } from '../data/historico.js';
 
 export interface Oferta {
   id: string;
@@ -57,6 +58,12 @@ const { oferta, score, indice = 0, categoria, variant = 'grid', campana } = Astr
 // Si se pasa `campana`, re-etiqueta el link con matt_word de esa sección
 // (para medir en el panel de ML). Si no, usa el link_afiliado tal cual.
 const enlaceCTA = campana ? aLinkAfiliado(oferta.link_afiliado, campana) : oferta.link_afiliado;
+
+// Histórico de precios: solo se afirma lo OBSERVADO. Con menos de 3 días dice
+// cuánto lleva seguido; nunca insinúa un rango que no existe. Y avisa también
+// cuando ha estado más barato — decir que NO es buen momento es lo que hace
+// creíble el resto.
+const precio = veredictoDe(oferta.id, oferta.precio_actual);
 
 const score100 = Math.round(score ?? oferta.score_kalidad_presio ?? 0);
 
@@ -161,6 +168,12 @@ const fmt = (n: number) =>
       {precioOriginal && <span class="oferta-precio-original">{fmt(precioOriginal)}</span>}
       {descuento > 0 && <span class="oferta-descuento">-{descuento}%</span>}
     </div>
+
+    {precio.nivel !== 'sin-datos' && (
+      <p class="oferta-historial" data-nivel={precio.nivel}>
+        <span class="oferta-historial-punto" aria-hidden="true"></span>{precio.texto}
+      </p>
+    )}
 
     <div class="oferta-rating">
       <Estrellas rating={oferta.rating} size={15} />
@@ -472,6 +485,30 @@ const fmt = (n: number) =>
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* Historial de precios: la señal se lee por color antes que por texto.
+     Verde = mínimo observado · ámbar = ha estado más barato · gris = poca base. */
+  .oferta-historial {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    margin: 0.2rem 0 0;
+    font-size: 0.74rem;
+    line-height: 1.35;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .oferta-historial-punto {
+    width: 0.45em;
+    height: 0.45em;
+    border-radius: 50%;
+    background: currentColor;
+    flex: 0 0 auto;
+  }
+  .oferta-historial[data-nivel='minimo'] { color: var(--color-primary); font-weight: 600; }
+  .oferta-historial[data-nivel='bajo'] { color: var(--color-primary); }
+  .oferta-historial[data-nivel='alto'] { color: var(--color-warm, #e8a33d); }
+  /* 'siguiendo' se queda en gris apagado: informa, no promete. */
 
   .oferta-precios {
     display: flex;

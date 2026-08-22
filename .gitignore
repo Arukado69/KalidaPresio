@@ -21,6 +21,14 @@ public/_redirects
 docker/redirects.caddy
 public/data/relampago.json
 
+# ── OBSERVACIÓN ACUMULADA — esto SÍ se versiona ─────────────────────────────
+# src/data/historico-precios.json NO está en esta lista, y no debe estarlo.
+# Los archivos de arriba son DERIVADOS: cada build los regenera. El histórico
+# de precios es lo contrario — si se borra, se pierde para siempre: no hay
+# forma de reconstruir a qué precio estaba un producto la semana pasada.
+# Se poda solo (90 días de historia, 30 sin aparecer y fuera), así que no
+# crece sin techo. Si algún día "estorba", pódalo; no lo ignores.
+
 # Output de compilación
 dist/
 .astro/
