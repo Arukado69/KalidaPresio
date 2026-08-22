@@ -1,0 +1,148 @@
+---
+/**
+ * /ofertas — Hub de las secciones de Mercado Libre.
+ *
+ * Ocupa el hueco de navegación que dejó la guía de compra. Ese hueco vale más
+ * apuntando a las páginas que generan comisiones que a 707 palabras de consejos
+ * genéricos sin un solo enlace de afiliado.
+ *
+ * Es además la página que Google necesita para descubrir las secciones: sin un
+ * hub, `/ofertas/liquidacion` solo se enlazaba desde la portada, y una página
+ * con un único enlace entrante se rastrea tarde y mal.
+ */
+import Layout from '../../layouts/Layout.astro';
+import SelloFrescura from '../../components/SelloFrescura.astro';
+import ExplorarChips from '../../components/ExplorarChips.astro';
+import { SECCIONES_CON_PAGINA, GENERADO_EL } from '../../data/secciones.js';
+
+const total = SECCIONES_CON_PAGINA.reduce((n, s) => n + s.items.length, 0);
+---
+
+<Layout
+  title="Ofertas por sección — KalidaPresio"
+  description="Las ofertas de Mercado Libre México organizadas por sección: precios imbatibles, liquidación y lo mejor por menos de $500. Todo puntuado con el Sello K-P."
+>
+  <article class="hub">
+    <header class="hub-head">
+      <h1 class="hub-titulo">Ofertas por sección</h1>
+      <p class="hub-sub">
+        {total > 0
+          ? `${total} productos vivos, agrupados por el tipo de oferta que Mercado Libre les asigna y ordenados por el Sello K-P.`
+          : 'Estamos refrescando el catálogo. Vuelve en un momento.'}
+      </p>
+      <p class="hub-frescura"><SelloFrescura generadoEl={GENERADO_EL} /></p>
+    </header>
+
+    {SECCIONES_CON_PAGINA.length > 0 ? (
+      <ul class="hub-lista">
+        {SECCIONES_CON_PAGINA.map((sec) => (
+          <li>
+            <a href={`/ofertas/${sec.slug}`} data-spotlight data-ripple>
+              <span class="hub-emoji" aria-hidden="true">{sec.emoji}</span>
+              <span class="hub-txt">
+                <strong>{sec.titulo}</strong>
+                <em>{sec.items.length} productos · {sec.resumen}</em>
+              </span>
+              <span class="hub-flecha" aria-hidden="true">→</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p class="hub-vacio">
+        Ninguna sección tiene suficientes productos ahora mismo.
+        <a href="/">Vuelve a la portada</a> para ver el catálogo completo.
+      </p>
+    )}
+
+    <p class="hub-nota">
+      ¿Por qué no hay una sección de relámpago? Son ofertas por tiempo limitado y
+      Mercado Libre dejó de publicar su hora de fin, así que una página fija las
+      presentaría como vigentes sin poder garantizarlo. Las verás en el carrusel
+      de la portada, que se refresca solo.
+    </p>
+
+    <ExplorarChips />
+  </article>
+</Layout>
+
+<style>
+  .hub { padding-top: var(--spacing-md); }
+
+  .hub-head { text-align: center; margin-bottom: var(--spacing-lg); }
+
+  .hub-titulo {
+    font-size: clamp(1.7rem, 5vw, 2.3rem);
+    color: #fff;
+    margin: 0 0 0.4rem;
+    line-height: 1.15;
+  }
+
+  .hub-sub {
+    color: var(--color-text-muted);
+    font-size: 0.98rem;
+    line-height: 1.65;
+    max-width: 56ch;
+    margin: 0 auto;
+  }
+
+  .hub-frescura { margin: var(--spacing-sm) 0 0; }
+
+  .hub-lista {
+    list-style: none;
+    margin: 0 auto;
+    padding: 0;
+    max-width: 720px;
+    display: grid;
+    gap: var(--spacing-sm);
+  }
+
+  .hub-lista a {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 1.15rem 1.3rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--color-violet-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--color-text);
+    position: relative;
+    overflow: hidden;
+    transition: border-color var(--dur-fast) var(--ease-soft), transform var(--dur-fast) var(--ease-soft);
+  }
+  .hub-lista a:hover { border-color: var(--color-primary); transform: translateY(-2px); }
+
+  .hub-emoji { font-size: 1.7rem; flex: 0 0 auto; }
+  .hub-txt { flex: 1 1 auto; min-width: 0; }
+  .hub-txt strong {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    margin-bottom: 0.15rem;
+  }
+  .hub-txt em {
+    display: block;
+    font-style: normal;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    line-height: 1.45;
+  }
+  .hub-flecha { flex: 0 0 auto; color: var(--color-primary); font-size: 1.2rem; }
+
+  .hub-vacio,
+  .hub-nota {
+    max-width: 60ch;
+    margin: var(--spacing-xl) auto 0;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+    line-height: 1.7;
+  }
+  .hub-vacio a,
+  .hub-nota a { color: var(--color-primary); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hub-lista a:hover { transform: none; }
+  }
+</style>
