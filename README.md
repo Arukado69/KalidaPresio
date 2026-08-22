@@ -33,6 +33,7 @@ npm run dev               # http://localhost:4321
 | `npm run enriquecer-curados` | Rellena título e imagen de `curados.json` vía API de catálogo |
 | `npm run generar-og` | Regenera `public/og-default.png` (solo si cambia la identidad) |
 | `npm run verificar-frescura` | ¿El feed sigue actual? Sale con error si no (lo usa la alarma) |
+| `npm run registrar-historico` | Guarda la foto de precios de hoy en el histórico |
 | `npm run preview` | Sirve `dist/` localmente |
 
 `SITE_URL` **no es opcional**: alimenta `rel="canonical"`, `og:url`, `og:image`
@@ -57,7 +58,12 @@ importarOfertas.js                    generadorRedirects.js         Caddy
                                           degrada a ofertas.json
 ```
 
-**La regla que importa:** ningún dato derivado se versiona.
+**La regla que importa:** ningún dato derivado se versiona. La excepción es
+`src/data/historico-precios.json`, que **sí** se versiona porque no es un
+derivado sino observación acumulada: si se borra no hay forma de reconstruir a
+qué precio estaba un producto la semana pasada. Se poda solo a 90 días.
+
+El resto:
 `secciones-feed.json`, `_redirects`, `redirects.caddy` y `relampago.json` están
 en `.gitignore` y se regeneran en cada build. Versionarlos fue lo que dejó la
 portada dos meses sirviendo precios de junio: el extractor dejó de funcionar y
