@@ -1,16 +1,61 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   CIFRAS TABULARES — los números son el contenido de este sitio.
+
+   En una rejilla de 40 tarjetas, precios con cifras de ancho variable bailan
+   de una fila a otra: el ojo no puede comparar y el conjunto se lee amateur.
+   `tabular-nums` alinea las columnas y convierte la rejilla en algo parecido
+   a una tabla de precios — que es lo que en realidad es.
+
+   `slashed-zero` desambigua el 0 del O en los identificadores de ML.
+   ══════════════════════════════════════════════════════════════════════ */
+.oferta-precio,
+.oferta-precio-original,
+.oferta-descuento,
+.oferta-opiniones,
+.oferta-rating-num,
+.oferta-historial,
+.hs-precio,
+.hs-prev,
+.bh-precio,
+.bh-prev,
+.bt-precio,
+.rs-precio,
+.cur-precio,
+.cur-precio-prev,
+.kp-num,
+.imb-stats strong,
+.explora-n,
+.frescura {
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
 :root {
-  /* === PALETA "VIOLETA DE MARCA, SUAVIZADO" ===
-     Base alineada al logo: violeta profundo #280455 llevado a tonos de
-     fondo desaturados (violeta-noche, no morado eléctrico). El verde del
-     logo sigue siendo ACENTO PUNTUAL (CTA, K-P alto, detalles). */
-  --color-bg: #140e1f;
-  --color-surface: #1d1530;
-  --color-surface-raised: #261c3f;
+  /* === PALETA: EL VIOLETA DE MARCA, EN PANTALLA ===
+     Antes el fondo era #140e1f — un casi-negro que, con el verde neón y los
+     glows, daba la paleta más usada de los últimos años. Y el violeta de la
+     marca (#280455) aparecía en tres sitios del código, ninguno una
+     superficie: el color propio dormía en un token.
+     Ahora la escala de fondo SALE del violeta del logo. El sitio se ve suyo.
+
+     ── LA REGLA DEL VERDE ──────────────────────────────────────────────────
+     El verde estaba en botones, bordes, glows, chips y sellos: cuando un
+     color está en todo, deja de significar nada. A partir de aquí el verde
+     es EVIDENCIA FAVORABLE y la acción que se sigue de ella:
+        · el sello K-P alto        · «precio más bajo en N días»
+        · el ahorro                · el CTA «Ver oferta»
+     La estructura (bordes, superficies, separadores) es VIOLETA.
+     Las advertencias (precio alto, dato viejo) son ÁMBAR.
+     Si algo verde no está afirmando que la compra es buena, está mal. */
+  --color-bg: #170533;                           /* violeta de marca, oscurecido */
+  --color-surface: #1F0742;
+  --color-surface-raised: #2A0B57;
   --color-violet: #280455;                       /* violeta exacto del logo */
-  --color-violet-border: rgba(151, 120, 235, 0.18);
+  --color-violet-border: rgba(151, 120, 235, 0.22);
   --color-primary: #1fd28e;
   --color-primary-glow: rgba(31, 210, 142, 0.14);
-  --color-primary-border: rgba(31, 210, 142, 0.18);
+  /* Los bordes ya NO son verdes: la estructura la dibuja el violeta. Se deja
+     el token apuntando al violeta para no romper las 20 hojas que lo usan. */
+  --color-primary-border: rgba(151, 120, 235, 0.22);
   --color-secondary: #15a06c;
   --color-text: #f0eef8;
   --color-text-muted: #a59cc4;
@@ -60,6 +105,9 @@
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
   --shadow-md: 0 4px 20px rgba(0,0,0,0.4);
   --shadow-lg: 0 8px 40px rgba(0,0,0,0.5);
+  /* Halo violeta: da profundidad a las superficies sin gastar el verde.
+     El verde solo aparece donde afirma algo (CTA, sello alto, precio mínimo). */
+  --halo-violeta: 0 0 24px rgba(151, 120, 235, 0.10);
   --glow-primary-sm: 0 0 10px var(--color-primary-glow);
   --glow-primary-md: 0 0 18px rgba(31, 210, 142, 0.18);
   --glow-primary-lg: 0 0 30px rgba(31, 210, 142, 0.22);

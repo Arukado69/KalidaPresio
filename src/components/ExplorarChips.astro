@@ -28,7 +28,6 @@ const chips = [...COLECCIONES_ACTIVAS].sort(
     <div class="explora-chips">
       {chips.map((col) => (
         <a class="explora-chip" href={`/colecciones/${col.slug}`}>
-          <span class="explora-emoji" aria-hidden="true">{col.emoji}</span>
           {ETIQUETAS[col.slug] ?? col.titulo}
           <span class="explora-n">{col.items.length}</span>
         </a>
@@ -85,7 +84,6 @@ const chips = [...COLECCIONES_ACTIVAS].sort(
     color: #fff;
     transform: translateY(-2px);
   }
-  .explora-emoji { font-size: 1rem; line-height: 1; }
   .explora-n {
     font-size: 0.7rem;
     font-weight: 800;

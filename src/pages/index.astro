@@ -22,8 +22,8 @@ import { ALL_IMBATIBLES, IMBATIBLES_COMPLETADO, SECCIONES_CON_PAGINA } from '../
 // El encabezado de la rejilla sigue al CONTENIDO, no al revés: si hubo que
 // completarla con el resto del catálogo, no se titula "Precios imbatibles".
 const rejilla = IMBATIBLES_COMPLETADO
-  ? { emoji: '⭐', titulo: 'Lo mejor del catálogo', resumen: 'seleccionados y ordenados por el Sello K-P', campana: 'catalogo' }
-  : { emoji: '💪', titulo: 'Precios imbatibles', resumen: 'precio permanente bajo, ordenados por calidad real', campana: 'imbatibles' };
+  ? { titulo: 'Lo mejor del catálogo', resumen: 'seleccionados y ordenados por el Sello K-P', campana: 'catalogo' }
+  : { titulo: 'Precios imbatibles', resumen: 'precio permanente bajo, ordenados por calidad real', campana: 'imbatibles' };
 
 const isHotSale = import.meta.env.IS_HOT_SALE === 'true';
 
@@ -105,7 +105,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
            derecha con pop del sello K-P. -->
       <div class="hero-grid">
         <div class="hero-content">
-          <div class="hero-badge">⚡ Ofertas reales de Mercado Libre México</div>
+          <div class="hero-badge">Ofertas reales de Mercado Libre México</div>
           <h1 class="hero-titulo">
             <span class="hero-mask"><span class="hero-line">Solo las ofertas que</span></span>
             <span class="hero-mask"><span class="hero-line hero-acento">de verdad valen la pena.</span></span>
@@ -211,7 +211,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
   <!-- Bento: top calidad-precio (hero grande + tiles que lo rodean) -->
   {veredicto && (
     <section class="seccion-estructural bento-section" data-reveal>
-      <h2 class="titulo-seccion">🏆 Top calidad-precio de hoy</h2>
+      <h2 class="titulo-seccion">Top calidad-precio de hoy</h2>
 
       <div class="bento">
         <!-- Tile hero (oferta #1 evergreen). data-tilt: se inclina hacia el cursor -->
@@ -328,7 +328,6 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
   <SeccionGrid
       productos={ALL_IMBATIBLES}
       titulo={rejilla.titulo}
-      emoji={rejilla.emoji}
       resumen={rejilla.resumen}
       campana={rejilla.campana}
     />
@@ -340,7 +339,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
           {SECCIONES_CON_PAGINA.map((sec) => (
             <li>
               <a href={`/ofertas/${sec.slug}`} data-spotlight data-ripple>
-                <span class="secs-emoji" aria-hidden="true">{sec.emoji}</span>
+                <span class="secs-cuenta" aria-hidden="true">{sec.items.length}</span>
                 <span class="secs-txt">
                   <strong>{sec.titulo}</strong>
                   <em>{sec.items.length} productos · {sec.resumen}</em>
@@ -392,7 +391,19 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
   }
   .secs-lista a:hover { border-color: var(--color-primary); transform: translateY(-2px); }
 
-  .secs-emoji { font-size: 1.5rem; flex: 0 0 auto; }
+  /* El ancla visual es el DATO, no un emoji: cuántos productos hay dentro.
+     Informa y no convierte la sección en un mensaje de WhatsApp. */
+  .secs-cuenta {
+    flex: 0 0 auto;
+    min-width: 2.2ch;
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-primary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
   .secs-txt { flex: 1 1 auto; min-width: 0; }
   .secs-txt strong {
     display: block;
@@ -869,13 +880,16 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
     .marquee-track { animation: none; justify-content: center; width: 100%; flex-wrap: wrap; }
   }
 
+  /* Mismo tratamiento que el descuento de la tarjeta: verde DE LA PALETA y
+     peso de dato, no de chip. Tres verdes distintos en un mismo sitio es de
+     lo que más "improvisado" lo hace ver. */
   .veredicto-descuento {
-    font-size: 0.9rem;
-    font-weight: 800;
-    color: #00d26a;
-    background-color: rgba(0, 166, 80, 0.16);
-    padding: 0.15rem 0.5rem;
-    border-radius: var(--radius-xs);
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    letter-spacing: -0.02em;
+    line-height: 1;
     align-self: center;
   }
 
@@ -893,7 +907,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
     backdrop-filter: var(--glass-blur);
     border: 1px solid var(--color-primary-border);
     border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-lg), var(--glow-primary-sm);
+    box-shadow: var(--shadow-lg), var(--halo-violeta);
     padding: var(--spacing-xl);
   }
 
@@ -1103,7 +1117,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
     backdrop-filter: var(--glass-blur);
     border: 1px solid var(--color-primary-border);
     border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-lg), var(--glow-primary-sm);
+    box-shadow: var(--shadow-lg), var(--halo-violeta);
   }
   .bh-media {
     position: relative;
@@ -1153,8 +1167,10 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
   }
   .bh-signal em { color: var(--color-text-muted); font-style: normal; font-weight: 400; }
   .bh-dscto {
-    color: #00d26a;
-    background: rgba(0, 166, 80, 0.16);
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--color-primary);
+    letter-spacing: -0.02em;
     padding: 0.1rem 0.5rem;
     border-radius: var(--radius-xs);
     font-weight: 800;

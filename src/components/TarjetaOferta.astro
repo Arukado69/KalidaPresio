@@ -548,26 +548,36 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
   /* Precio en blanco: el verde queda para CTA y K-P (menos look "cripto") */
   .oferta-precio {
     font-family: var(--font-display);
-    font-size: 1.7rem;
+    font-size: 1.75rem;
     font-weight: 700;
     color: #ffffff;
-    letter-spacing: -0.02em;
+    /* Tracking negativo un punto más agresivo: agrupa las cifras y las hace
+       leerse como una unidad («$1,299») en vez de como cinco caracteres. */
+    letter-spacing: -0.035em;
+    line-height: 1;
   }
 
+  /* El precio viejo es contexto, no protagonista: se apaga y se tacha en el
+     mismo tono del texto, sin el rojo que competía con el descuento. */
   .oferta-precio-original {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: var(--color-text-muted);
+    opacity: 0.75;
     text-decoration: line-through;
-    text-decoration-color: rgba(255, 77, 109, 0.7);
+    text-decoration-thickness: 1px;
   }
 
+  /* El descuento sube de rango: es LA razón por la que alguien está mirando.
+     Y usa el verde de la paleta, no un #00d26a suelto que no cuadraba con
+     ningún otro verde del sitio — esa deriva es de lo que más "improvisado"
+     hace ver un diseño. */
   .oferta-descuento {
-    font-size: 0.8rem;
-    font-weight: 800;
-    color: #00d26a;
-    background-color: rgba(0, 166, 80, 0.14);
-    padding: 0.1rem 0.45rem;
-    border-radius: var(--radius-xs);
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    letter-spacing: -0.02em;
+    line-height: 1;
   }
 
   .oferta-rating {
