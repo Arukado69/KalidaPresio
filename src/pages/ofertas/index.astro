@@ -38,7 +38,7 @@ const total = SECCIONES_CON_PAGINA.reduce((n, s) => n + s.items.length, 0);
         {SECCIONES_CON_PAGINA.map((sec) => (
           <li>
             <a href={`/ofertas/${sec.slug}`} data-spotlight data-ripple>
-              <span class="hub-emoji" aria-hidden="true">{sec.emoji}</span>
+              <span class="hub-cuenta" aria-hidden="true">{sec.items.length}</span>
               <span class="hub-txt">
                 <strong>{sec.titulo}</strong>
                 <em>{sec.items.length} productos · {sec.resumen}</em>
@@ -113,7 +113,19 @@ const total = SECCIONES_CON_PAGINA.reduce((n, s) => n + s.items.length, 0);
   }
   .hub-lista a:hover { border-color: var(--color-primary); transform: translateY(-2px); }
 
-  .hub-emoji { font-size: 1.7rem; flex: 0 0 auto; }
+  /* El ancla visual es el DATO, no un emoji: cuántos productos hay dentro.
+     Informa, y no convierte la sección en un mensaje de WhatsApp. */
+  .hub-cuenta {
+    flex: 0 0 auto;
+    min-width: 2.4ch;
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-primary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
   .hub-txt { flex: 1 1 auto; min-width: 0; }
   .hub-txt strong {
     display: block;
