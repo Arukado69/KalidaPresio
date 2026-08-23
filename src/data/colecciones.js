@@ -13,7 +13,7 @@
  *
  * CÓMO AGREGAR UN CLÚSTER:
  * Añade un objeto al array COLECCIONES con: slug, titulo, descripcion,
- * emoji, filtro (función), y orden (función de sort).
+ * filtro (función) y orden (función de sort).
  */
 import { categorizar } from '../utils/categorias.js';
 // Fuente UNICA de la formula del score: antes estaba copiada literalmente
@@ -41,7 +41,6 @@ export const COLECCIONES = [
     slug: 'mejores-ofertas-tecnologia',
     titulo: 'Las Mejores Ofertas en Tecnología',
     descripcion: 'Selección curada de las mejores ofertas en tecnología de Mercado Libre México, ordenadas por nuestro algoritmo KalidaPresio que evalúa calidad, descuento y satisfacción real de compradores.',
-    emoji: '💻',
     color: 'var(--color-primary)',
     items: ofertasEnriquecidas
       .filter(o => o.categoria_inferida === 'Tecnología')
@@ -52,7 +51,6 @@ export const COLECCIONES = [
     slug: 'mas-vendidos-del-mes',
     titulo: 'Los Más Vendidos del Mes',
     descripcion: 'Los productos con más unidades vendidas en Mercado Libre México. Volumen de ventas real publicado por la propia plataforma, no posicionamiento pagado.',
-    emoji: '🏆',
     color: 'var(--color-warm)',
     items: ofertasEnriquecidas
       // Ahora el nombre de la colección es literal: ML publica unidades
@@ -65,7 +63,6 @@ export const COLECCIONES = [
     slug: 'ofertas-relampago-hoy',
     titulo: 'Ofertas con Descuento Máximo',
     descripcion: 'Las ofertas con mayor porcentaje de descuento disponibles ahora mismo en Mercado Libre México. Precios verificados por KalidaPresio — ¡aprovéchalos antes de que suban!',
-    emoji: '⚡',
     color: 'var(--color-accent)',
     items: ofertasEnriquecidas
       .filter(o => (o.descuento ?? 0) >= 35)
@@ -77,7 +74,6 @@ export const COLECCIONES = [
     slug: 'ofertas-menos-de-500',
     titulo: 'Ofertas por Menos de $500',
     descripcion: 'Las mejores ofertas calidad-precio por menos de $500 pesos en Mercado Libre México. Compras inteligentes con presupuesto ajustado, ordenadas por nuestro sello K-P.',
-    emoji: '💵',
     color: 'var(--color-primary)',
     items: ofertasEnriquecidas
       .filter(o => (o.precio_actual ?? 0) > 0 && o.precio_actual < 500)
@@ -88,7 +84,6 @@ export const COLECCIONES = [
     slug: 'gangas-bajo-300',
     titulo: 'Gangas por Menos de $300',
     descripcion: 'Productos que valen la pena por menos de $300 pesos en Mercado Libre México. Lo mejor del presupuesto bajo, sin sacrificar calidad — verificado por KalidaPresio.',
-    emoji: '🪙',
     color: 'var(--color-warm)',
     items: ofertasEnriquecidas
       .filter(o => (o.precio_actual ?? 0) > 0 && o.precio_actual < 300)

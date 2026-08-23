@@ -37,11 +37,11 @@ import { COLECCIONES_ACTIVAS } from '../../data/colecciones.js';
     <div class="ci-grid">
       {COLECCIONES_ACTIVAS.map((col, i) => (
         <a href={`/colecciones/${col.slug}`} class="ci-card" data-reveal data-spotlight style={`--reveal-delay:${i * 100}ms`}>
-          <div class="ci-card-emoji">{col.emoji}</div>
+          <div class="ci-card-cuenta"><strong>{col.items.length}</strong><span>productos</span></div>
           <h2 class="ci-card-titulo">{col.titulo}</h2>
           <p class="ci-card-desc">{col.descripcion.substring(0, 120)}...</p>
           <div class="ci-card-meta">
-            <span class="ci-card-count">{col.items.length} productos</span>
+            <span class="ci-card-count">Ver colección</span>
             <span class="ci-card-arrow" aria-hidden="true">→</span>
           </div>
         </a>
@@ -146,10 +146,28 @@ import { COLECCIONES_ACTIVAS } from '../../data/colecciones.js';
     pointer-events: none;
   }
 
-  .ci-card-emoji {
-    font-size: 3rem;
+  /* Donde había un emoji de 3rem hay ahora el dato: cuántos productos tiene
+     la colección. Ocupa el mismo peso visual y encima dice algo. */
+  .ci-card-cuenta {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
     margin-bottom: var(--spacing-sm);
-    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+  }
+  .ci-card-cuenta strong {
+    font-family: var(--font-display);
+    font-size: 2.6rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-primary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+  }
+  .ci-card-cuenta span {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-text-muted);
   }
 
   .ci-card-titulo {

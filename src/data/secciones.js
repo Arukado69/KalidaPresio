@@ -213,7 +213,6 @@ export const SECCIONES_CON_PAGINA = [
   {
     slug: 'imbatibles',
     campana: 'imbatibles',
-    emoji: '💪',
     titulo: 'Precios imbatibles',
     resumen: 'precio permanente bajo, ordenados por calidad real',
     descripcion:
@@ -223,7 +222,6 @@ export const SECCIONES_CON_PAGINA = [
   {
     slug: 'liquidacion',
     campana: 'liquidacion',
-    emoji: '🏷️',
     titulo: 'Liquidación',
     resumen: 'salida de inventario: los descuentos más agresivos del catálogo',
     descripcion:
@@ -233,7 +231,6 @@ export const SECCIONES_CON_PAGINA = [
   {
     slug: 'menos-500',
     campana: 'menos500',
-    emoji: '💵',
     titulo: 'Por menos de $500',
     resumen: 'lo mejor que se puede comprar con poco presupuesto',
     descripcion:

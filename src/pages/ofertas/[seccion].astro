@@ -50,7 +50,6 @@ const otras = SECCIONES_CON_PAGINA.filter((s) => s.slug !== seccion.slug);
     <SeccionGrid
       productos={seccion.items}
       titulo={seccion.titulo}
-      emoji={seccion.emoji}
       resumen={seccion.resumen}
       campana={seccion.campana}
       encabezado="h1"
@@ -65,7 +64,7 @@ const otras = SECCIONES_CON_PAGINA.filter((s) => s.slug !== seccion.slug);
           {otras.map((o) => (
             <li>
               <a href={`/ofertas/${o.slug}`}>
-                <span class="sec-otras-emoji" aria-hidden="true">{o.emoji}</span>
+                <span class="sec-otras-cuenta" aria-hidden="true">{o.items.length}</span>
                 <span>
                   <strong>{o.titulo}</strong>
                   <em>{o.items.length} productos · {o.resumen}</em>
@@ -147,7 +146,16 @@ const otras = SECCIONES_CON_PAGINA.filter((s) => s.slug !== seccion.slug);
   }
   .sec-otras a:hover { border-color: var(--color-primary); }
 
-  .sec-otras-emoji { font-size: 1.4rem; flex: 0 0 auto; }
+  .sec-otras-cuenta {
+    flex: 0 0 auto;
+    min-width: 2.2ch;
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-primary);
+    font-variant-numeric: tabular-nums;
+  }
   .sec-otras strong {
     display: block;
     font-family: var(--font-display);
