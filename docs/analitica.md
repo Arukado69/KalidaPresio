@@ -124,10 +124,11 @@ cada componente.
 
 | Propiedad | De dónde sale |
 |---|---|
-| `seccion` | Sufijo de `matt_word` en el propio enlace |
+| `seccion` | Sufijo de `matt_word`, ya sin el código de canal |
+| `canal` | Las 2 primeras letras del sufijo, o el segmento de `/r/<canal>/…` |
 | `id` | `data-ml-id` de la tarjeta, o el `MLM…` de la URL |
 | `precio` · `score` · `descuento` · `categoria` | `data-*` que ya usaban el filtro y el ordenador |
-| `destino` | `directo` o `recomienda` (si pasó por el cloaking) |
+| `destino` | `directo`, `recomienda` (cloaking) o `corto` (enlace por canal) |
 
 ### `boletin-alta` y `contacto-enviado`
 
@@ -139,16 +140,45 @@ de herramienta, solo se toca ese archivo.
 
 ## Cómo leerlo (esto es lo importante)
 
-**`seccion` no es una etiqueta inventada: es el mismo identificador que ves en
-tu panel de afiliados de Mercado Libre.** `aLinkAfiliado` compone
-`matt_word = <base>_<seccion>`, ML lo registra en las comisiones y el sitio lo
-lee del mismo enlace para el evento.
-
-Eso permite cruzar las dos mitades del embudo:
+**`seccion` y `canal` no son etiquetas inventadas: son el mismo identificador
+que ves en tu panel de afiliados de Mercado Libre.** `aLinkAfiliado` compone
 
 ```
-Umami          →  cuánta gente hizo clic en «imbatibles»
-Panel de ML    →  cuánto se compró desde «imbatibles»
+matt_word = <base>_<canal><seccion>
+                    │      └─ 'relampago', 'elegidos', 'hero'…
+                    └─ 2 letras: wb (sitio), tg, wa, vv, pn, cr, rs, cm
+```
+
+ML lo registra en las comisiones y el sitio lo lee del mismo enlace para el
+evento. Los códigos viven en `src/utils/canales.js` y llegan al navegador por
+el `<meta name="kp-canales">` que emite `Analitica.astro` — no copiados a mano
+dentro del script, que es como las dos etiquetas se separarían sin que nadie se
+diera cuenta.
+
+Eso permite cruzar las dos mitades del embudo en las DOS dimensiones:
+
+```
+Umami          →  cuánta gente hizo clic en «imbatibles» desde Telegram
+Panel de ML    →  cuánto se compró desde «imbatibles» desde Telegram
+```
+
+Un enlace anterior a los canales (sufijo sin código, p. ej. `…_relampago`) se
+sigue leyendo bien: si las dos primeras letras no son un código conocido, todo
+el sufijo es la sección y el canal se da por el sitio.
+
+### Los clics que Umami nunca va a ver
+
+Un clic desde Telegram o desde un canal de WhatsApp **no pasa por el sitio**, así
+que Umami no se entera. Para esos existe `/r/<canal>/<id>`: lo resuelve el
+backend, que registra el clic en su propia tabla (`clics`) y redirige a ML con
+el `matt_word` del canal. Sin IP ni user-agent — para decidir un canal basta con
+contar.
+
+```sql
+-- Qué canal mueve, últimos 30 días
+SELECT canal, COUNT(*) AS clics FROM clics
+WHERE fecha >= datetime('now','-30 days')
+GROUP BY canal ORDER BY clics DESC;
 ```
 
 Y de ahí salen diagnósticos que antes eran imposibles:

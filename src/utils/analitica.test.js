@@ -25,8 +25,9 @@ describe('esEnlaceSaliente', () => {
     expect(esEnlaceSaliente('https://mercadolibre.com.mx/x')).toBe(true);
   });
 
-  it('reconoce el cloaking propio', () => {
+  it('reconoce el cloaking propio y el enlace corto por canal', () => {
     expect(esEnlaceSaliente('/recomienda/MLM4568402546')).toBe(true);
+    expect(esEnlaceSaliente('/r/tg/MLM4568402546')).toBe(true);
   });
 
   it('ignora la navegación interna', () => {
@@ -100,6 +101,7 @@ describe('datosDelClic', () => {
       precio: '849', score: '97', descuento: '49', categoria: 'Tecnología', posicion: '3',
     })).toEqual({
       seccion: 'imbatibles',
+      canal: 'wb',
       id: 'MLM19045710',
       precio: 849,
       score: 97,
@@ -121,9 +123,20 @@ describe('datosDelClic', () => {
     expect(datosDelClic(href, { seccion: 'otra-cosa' }).seccion).toBe('relampago');
   });
 
-  it('distingue el clic directo del que pasa por el cloaking', () => {
+  it('distingue el clic directo del que pasa por una redirección propia', () => {
     expect(datosDelClic('/recomienda/MLM4568402546').destino).toBe('recomienda');
+    expect(datosDelClic('/r/tg/MLM4568402546').destino).toBe('corto');
     expect(datosDelClic(CATALOGO).destino).toBe('directo');
+  });
+
+  it('lee el canal de la ruta corta, que no lleva matt_word', () => {
+    const d = datosDelClic('/r/tg/MLM4568402546');
+    expect(d.canal).toBe('tg');
+    expect(d.id).toBe('MLM4568402546');
+  });
+
+  it('degrada al sitio un canal inventado en la ruta', () => {
+    expect(datosDelClic('/r/zz/MLM4568402546').canal).toBe('wb');
   });
 
   it('convierte a número lo numérico y deja null lo que no lo es', () => {

@@ -18,6 +18,15 @@ const outputPath = path.resolve(outputDir, '_redirects');
 // el `try_files … /index.html`, devolvían la portada con HTTP 200.
 const caddyDir = path.resolve(__dirname, '../../docker');
 const caddyPath = path.resolve(caddyDir, 'redirects.caddy');
+// MAPA DE ENLACES para el backend: id → URL de producto SIN query.
+// `/recomienda/*` lo resuelve Caddy con lo que haya en el build de hoy, así que
+// un id que salió del feed devuelve 404. Eso está bien para un enlace de dentro
+// del sitio, pero NO para uno publicado en Telegram hace tres semanas: ese
+// tiene que seguir llevando a la oferta. Por eso el backend guarda su propia
+// tabla acumulada y la alimenta desde este archivo — el build ya no es quien
+// decide qué enlaces existen, solo cuáles son nuevos.
+const enlacesDir = path.resolve(outputDir, 'data');
+const enlacesPath = path.resolve(enlacesDir, 'enlaces.json');
 
 // ── Carga de credenciales de afiliado ───────────────────────────────────────────
 // En local: desde .env. En Cloudflare Pages: desde las Environment Variables del
@@ -125,6 +134,7 @@ try {
 
   let sinRastreo = 0;
   let rutas = 0;
+  const enlaces = {};
   ofertas.forEach((oferta) => {
     if (oferta.id && oferta.link_afiliado) {
       const { url, faltanParams } = asegurarParametrosAfiliado(oferta.link_afiliado);
@@ -135,20 +145,30 @@ try {
       // 302 (temporal) a propósito: el destino cambia con cada refresco del feed.
       caddyContent += `redir /recomienda/${oferta.id} ${url} 302\n`;
       netlifyContent += `/recomienda/${oferta.id}  ${url}  302\n`;
+      // Sin query: el backend le pega SUS matt_* con el canal de cada enlace
+      // corto. Guardar la URL ya etiquetada haría que todos los canales
+      // heredaran la etiqueta del build y volveríamos a no poder distinguirlos.
+      enlaces[oferta.id] = oferta.link_afiliado.split('?')[0].split('#')[0];
       rutas++;
     }
   });
 
   // Escritura segura con sobrescritura automática
-  for (const dir of [outputDir, caddyDir]) {
+  for (const dir of [outputDir, caddyDir, enlacesDir]) {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   }
 
   fs.writeFileSync(outputPath, netlifyContent, 'utf-8');
   fs.writeFileSync(caddyPath, caddyContent, 'utf-8');
+  fs.writeFileSync(
+    enlacesPath,
+    JSON.stringify({ generadoEl: new Date().toISOString(), items: enlaces }, null, 0),
+    'utf-8',
+  );
 
   console.log(`✅ [KalidaPresio] ${rutas} redirects escritos en docker/redirects.caddy (los que aplica el servidor).`);
   console.log(`✅ [KalidaPresio] Copia en public/_redirects (compatibilidad Cloudflare/Netlify).`);
+  console.log(`✅ [KalidaPresio] ${rutas} enlaces en public/data/enlaces.json (los sincroniza el backend para /r/).`);
   console.log(`✅ ${ofertas.length - sinRastreo}/${ofertas.length} rutas con registro de afiliado garantizado (Cloaking Nativo).\n`);
 
 } catch (error) {

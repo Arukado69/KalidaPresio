@@ -1,0 +1,192 @@
+{
+  "name": "KalidaPresio · Telegram (Tecnología)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
+        }
+      },
+      "id": "kp-trigger",
+      "name": "Cada 3 horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "sitio",
+              "value": "https://kalidapresio.albis-labs.xyz",
+              "type": "string"
+            },
+            {
+              "id": "c2",
+              "name": "canal_telegram",
+              "value": "@TU_CANAL_AQUI",
+              "type": "string"
+            },
+            {
+              "id": "c3",
+              "name": "canal_codigo",
+              "value": "tg",
+              "type": "string"
+            },
+            {
+              "id": "c4",
+              "name": "categoria",
+              "value": "Tecnología",
+              "type": "string"
+            },
+            {
+              "id": "c5",
+              "name": "seccion",
+              "value": "tecnologia",
+              "type": "string"
+            },
+            {
+              "id": "c6",
+              "name": "score_minimo",
+              "value": 85,
+              "type": "number"
+            },
+            {
+              "id": "c7",
+              "name": "max_por_corrida",
+              "value": 3,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "kp-config",
+      "name": "Configuracion",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -20,
+        300
+      ],
+      "notes": "Lo unico que hay que editar. canal_telegram es el @usuario del canal (o su id numerico si es privado). canal_codigo debe existir en src/utils/canales.js.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.sitio }}/data/feed.json",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "kp-feed",
+      "name": "Traer feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        300
+      ],
+      "notes": "Feed publico que genera el build (generarFeedPublico.js)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Elegir qué publicar ─────────────────────────────────────────────────────\n// Entra: feed.json completo. Sale: un item por oferta lista para Telegram.\n// Toda la política de publicación vive aquí; se puede editar sin tocar el resto.\n\nconst CONF = $('Configuracion').first().json;\nconst feed = $input.first().json;\n\n// El feed declara su forma. Si cambia y este nodo no se enteró, es mejor un\n// error ruidoso que mensajes con campos vacíos publicados en tu canal.\nif (feed.esquema !== 1) {\n  throw new Error('Esquema ' + feed.esquema + ' no reconocido. Revisa generarFeedPublico.js antes de publicar.');\n}\n\nconst CATEGORIA = CONF.categoria;\nconst CANAL = CONF.canal_codigo;\nconst SECCION = CONF.seccion;\nconst SCORE_MIN = Number(CONF.score_minimo);\nconst MAX = Number(CONF.max_por_corrida);\n\n// Memoria entre ejecuciones: qué ya se publicó. Sin esto, cada 3 horas se\n// repetirían las mismas ofertas y el canal se silencia solo.\nconst estado = $getWorkflowStaticData('global');\nestado.publicados = Array.isArray(estado.publicados) ? estado.publicados : [];\nconst yaPublicado = new Set(estado.publicados);\n\nconst esc = (s) => String(s == null ? '' : s)\n  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst mxn = (n) => '$' + Number(n).toLocaleString('es-MX', { maximumFractionDigits: 0 });\nconst recortar = (s, n) => (s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '\\u2026');\n\nconst candidatos = (feed.items || [])\n  .filter((o) => o.categoria === CATEGORIA)\n  .filter((o) => o.imagen)                       // sendPhoto necesita imagen\n  .filter((o) => (o.score || 0) >= SCORE_MIN)\n  // LA REGLA QUE NO SE NEGOCIA: nivel 'alto' significa que el producto ESTUVO\n  // MAS BARATO hace poco, o sea que el descuento es contra un precio inflado.\n  // Publicarlo es lo que hacen los otros veinte canales de ofertas; no hacerlo\n  // es la unica razon por la que alguien seguiria este.\n  .filter((o) => !o.historico || o.historico.nivel !== 'alto')\n  .filter((o) => !yaPublicado.has(o.id))\n  .sort((a, b) => (b.score || 0) - (a.score || 0))\n  .slice(0, MAX);\n\nfunction armar(o, tituloMax) {\n  const enlace = feed.sitio + '/r/' + CANAL + '/' + o.id + '?s=' + SECCION;\n  const l = [];\n  l.push('\\uD83D\\uDD25 <b>' + esc(recortar(o.titulo, tituloMax)) + '</b>');\n  l.push('');\n  let precio = '\\uD83D\\uDCB0 <b>' + mxn(o.precio_actual) + '</b>';\n  if (o.precio_previo && o.precio_previo > o.precio_actual) {\n    precio += '  <s>' + mxn(o.precio_previo) + '</s>';\n    if (o.descuento) precio += '  \\u2212' + o.descuento + '%';\n  }\n  l.push(precio);\n\n  const senales = [];\n  if (o.score) senales.push('Sello K-P ' + o.score + '/100');\n  if (o.rating) senales.push(o.rating + '\\u2605');\n  if (o.envio_gratis) senales.push('env\\u00edo gratis');\n  if (senales.length) l.push('\\u2B50 ' + esc(senales.join(' \\u00b7 ')));\n\n  // La frase del historico es el diferenciador: nadie mas puede decirla porque\n  // nadie mas guarda 90 dias de precios observados.\n  if (o.historico && o.historico.texto) l.push('\\uD83D\\uDCC9 ' + esc(o.historico.texto));\n\n  l.push('');\n  l.push('\\uD83D\\uDC49 ' + enlace);\n  l.push('');\n  l.push('<i>Enlace de afiliado: si compras, KalidaPresio recibe una comisi\\u00f3n sin costo extra para ti. El precio es del momento en que se detect\\u00f3; confírmalo en Mercado Libre.</i>');\n  return l.join('\\n');\n}\n\nconst salida = [];\nfor (const o of candidatos) {\n  // El caption de Telegram tope a 1024 caracteres. Se recorta el TITULO, nunca\n  // el aviso de afiliado ni el enlace.\n  let mensaje = armar(o, 90);\n  for (const max of [70, 50, 35]) {\n    if (mensaje.length <= 1024) break;\n    mensaje = armar(o, max);\n  }\n  salida.push({ json: { id: o.id, titulo: o.titulo, imagen: o.imagen, mensaje: mensaje } });\n}\n\n// Recordar lo publicado, podado a 500 para que el estado no crezca sin techo.\nestado.publicados = candidatos.map((o) => o.id).concat(estado.publicados).slice(0, 500);\n\nreturn salida;"
+      },
+      "id": "kp-elegir",
+      "name": "Elegir que publicar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendPhoto",
+        "chatId": "={{ $('Configuracion').first().json.canal_telegram }}",
+        "binaryData": false,
+        "photo": "={{ $json.imagen }}",
+        "additionalFields": {
+          "caption": "={{ $json.mensaje }}",
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "kp-telegram",
+      "name": "Publicar en Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        640,
+        300
+      ],
+      "notes": "Elige aqui tu credencial de Telegram (Bot Token). No viene en el archivo a proposito."
+    }
+  ],
+  "connections": {
+    "Cada 3 horas": {
+      "main": [
+        [
+          {
+            "node": "Configuracion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuracion": {
+      "main": [
+        [
+          {
+            "node": "Traer feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traer feed": {
+      "main": [
+        [
+          {
+            "node": "Elegir que publicar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Elegir que publicar": {
+      "main": [
+        [
+          {
+            "node": "Publicar en Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

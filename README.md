@@ -32,6 +32,8 @@ npm run dev               # http://localhost:4321
 | `npm run obtener-secciones` | Refresca `src/data/secciones-feed.json` (por sección) |
 | `npm run enriquecer-curados` | Rellena título e imagen de `curados.json` vía API de catálogo |
 | `npm run generar-og` | Regenera `public/og-default.png` (solo si cambia la identidad) |
+| `npm run detectar-nichos` | ¿Qué categoría aguanta un canal propio? (añade `-- --json`) |
+| `npm run generar-feed` | Regenera `public/data/feed.json` (el que consume n8n) |
 | `npm run verificar-frescura` | ¿El feed sigue actual? Sale con error si no (lo usa la alarma) |
 | `npm run registrar-historico` | Guarda la foto de precios de hoy en el histórico |
 | `npm run preview` | Sirve `dist/` localmente |
@@ -47,8 +49,9 @@ GitHub Action (cada 3 h)              Build                         Producción
 ────────────────────────              ─────                         ──────────
 importarOfertas.js                    generadorRedirects.js         Caddy
   scrape /ofertas de ML                 → docker/redirects.caddy      /recomienda/* → ML
-  score K-P + filtros                   → public/_redirects           /api/*        → Express
-  → src/data/ofertas.json  ──┐        generarRelampago.js             resto         → dist/
+  score K-P + filtros                   → public/_redirects           /r/*          → Express
+  → src/data/ofertas.json  ──┐          → public/data/enlaces.json    /api/*        → Express
+                             │        generarRelampago.js             resto         → dist/
      (commit + push)         │          → public/data/relampago.json
                              │        astro build
                              └──────►   hook: extraer-secciones.mjs
@@ -64,7 +67,8 @@ derivado sino observación acumulada: si se borra no hay forma de reconstruir a
 qué precio estaba un producto la semana pasada. Se poda solo a 90 días.
 
 El resto:
-`secciones-feed.json`, `_redirects`, `redirects.caddy` y `relampago.json` están
+`secciones-feed.json`, `_redirects`, `redirects.caddy`, `relampago.json` y
+`enlaces.json` están
 en `.gitignore` y se regeneran en cada build. Versionarlos fue lo que dejó la
 portada dos meses sirviendo precios de junio: el extractor dejó de funcionar y
 el JSON viejo siguió en el repo, listo para desplegarse, sin que nada avisara.
@@ -79,8 +83,8 @@ src/
   pages/        index, colecciones/[coleccion], blog, sobre-mi, contacto,
                 privacidad, 404, robots.txt
   scripts/      Pipeline de datos (build-time y manual)
-  utils/        Lógica pura y testeada: score, afiliado, categorías, veredicto
-backend/        API Express + SQLite: contacto y boletín con doble opt-in
+  utils/        Lógica pura y testeada: score, afiliado, canales, categorías…
+backend/        API Express + SQLite: contacto, boletín y enlaces cortos (/r/)
 docker/         Caddyfile (+ redirects.caddy generado) · analitica/ (stack de Umami)
 docs/           deploy.md · analitica.md
 ```
@@ -88,10 +92,38 @@ docs/           deploy.md · analitica.md
 ## Medición
 
 Umami autoalojado, sin cookies y en el mismo VPS. Lo que se mide de verdad es el
-**clic saliente** hacia Mercado Libre, etiquetado con la sección de la que
-salió — y esa etiqueta es el mismo sufijo de `matt_word` que registra el panel
-de afiliados de ML, así que las dos mitades del embudo se cruzan.
+**clic saliente** hacia Mercado Libre, etiquetado con el **canal** y la
+**sección** de los que salió — y esa etiqueta es el mismo sufijo de `matt_word`
+que registra el panel de afiliados de ML, así que las dos mitades del embudo se
+cruzan.
+
+```
+matt_word = ci20241127172754_tgrelampago
+                             │ └─ sección
+                             └─ canal: wb (sitio), tg, wa, vv, pn, cr, rs, cm
+```
+
+Los códigos viven en [`src/utils/canales.js`](src/utils/canales.js). Para
+repartir fuera del sitio se comparte **`/r/<canal>/<id>`** (opcionalmente
+`?s=<seccion>`): lo resuelve el backend contra una tabla **acumulativa**, así
+que un enlace publicado en Telegram hace tres semanas sigue funcionando aunque
+la oferta ya no esté en el feed de hoy — que es justo lo que `/recomienda/*`,
+regenerado en cada build, no puede prometer.
+
 Guía completa en **[`docs/analitica.md`](docs/analitica.md)**.
+
+## Reparto
+
+El sitio es una superficie; el resto se publica fuera. `public/data/feed.json`
+(que genera el build, con el **veredicto de precio** contra el histórico) es lo
+que consumen todas: el workflow de Telegram en
+[`n8n/telegram-tecnologia.json`](n8n/telegram-tecnologia.json) publica solo, y
+`/panel/hoy` arma las publicaciones para copiar donde no hay API (canal de
+WhatsApp, comunidades). Ninguna anuncia una oferta que haya estado más barata
+hace poco — ese descarte es la marca.
+
+Cómo montarlo y dónde conviene (y no conviene) repartir, en
+**[`docs/reparto.md`](docs/reparto.md)**.
 
 Sin `PUBLIC_UMAMI_URL` y `PUBLIC_UMAMI_ID` el sitio no emite ni una etiqueta de
 rastreo.
