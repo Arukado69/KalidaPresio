@@ -17,6 +17,13 @@ Allow: /
 Disallow: /recomienda/
 Disallow: /api/
 
+# /r/* son los enlaces cortos por canal (302 a Mercado Libre). Mismo caso.
+Disallow: /r/
+
+# /panel/* es la herramienta interna de reparto: no es contenido, y que salga
+# en resultados solo confunde a quien la encuentre.
+Disallow: /panel/
+
 Sitemap: ${base}/sitemap-index.xml
 `;
 

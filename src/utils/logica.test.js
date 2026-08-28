@@ -83,15 +83,19 @@ describe('aLinkAfiliado — el camino del dinero', () => {
     expect(r).not.toContain('#resenas');
   });
 
-  it('etiqueta la campaña de sección en el matt_word', () => {
+  it('etiqueta canal y sección en el matt_word', () => {
+    // El sufijo es `<canal><seccion>`; sin canal explícito, el canal es el
+    // sitio ('wb'). Ver canales.js para por qué el canal va SIEMPRE delante.
     const base = new URL(aLinkAfiliado(URL_ML)).searchParams.get('matt_word');
-    const conCampana = new URL(aLinkAfiliado(URL_ML, 'relampago')).searchParams.get('matt_word');
-    expect(conCampana).toBe(`${base}_relampago`);
+    const delSitio = new URL(aLinkAfiliado(URL_ML, 'relampago')).searchParams.get('matt_word');
+    const deTelegram = new URL(aLinkAfiliado(URL_ML, 'relampago', 'tg')).searchParams.get('matt_word');
+    expect(delSitio).toBe(`${base}_wbrelampago`);
+    expect(deTelegram).toBe(`${base}_tgrelampago`);
   });
 
   it('sanea la campaña: nada que rompa el parámetro', () => {
     const word = new URL(aLinkAfiliado(URL_ML, 'menos-500 &raro')).searchParams.get('matt_word');
-    expect(word).toMatch(/_menos500raro$/);
+    expect(word).toMatch(/_wbmenos500raro$/);
   });
 
   it('degrada a "#" con entradas inservibles en vez de generar un enlace roto', () => {
@@ -116,6 +120,50 @@ describe('categorizar', () => {
     expect(categorizar('audifonos bluetooth')).toBe('Tecnología');
   });
 
+  it('clasifica las categorías añadidas para el detector de nichos', () => {
+    expect(categorizar('Croquetas para Perro Adulto Salmón 10kg Purina Beneful')).toBe('Mascotas');
+    expect(categorizar('Batería Italika Iytx7a-bs para moto 250z')).toBe('Autos y Motos');
+    expect(categorizar('Don Julio 70 Tequila Cristalino Añejo 700ml')).toBe('Bebidas');
+    expect(categorizar('Cuadernos Cosidos Profesional Ferrini Libreta 100h 8 Pack')).toBe('Papelería');
+  });
+
+  // ── Las trampas de precedencia ────────────────────────────────────────────
+  // Cada una de estas es un bug que YA ocurrió. El orden de REGLAS es lo único
+  // que las resuelve, así que reordenar el archivo tiene que romper esto.
+
+  it('«camara» contiene «cama»: una cámara de seguridad NO es Hogar', () => {
+    expect(categorizar('Camara De Seguridad Exterior WiFi 12MP PTZ 360')).toBe('Tecnología');
+    expect(categorizar('Cámara de vigilancia exterior wifi audio')).toBe('Tecnología');
+    // Y una cama sigue siendo una cama.
+    expect(categorizar('Cama Individual con Cabecera Tapizada')).toBe('Hogar');
+  });
+
+  it('el salmón de las croquetas no es un suplemento', () => {
+    expect(categorizar('Croquetas para Perro Salmón Salud Radiante')).toBe('Mascotas');
+    expect(categorizar('Omega 3 De Salmón 90 Cápsulas EPA DHA')).toBe('Salud y Deporte');
+  });
+
+  it('«Moto G» es un celular, no una autoparte', () => {
+    expect(categorizar('Celular Moto G15 256gb 8ram Verde')).toBe('Tecnología');
+    expect(categorizar('Motocicleta Italika DS150')).toBe('Autos y Motos');
+  });
+
+  it('«para auto» es pista débil: no le gana a un electrodoméstico', () => {
+    expect(categorizar('Aspiradora Industrial Lava Tapicería para autos y casa')).toBe('Hogar');
+    // Pero sí clasifica lo que nadie más reclama.
+    expect(categorizar('Amplificador De Audio Para Auto 4 Canales Clase D 2400w')).toBe('Autos y Motos');
+  });
+
+  it('el lápiz óptico de una tablet es una tablet', () => {
+    expect(categorizar('Tablet Huawei MatePad SE 11 128G + lápiz óptico')).toBe('Tecnología');
+    expect(categorizar('Super Tips Crayola 100 Plumones Lavables')).toBe('Papelería');
+  });
+
+  it('una crema con vitamina C es cosmético, no suplemento', () => {
+    expect(categorizar('Crema facial con Vitamina C 50ml')).toBe('Belleza');
+    expect(categorizar('Vitamina C 1000mg 60 tabletas')).toBe('Salud y Deporte');
+  });
+
   it('degrada a "Otros" y nunca truena', () => {
     expect(categorizar('Objeto sin categoría reconocible')).toBe('Otros');
     expect(categorizar('')).toBe('Otros');
@@ -123,7 +171,12 @@ describe('categorizar', () => {
   });
 
   it('toda categoría que puede devolver está en el orden de los chips', () => {
-    const muestras = ['laptop', 'licuadora', 'colchón', 'crema', 'creatina', 'pijama', 'taladro', 'zzz'];
+    // Una categoría nueva tiene que entrar en REGLAS *y* en ORDEN_CATEGORIAS.
+    // Si solo entra en la primera, desaparece del filtro sin avisar.
+    const muestras = [
+      'laptop', 'licuadora', 'colchón', 'crema', 'creatina', 'pijama', 'taladro',
+      'croquetas para perro', 'motocicleta', 'tequila', 'cuaderno', 'zzz',
+    ];
     for (const t of muestras) {
       expect(ORDEN_CATEGORIAS).toContain(categorizar(t));
     }

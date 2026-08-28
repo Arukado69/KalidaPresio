@@ -39,6 +39,38 @@ db.exec(`
   )
 `);
 
+// Mapa de enlaces cortos: id de ML → URL del producto, SIN parámetros.
+// Es ACUMULATIVO a propósito. `/recomienda/*` lo regenera cada build y por eso
+// un id que salió del feed devuelve 404 — aceptable dentro del sitio, fatal
+// para un enlace publicado en Telegram hace tres semanas. Aquí una fila entra
+// y no se borra: el enlace compartido sigue llevando a la oferta aunque el
+// feed de hoy ya no la traiga.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS enlaces (
+    ml_id TEXT PRIMARY KEY,
+    url TEXT NOT NULL,
+    visto_en DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Clics de los enlaces cortos, para responder «¿qué canal mueve?» sin depender
+// de que Umami esté arriba (los clics de Telegram o WhatsApp nunca pasan por el
+// sitio, así que Umami no los ve).
+// SIN IP y SIN user-agent, a propósito: el sitio no usa cookies y el aviso de
+// privacidad dice que no se perfila a nadie. Para decidir un canal basta con
+// contar; guardar de más solo crea una obligación que no hace falta tener.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS clics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ml_id TEXT NOT NULL,
+    canal TEXT NOT NULL,
+    seccion TEXT,
+    resuelto INTEGER NOT NULL DEFAULT 1,
+    fecha DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_clics_canal ON clics(canal, fecha)`);
+
 // ── MIGRACIONES ADITIVAS ──────────────────────────────────────────────────────
 // Idempotentes: se intentan en cada arranque y se ignora el error de "ya
 // existe". node:sqlite no tiene `ADD COLUMN IF NOT EXISTS`, así que el try/catch

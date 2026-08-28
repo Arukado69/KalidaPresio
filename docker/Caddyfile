@@ -9,6 +9,7 @@
 #
 #   Internet → NPM (TLS, :443) → kalidapresio_web:80 (este Caddy)
 #                                        ├── /api/*  → kalidapresio-api:3001
+#                                        ├── /r/*    → kalidapresio-api:3001
 #                                        └── resto   → sitio estático /srv
 #
 # SITE_ADDRESS lo define docker-compose desde .env.production:
@@ -58,6 +59,16 @@
 		respond "Esta oferta ya no está disponible." 404
 	}
 
+	# ── Enlace corto POR CANAL → backend (/r/<canal>/<id>) ───────────────────
+	# NO se genera en el build como /recomienda/*: este es el enlace que se
+	# publica FUERA del sitio (Telegram, WhatsApp, un video), y tiene que seguir
+	# funcionando semanas después aunque la oferta ya no esté en el feed de hoy.
+	# El backend lo resuelve contra su tabla acumulada y estampa el canal en el
+	# matt_word antes de redirigir.
+	handle /r/* {
+		reverse_proxy api:3001
+	}
+
 	# ── API → backend Express (servicio 'api' en la red interna de Docker) ──
 	handle /api/* {
 		reverse_proxy api:3001
@@ -65,10 +76,12 @@
 
 	# ── Sitio estático (Astro SSG) ──────────────────────────────────────────
 	handle {
-		# El JSON de relámpago NO se cachea → el sitio lee la última versión
-		# en runtime (frescura del carrusel sin rebuild).
-		@relampago path /data/relampago.json
-		header @relampago Cache-Control "no-cache, must-revalidate"
+		# Los JSON de datos NO se cachean. El de relámpago porque el sitio lo lee
+		# en runtime (frescura del carrusel sin rebuild); feed.json y
+		# enlaces.json porque los consumen n8n y el backend, y un intermediario
+		# que sirva una copia vieja hace publicar precios que ya no existen.
+		@datos path /data/relampago.json /data/feed.json /data/enlaces.json
+		header @datos Cache-Control "no-cache, must-revalidate"
 
 		# Assets con hash de Astro → caché agresiva e inmutable.
 		@assets path /_astro/*

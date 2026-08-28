@@ -1,0 +1,350 @@
+---
+/**
+ * /panel/hoy — La herramienta de reparto manual.
+ *
+ * ── QUÉ PROBLEMA RESUELVE ──────────────────────────────────────────────────
+ * Telegram se automatiza con n8n. Los canales de WhatsApp NO tienen API, y en
+ * grupos y comunidades publicar a mano es lo único que respeta sus reglas. Sin
+ * esta página, cada publicación son cinco minutos de abrir el sitio, copiar el
+ * título, buscar el precio, armar el enlace y equivocarse con la etiqueta del
+ * canal — que es exactamente el tipo de fricción que hace abandonar un canal a
+ * la tercera semana.
+ *
+ * Aquí el mensaje ya viene armado, con el enlace `/r/<canal>/<id>` correcto
+ * según el canal que elijas arriba. Copiar y pegar: dos toques.
+ *
+ * ── POR QUÉ NO USA EL Layout DEL SITIO ─────────────────────────────────────
+ * No es una página del sitio: es una herramienta interna. Meterle el Header, el
+ * boletín y la analítica ensuciaría las métricas con tu propio uso diario.
+ * Va con `noindex`, fuera del sitemap y con Disallow en robots.txt.
+ *
+ * ── LO QUE NO HACE, A PROPÓSITO ────────────────────────────────────────────
+ * No publica por ti en ningún lado. Repartir a mano es lo que te obliga a mirar
+ * lo que estás publicando, y es la diferencia entre participar en una comunidad
+ * y ser el que la llena de enlaces hasta que lo expulsan.
+ */
+import ofertasCrudas from '../../data/ofertas.json';
+import historicoCrudo from '../../data/historico-precios.json';
+import { categorizar } from '../../utils/categorias.js';
+import { resumirHistorico, veredictoPrecio } from '../../utils/historico.js';
+import { CANALES } from '../../utils/canales.js';
+
+const SITIO = String(Astro.site ?? 'https://kalidapresio.albis-labs.xyz').replace(/\/+$/, '');
+
+const lista = Array.isArray(ofertasCrudas) ? ofertasCrudas : (ofertasCrudas?.items ?? []);
+const productosHist = historicoCrudo?.productos ?? {};
+
+const mxn = (n) => new Intl.NumberFormat('es-MX', {
+  style: 'currency', currency: 'MXN', maximumFractionDigits: 0,
+}).format(Number(n) || 0);
+
+const items = lista
+  .filter((o) => o?.id && o?.titulo && Number.isFinite(o.precio_actual))
+  .map((o) => {
+    const v = veredictoPrecio(o.precio_actual, resumirHistorico(productosHist[o.id]));
+    const senales = [
+      o.score_kalidad_presio ? `Sello K-P ${o.score_kalidad_presio}/100` : null,
+      o.rating ? `${o.rating}★` : null,
+      o.envio_gratis ? 'envío gratis' : null,
+    ].filter(Boolean);
+
+    const precio = o.precio_previo && o.precio_previo > o.precio_actual
+      ? `${mxn(o.precio_actual)} (antes ${mxn(o.precio_previo)}${o.descuento ? `, −${o.descuento}%` : ''})`
+      : mxn(o.precio_actual);
+
+    // El mensaje se arma aquí entero menos el enlace, que depende del canal que
+    // se elija en el navegador. `{{enlace}}` lo sustituye el script.
+    const plantilla = [
+      `🔥 ${o.titulo}`,
+      '',
+      `💰 ${precio}`,
+      senales.length ? `⭐ ${senales.join(' · ')}` : null,
+      v.texto ? `📉 ${v.texto}` : null,
+      '',
+      '👉 {{enlace}}',
+      '',
+      'Enlace de afiliado: si compras, KalidaPresio recibe una comisión sin costo extra para ti. El precio es del momento en que se detectó; confírmalo en Mercado Libre.',
+    ].filter((l) => l !== null).join('\n');
+
+    return {
+      id: o.id,
+      titulo: o.titulo,
+      imagen: o.imagen,
+      categoria: categorizar(o.titulo),
+      precio,
+      score: o.score_kalidad_presio ?? null,
+      nivel: v.nivel,
+      veredicto: v.texto,
+      plantilla,
+    };
+  });
+
+// El corte que da la credibilidad: 'alto' significa que ha estado más barato.
+const publicables = items.filter((i) => i.nivel !== 'alto');
+const noPublicar = items.filter((i) => i.nivel === 'alto');
+
+// Tecnología primero: es el nicho que `npm run detectar-nichos` marcó como
+// canal propio. El resto va detrás, por Sello K-P.
+const orden = (a, b) => {
+  if (a.categoria !== b.categoria) {
+    if (a.categoria === 'Tecnología') return -1;
+    if (b.categoria === 'Tecnología') return 1;
+    return a.categoria.localeCompare(b.categoria, 'es');
+  }
+  return (b.score ?? 0) - (a.score ?? 0);
+};
+publicables.sort(orden);
+
+// Solo los canales donde se reparte a mano. Telegram no está: lo hace n8n, y
+// ofrecerlo aquí invitaría a publicar dos veces la misma oferta.
+const CANALES_MANUALES = ['wa', 'cm', 'pn', 'cr'];
+const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+---
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Panel de reparto — KalidaPresio</title>
+  <link rel="icon" href="/favicon.svg" />
+  <style>
+    :root {
+      --marca: #280455;
+      --fondo: #140b21;
+      --panel: #1d1230;
+      --panel-2: #241636;
+      --linea: #342346;
+      --tinta: #f0e8fa;
+      --tinta-2: #a897be;
+      --acento: #ff8a3d;
+      --bien: #57c68e;
+      --mal: #f0776c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--fondo); color: var(--tinta);
+      font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+      padding: 0 16px 80px;
+    }
+    .hoja { max-width: 780px; margin: 0 auto; }
+    header { padding: 28px 0 20px; border-bottom: 1px solid var(--linea); }
+    h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -.02em; }
+    .sub { color: var(--tinta-2); font-size: .9rem; margin: 0; }
+
+    .barra {
+      position: sticky; top: 0; z-index: 5; background: var(--fondo);
+      padding: 14px 0; border-bottom: 1px solid var(--linea);
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    .barra-label {
+      font-size: .72rem; text-transform: uppercase; letter-spacing: .12em;
+      color: var(--tinta-2); width: 100%;
+    }
+    .chip {
+      border: 1px solid var(--linea); background: var(--panel);
+      color: var(--tinta-2); border-radius: 999px; padding: 7px 14px;
+      font-size: .82rem; cursor: pointer; font-family: inherit;
+    }
+    .chip[aria-pressed="true"] {
+      background: var(--acento); border-color: var(--acento); color: #23120a; font-weight: 600;
+    }
+    .chip:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+    h2 {
+      font-size: .78rem; text-transform: uppercase; letter-spacing: .14em;
+      color: var(--tinta-2); margin: 32px 0 12px; font-weight: 600;
+    }
+    .cuenta { color: var(--acento); }
+
+    .tarjeta {
+      display: grid; grid-template-columns: 72px 1fr; gap: 14px;
+      background: var(--panel); border: 1px solid var(--linea);
+      border-radius: 12px; padding: 14px; margin-bottom: 10px;
+    }
+    .tarjeta img {
+      width: 72px; height: 72px; object-fit: contain;
+      background: #fff; border-radius: 8px;
+    }
+    .t-titulo { font-size: .93rem; font-weight: 600; margin: 0 0 6px; line-height: 1.35; }
+    .t-meta { font-size: .82rem; color: var(--tinta-2); margin: 0 0 4px; }
+    .t-precio { color: var(--tinta); font-weight: 600; }
+    .t-veredicto { font-size: .8rem; margin: 0 0 10px; }
+    .n-minimo, .n-bajo { color: var(--bien); }
+    .n-alto { color: var(--mal); }
+    .n-siguiendo, .n-normal, .n-sin-datos { color: var(--tinta-2); }
+    .t-cat {
+      display: inline-block; font-size: .68rem; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--tinta-2);
+      border: 1px solid var(--linea); border-radius: 999px; padding: 2px 8px;
+      margin-left: 6px; vertical-align: middle;
+    }
+    .acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid var(--linea); background: var(--panel-2); color: var(--tinta);
+      border-radius: 8px; padding: 8px 13px; font-size: .82rem; cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-principal { background: var(--acento); border-color: var(--acento); color: #23120a; font-weight: 600; }
+    .btn:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+    .btn[data-hecho] { background: var(--bien); border-color: var(--bien); color: #06281a; }
+
+    .aviso {
+      border-left: 3px solid var(--mal); background: var(--panel);
+      padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0 16px;
+      font-size: .88rem; color: var(--tinta-2);
+    }
+    .aviso b { color: var(--tinta); }
+    .vacio { color: var(--tinta-2); font-size: .88rem; }
+    footer {
+      margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--linea);
+      font-size: .78rem; color: var(--tinta-2);
+    }
+    @media (max-width: 520px) {
+      .tarjeta { grid-template-columns: 56px 1fr; }
+      .tarjeta img { width: 56px; height: 56px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="hoja">
+    <header>
+      <h1>Panel de reparto</h1>
+      <p class="sub">{fecha} · {publicables.length} listas para publicar · el enlace se etiqueta solo con el canal que elijas</p>
+    </header>
+
+    <div class="barra" role="group" aria-label="Canal de destino">
+      <span class="barra-label">Canal</span>
+      {CANALES_MANUALES.map((codigo, i) => (
+        <button class="chip" type="button" data-canal={codigo} aria-pressed={i === 0 ? 'true' : 'false'}>
+          {CANALES[codigo]}
+        </button>
+      ))}
+    </div>
+
+    <h2>Listas para publicar <span class="cuenta">({publicables.length})</span></h2>
+    {publicables.length === 0 && <p class="vacio">Ninguna hoy. Es una respuesta válida: no hay que publicar por publicar.</p>}
+    {publicables.map((o) => (
+      <article class="tarjeta">
+        {o.imagen ? <img src={o.imagen} alt="" loading="lazy" width="72" height="72" /> : <div></div>}
+        <div>
+          <p class="t-titulo">{o.titulo}<span class="t-cat">{o.categoria}</span></p>
+          <p class="t-meta"><span class="t-precio">{o.precio}</span>{o.score ? ` · K-P ${o.score}` : ''}</p>
+          <p class={`t-veredicto n-${o.nivel}`}>{o.veredicto || 'Sin histórico suficiente todavía'}</p>
+          <div class="acciones">
+            <button class="btn btn-principal" type="button" data-copiar={o.plantilla} data-id={o.id}>
+              Copiar publicación
+            </button>
+            <button class="btn" type="button" data-copiar-enlace data-id={o.id}>Solo el enlace</button>
+          </div>
+        </div>
+      </article>
+    ))}
+
+    {noPublicar.length > 0 && (
+      <>
+        <h2>No publicar hoy <span class="cuenta">({noPublicar.length})</span></h2>
+        <p class="aviso">
+          Estas han estado <b>más baratas</b> en los últimos días: el «descuento» es contra un precio
+          inflado. Publicarlas es lo que hacen los otros canales de ofertas — y no hacerlo es la única
+          razón por la que alguien seguiría el tuyo.
+        </p>
+        {noPublicar.map((o) => (
+          <article class="tarjeta">
+            {o.imagen ? <img src={o.imagen} alt="" loading="lazy" width="72" height="72" /> : <div></div>}
+            <div>
+              <p class="t-titulo">{o.titulo}<span class="t-cat">{o.categoria}</span></p>
+              <p class="t-meta"><span class="t-precio">{o.precio}</span></p>
+              <p class="t-veredicto n-alto">{o.veredicto}</p>
+            </div>
+          </article>
+        ))}
+      </>
+    )}
+
+    <footer>
+      Telegram no aparece aquí: lo publica n8n solo. · Precios de la última corrida del bot;
+      si el sitio lleva horas sin reconstruirse, verifícalos antes de publicar.
+    </footer>
+  </div>
+
+  <script is:inline define:vars={{ SITIO }}>
+    (function () {
+      var canal = 'wa';
+
+      function enlaceDe(id) {
+        return SITIO + '/r/' + canal + '/' + id + '?s=panel';
+      }
+
+      function marcar(btn, texto) {
+        var original = btn.textContent;
+        btn.textContent = texto;
+        btn.setAttribute('data-hecho', '');
+        setTimeout(function () {
+          btn.textContent = original;
+          btn.removeAttribute('data-hecho');
+        }, 1600);
+      }
+
+      // Copiado con DOS respaldos, porque `navigator.clipboard` no existe fuera
+      // de HTTPS — y este panel se abre desde el teléfono, que es justo donde
+      // más falta hace. `prompt()` NO sirve de respaldo: hay contextos donde
+      // lanza y entonces el fallo se come también al plan B.
+      function conTextarea(texto) {
+        var ta = document.createElement('textarea');
+        ta.value = texto;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(92vw,520px);height:40vh;z-index:99;padding:12px;border-radius:10px;border:1px solid #ff8a3d;background:#1d1230;color:#f0e8fa;font:14px/1.5 system-ui';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+        if (ok) {
+          ta.remove();
+          return true;
+        }
+        // Ni eso: se deja visible y seleccionado para copiar a mano.
+        ta.addEventListener('blur', function () { ta.remove(); });
+        return false;
+      }
+
+      async function copiar(btn, texto) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          try {
+            await navigator.clipboard.writeText(texto);
+            marcar(btn, '✓ Copiado');
+            return;
+          } catch (_) { /* sigue a los respaldos */ }
+        }
+        marcar(btn, conTextarea(texto) ? '✓ Copiado' : 'Copia a mano ↑');
+      }
+
+      document.addEventListener('click', function (ev) {
+        var chip = ev.target.closest('[data-canal]');
+        if (chip) {
+          canal = chip.getAttribute('data-canal');
+          document.querySelectorAll('[data-canal]').forEach(function (c) {
+            c.setAttribute('aria-pressed', String(c === chip));
+          });
+          return;
+        }
+
+        var soloEnlace = ev.target.closest('[data-copiar-enlace]');
+        if (soloEnlace) {
+          copiar(soloEnlace, enlaceDe(soloEnlace.getAttribute('data-id')));
+          return;
+        }
+
+        var btn = ev.target.closest('[data-copiar]');
+        if (btn) {
+          var texto = btn.getAttribute('data-copiar')
+            .replace('{{enlace}}', enlaceDe(btn.getAttribute('data-id')));
+          copiar(btn, texto);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

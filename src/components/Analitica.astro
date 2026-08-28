@@ -20,8 +20,16 @@
  * Sin PUBLIC_UMAMI_URL y PUBLIC_UMAMI_ID no se emite ni una etiqueta. En
  * desarrollo no se ensucian las métricas y el sitio funciona idéntico.
  */
+import { CODIGOS_CANAL, CANAL_POR_DEFECTO } from '../utils/canales.js';
+
 const URL_UMAMI = import.meta.env.PUBLIC_UMAMI_URL?.replace(/\/+$/, '') || '';
 const ID_UMAMI = import.meta.env.PUBLIC_UMAMI_ID || '';
+
+// Los códigos de canal viajan al navegador por un <meta>, no copiados a mano
+// dentro del script: el script es `is:inline` y no puede importar nada, y una
+// lista duplicada es exactamente como la etiqueta de Umami y la de ML se
+// separan sin que nadie se entere.
+const CANALES_META = `${CANAL_POR_DEFECTO}|${CODIGOS_CANAL.join(',')}`;
 
 // NOMBRE del script, no ruta: se corresponde 1:1 con TRACKER_SCRIPT_NAME del
 // servidor de Umami (renombrarlo evita las reglas que los bloqueadores tienen
@@ -43,6 +51,8 @@ const dominio = Astro.site?.hostname ?? '';
 
 {activo && (
   <>
+    <meta name="kp-canales" content={CANALES_META} />
+
     <script
       is:inline
       defer
@@ -61,8 +71,19 @@ const dominio = Astro.site?.hostname ?? '';
 
         var HOST_ML = /(^|\.)mercadolibre\.com\.mx$/i;
         var RUTA_CLOAK = '/recomienda/';
+        var RUTA_CORTA = '/r/';
         var pendientes = [];
         var intentos = 0;
+
+        // Códigos de canal, servidos por el <meta> de arriba (fuente única:
+        // src/utils/canales.js). Si el meta faltara, el canal degrada al sitio
+        // y la SECCIÓN se sigue leyendo entera: se pierde una dimensión, no el
+        // dato — que es mejor que reportar secciones partidas por la mitad.
+        var metaCanales = document.querySelector('meta[name="kp-canales"]');
+        var partesCanales = (metaCanales ? metaCanales.content : 'wb|').split('|');
+        var CANAL_DEFECTO = partesCanales[0] || 'wb';
+        var CODIGOS = (partesCanales[1] || '').split(',').filter(Boolean);
+        var esCanal = function (c) { return CODIGOS.indexOf(c) !== -1; };
 
         // El script de Umami es `defer`: puede no estar listo cuando alguien
         // hace clic en el primer segundo. Los eventos se encolan y se sueltan
@@ -101,17 +122,33 @@ const dominio = Astro.site?.hostname ?? '';
 
         function esSaliente(u) {
           if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
-          return HOST_ML.test(u.hostname) || u.pathname.indexOf(RUTA_CLOAK) === 0;
+          return HOST_ML.test(u.hostname)
+            || u.pathname.indexOf(RUTA_CLOAK) === 0
+            || u.pathname.indexOf(RUTA_CORTA) === 0;
         }
 
-        // Sección desde el sufijo de matt_word. Se corta por el ÚLTIMO «_»:
-        // aLinkAfiliado sanea la campaña a alfanuméricos, así que la campaña
+        // Canal + sección desde el sufijo de matt_word. Se corta por el ÚLTIMO
+        // «_»: aLinkAfiliado sanea la sección a alfanuméricos, así que el sufijo
         // nunca lo contiene y el matt_word base queda intacto aunque lo tenga.
-        function seccionDe(u) {
+        // Después, las 2 primeras letras son el canal si son un código conocido
+        // (un enlace anterior a los canales no lo lleva: todo es sección).
+        function etiquetaDe(u) {
           var w = u.searchParams.get('matt_word');
-          if (!w) return null;
+          if (!w) return { canal: CANAL_DEFECTO, seccion: null };
           var i = w.lastIndexOf('_');
-          return i === -1 ? null : (w.slice(i + 1) || null);
+          if (i === -1) return { canal: CANAL_DEFECTO, seccion: null };
+          var s = w.slice(i + 1);
+          if (esCanal(s.slice(0, 2))) {
+            return { canal: s.slice(0, 2), seccion: s.slice(2) || null };
+          }
+          return { canal: CANAL_DEFECTO, seccion: s || null };
+        }
+
+        // El enlace corto no lleva matt_word: el canal está en la ruta.
+        function canalDeRuta(u) {
+          if (u.pathname.indexOf(RUTA_CORTA) !== 0) return null;
+          var c = u.pathname.split('/')[2];
+          return esCanal(c) ? c : CANAL_DEFECTO;
         }
 
         function idDe(u) {
@@ -153,15 +190,18 @@ const dominio = Astro.site?.hostname ?? '';
           try { u = new URL(a.getAttribute('href'), location.href); } catch (_) { return; }
           if (!esSaliente(u)) return;
 
-          var href = u.href;
+          var etiqueta = etiquetaDe(u);
           enviar('clic-oferta', {
-            seccion: seccionDe(u) || atributo(a, 'data-kp-seccion') || 'sin-etiqueta',
+            seccion: etiqueta.seccion || atributo(a, 'data-kp-seccion') || 'sin-etiqueta',
+            canal: canalDeRuta(u) || etiqueta.canal,
             id: atributo(a, 'data-ml-id') || idDe(u),
             precio: num(atributo(a, 'data-precio')),
             score: num(atributo(a, 'data-kp')),
             descuento: num(atributo(a, 'data-descuento')),
             categoria: atributo(a, 'data-cat'),
-            destino: href.indexOf(RUTA_CLOAK) !== -1 ? 'recomienda' : 'directo',
+            destino: u.pathname.indexOf(RUTA_CLOAK) === 0 ? 'recomienda'
+              : u.pathname.indexOf(RUTA_CORTA) === 0 ? 'corto'
+              : 'directo',
           });
         }, { passive: true });
       })();
