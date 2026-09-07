@@ -45,11 +45,18 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          # Clave SSH, no contraseña. Genera el par con:
+          # Autenticación: SSH_KEY si existe, si no, SSH_PASSWORD.
+          # appleboy/ssh-action usa la llave cuando viene con contenido y cae a
+          # la contraseña cuando llega vacia. Los dos declarados a la vez es lo
+          # que evita que el despliegue muera en silencio: cambiar a `key:` sin
+          # crear el secreto dejó 7 despliegues fallando y la producción 16 dias
+          # congelada mientras main seguía avanzando.
+          # Para migrar a llave (recomendado):
           #   ssh-keygen -t ed25519 -C "github-actions-kalidapresio" -f deploy_key
           # La pública va a ~/.ssh/authorized_keys del VPS; la privada, al
-          # secret SSH_KEY del repo.
+          # secret SSH_KEY del repo. En cuanto exista, manda ella sola.
           key: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script_stop: true
           script: |
