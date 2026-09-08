@@ -77,15 +77,42 @@ jobs:
             # sin reconstruir, el valor viejo sigue dentro.
             docker compose --env-file .env.production up -d --build
 
-            # Espera a que el frontend responda antes de dar el deploy por bueno.
-            for i in $(seq 1 20); do
-              if curl -fsS -o /dev/null http://127.0.0.1:8080/; then
-                echo "✅ Frontend respondiendo."
+            # Espera a que Caddy escuche de verdad. Docker publica el puerto
+            # en cuanto arranca el contenedor, mucho antes de que Caddy esté
+            # atendiendo: los primeros intentos dan «Connection reset by peer»
+            # y eso es el arranque, no una falla.
+            #
+            # El 7 de septiembre este paso salió en rojo con el sitio ya
+            # actualizado y sirviendo. El curl disparó 25 ms después del
+            # «Container Started» y el proceso terminó sin reintentar, con un
+            # solo «Connection reset» en el log. Por qué no reintentó no lo
+            # tengo confirmado; lo que sí está claro es que medir a los 25 ms
+            # mide el arranque, no la salud. De ahí los cambios: una espera
+            # inicial antes del primer intento, más margen total (90 s),
+            # --max-time para que un curl colgado no se coma el ciclo, y
+            # ninguna orden suelta que devuelva no-cero dentro del for.
+            #
+            # Importa que este chequeo sea fiable: corre DESPUÉS del recambio
+            # de contenedores, así que un rojo aquí no revierte nada. Si
+            # miente, entrena a ignorarlo y tapa la caída de verdad.
+            sleep 5
+
+            listo=0
+            for i in $(seq 1 30); do
+              if curl -fsS -o /dev/null --max-time 5 http://127.0.0.1:8080/; then
+                listo=1
                 break
               fi
-              [ "$i" = "20" ] && { echo "❌ El frontend no respondió en 60 s."; docker compose --env-file .env.production logs --tail 60 web; exit 1; }
               sleep 3
             done
+
+            if [ "$listo" != "1" ]; then
+              echo "❌ El frontend no respondió en 90 s."
+              docker compose --env-file .env.production ps
+              docker compose --env-file .env.production logs --tail 60 web
+              exit 1
+            fi
+            echo "✅ Frontend respondiendo."
 
             # Limpia capas huérfanas (no toca las etiquetas :prev).
             docker image prune -f
