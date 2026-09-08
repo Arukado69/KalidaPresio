@@ -8,8 +8,8 @@
  * profundidad mediana del histórico se quedó en UN día.
  *
  * Esta pasada lee p1–p5 y NO filtra por calidad: al histórico le sirve
- * cualquier precio observado. Medido el 8-sep-2026, eso refresca ~137
- * productos ya seguidos en vez de ~40.
+ * cualquier precio observado. Medido el 8-sep-2026, eso refresca 143
+ * productos en vez de ~39: una mejora de 3.7× en la cobertura del histórico.
  *
  * ── LO QUE NO HACE ─────────────────────────────────────────────────────────
  * No toca ofertas.json. El feed del sitio sigue siendo la página 1 y sigue
@@ -27,7 +27,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SALIDA = path.resolve(__dirname, '../data/observaciones.json');
 
 const PAGINAS = Number(process.env.PAGINAS_OBSERVACION) || 5;
-/** Por debajo de esto algo se rompió: p1–p5 dieron 489 ids el 8-sep-2026. */
+/** Línea base real: 240 tarjetas legibles (48 × 5 páginas). Un umbral de 150 tolera
+ * una página fallando (240−48 = 192, pasa) pero atrapa dos o más fallando
+ * (240−96 = 144, falla): la frontera entre «una página se pausó» y «el extractor roto». */
 const MINIMO_ESPERADO = Number(process.env.MINIMO_OBSERVACIONES) || 150;
 /** Pausa entre páginas: esto tiene que parecer alguien navegando. */
 const PAUSA_MS = 1500;
