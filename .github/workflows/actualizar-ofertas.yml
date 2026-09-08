@@ -73,8 +73,10 @@ jobs:
         run: npm run build
 
       # La hora UTC hace falta para decidir si toca pasada profunda. El `sed`
-      # quita UN cero inicial ("08"→"8") porque bash interpreta un número con
-      # cero a la izquierda como octal y "08"/"09" revientan la comparación.
+      # quita UN cero inicial ("08"→"8"): este valor nunca pasa por bash para
+      # compararse, va directo a fromJSON(steps.hora.outputs.h) en la condición
+      # de abajo, y JSON prohíbe los enteros con cero a la izquierda —
+      # fromJSON("08") reventaría con un error en vez de evaluar a false.
       # Nunca deja la cadena vacía (00→0), así que fromJSON() de abajo siempre
       # recibe un número válido.
       - name: ¿Toca pasada profunda?
@@ -88,8 +90,12 @@ jobs:
       # el mismo número y se perdería el movimiento intradía.
       #
       # `continue-on-error` a propósito: si ML no responde, se registra lo que
-      # haya del feed. Una cobertura menor no debe tumbar la corrida.
+      # haya del feed. Una cobertura menor no debe tumbar la corrida. Nótese
+      # que NO depende de `steps.scrape.outcome`: alimenta observaciones.json,
+      # que es insumo del histórico, no del feed — y es precisamente en un feed
+      # roto cuando más importa no perder esta cobertura.
       - name: Observar precios en profundidad (p1-p5)
+        id: profundidad
         if: github.event_name == 'workflow_dispatch' || fromJSON(steps.hora.outputs.h) == 6 || fromJSON(steps.hora.outputs.h) == 18
         continue-on-error: true
         run: npm run observar-precios
@@ -99,8 +105,16 @@ jobs:
       # depende de haber empezado antes: un día sin registrar es un día que no
       # se recupera. Se acumula por día (min/max), así que ocho pasadas con el
       # mismo precio no generan ocho cambios.
+      #
+      # Corre si CUALQUIERA de las dos fuentes salió bien, no solo el feed:
+      # registrarHistorico.js ya trata ambas como opcionales y solo falla si
+      # las dos vienen vacías. Exigir el feed a secas tiraba a la basura una
+      # pasada profunda buena (5 peticiones reales a ML) justo el día en que el
+      # feed falla, que es cuando más falta hace la cobertura. `outcome` (no
+      # `conclusion`) es clave aquí: si la pasada profunda no le tocaba correr
+      # queda en 'skipped', no en 'failure', así que no cuela como éxito.
       - name: Registrar el histórico de precios
-        if: steps.scrape.outcome == 'success'
+        if: steps.scrape.outcome == 'success' || steps.profundidad.outcome == 'success'
         run: node src/scripts/registrarHistorico.js
 
       # ── Decisión de commit ────────────────────────────────────────────────
