@@ -123,8 +123,15 @@ jobs:
       # hubiera movido un peso. Se commitea si cambian las OFERTAS, o si el
       # sello ya lleva 6 h — para que "precios detectados hace X" no envejezca
       # de más cuando el catálogo está quieto.
+      #
+      # Mismo OR que el histórico y por la misma razón: este step YA revisa
+      # `git status --porcelain historico-precios.json` por su cuenta (abajo)
+      # para decidir `publicar`, así que una pasada profunda buena basta aunque
+      # el feed haya fallado. Exigir solo el feed dejaba el histórico recién
+      # escrito por el step anterior sin nadie que lo viera: moría con el
+      # runner sin commitear, justo el día en que más importaba.
       - name: ¿Hay algo que publicar?
-        if: steps.scrape.outcome == 'success'
+        if: steps.scrape.outcome == 'success' || steps.profundidad.outcome == 'success'
         id: decidir
         run: |
           git show HEAD:src/data/ofertas.json > /tmp/anterior.json 2>/dev/null || echo 'null' > /tmp/anterior.json
@@ -152,8 +159,15 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `publicar=${publicar}\n`);
           '
 
+      # Paréntesis obligatorios: en Actions `&&` liga más fuerte que `||`, y sin
+      # ellos esto se leería como `scrape==success || (profundidad==success &&
+      # publicar=='true')`, colando un commit sin que `decidir` opinara.
+      # `ARCHIVOS` incluye ofertas.json siempre: si el scrape falló, ese
+      # archivo no cambió, así que agregarlo al stage es un no-op inofensivo
+      # (el `git status` de abajo no ve diferencia ahí) y solo el histórico
+      # queda commiteado.
       - name: Commit y push
-        if: steps.scrape.outcome == 'success' && steps.decidir.outputs.publicar == 'true'
+        if: (steps.scrape.outcome == 'success' || steps.profundidad.outcome == 'success') && steps.decidir.outputs.publicar == 'true'
         run: |
           git config user.name  "kalidapresio-bot"
           git config user.email "bot@users.noreply.github.com"
