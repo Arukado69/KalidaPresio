@@ -18,6 +18,9 @@
  * Y va en las dos direcciones: si el producto ha estado más barato, se dice.
  * Avisar de que NO es buen momento es lo que hace creíble el resto.
  *
+ * Ante la duda, degradar: un veredicto de menos no cuesta nada; uno de más
+ * cuesta la credibilidad entera.
+ *
  * Funciones PURAS: se les pasa el historial y el instante. Sin disco, sin DOM.
  */
 
@@ -44,30 +47,60 @@ export const DESCUENTO_SOSPECHOSO = 20;
 /** Cuánto puede oscilar el precio y seguir considerándose «plano». */
 const MARGEN_PLANO = 0.02;
 
+/** Fracción de la ventana que debe estar observada para hablar de ella. */
+const DENSIDAD_MINIMA = 0.7;
+
 const fmt = (n) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
 
 /**
+ * Días de CALENDARIO entre dos fechas 'YYYY-MM-DD', ambos extremos incluidos.
+ * Un único día observado es 1 día, no 0.
+ *
+ * Ante cualquier duda —fecha ilegible, algo que no es texto, extremos al
+ * revés— devuelve 0: sin ventana medible no hay nada que afirmar sobre el
+ * tiempo transcurrido, y quien la use debe quedarse callado.
+ *
+ * Se exporta solo para poder testearla; no es parte de lo que el sitio consume.
+ *
+ * @param {string} desdeISO
+ * @param {string} hastaISO
+ * @returns {number}
+ */
+export function diasEntre(desdeISO, hastaISO) {
+  if (typeof desdeISO !== 'string' || typeof hastaISO !== 'string') return 0;
+  const a = Date.parse(`${desdeISO}T00:00:00Z`);
+  const b = Date.parse(`${hastaISO}T00:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return 0;
+  return Math.round((b - a) / 86_400_000) + 1;
+}
+
+/**
  * Resume las entradas de un producto.
  *
+ * `desde` y `hasta` son los extremos observados: con los dos se mide la ventana
+ * de calendario, que NO es lo mismo que `dias` (cuántas veces miramos).
+ *
  * @param {Array<[string, number, number]>} entradas — [fechaISO, min, max], en cualquier orden
- * @returns {{dias: number, minimo: number|null, maximo: number|null, desde: string|null}}
+ * @returns {{dias: number, minimo: number|null, maximo: number|null, desde: string|null, hasta: string|null}}
  */
 export function resumirHistorico(entradas) {
   const validas = (Array.isArray(entradas) ? entradas : []).filter(
     (e) => Array.isArray(e) && typeof e[0] === 'string' && Number.isFinite(e[1]) && Number.isFinite(e[2]) && e[1] > 0,
   );
-  if (validas.length === 0) return { dias: 0, minimo: null, maximo: null, desde: null };
+  if (validas.length === 0) return { dias: 0, minimo: null, maximo: null, desde: null, hasta: null };
 
   let minimo = Infinity;
   let maximo = 0;
   let desde = validas[0][0];
+  let hasta = validas[0][0];
   for (const [fecha, min, max] of validas) {
     if (min < minimo) minimo = min;
     if (max > maximo) maximo = max;
     if (fecha < desde) desde = fecha;
+    if (fecha > hasta) hasta = fecha;
   }
-  return { dias: validas.length, minimo, maximo, desde };
+  return { dias: validas.length, minimo, maximo, desde, hasta };
 }
 
 /**
@@ -75,14 +108,20 @@ export function resumirHistorico(entradas) {
  *
  * @param {number} precioActual
  * @param {ReturnType<typeof resumirHistorico>} resumen
- * @param {{descuento?: number}} [opciones] — descuento anunciado, en % entero
+ * @param {{descuento?: number}|null} [opciones] — descuento anunciado, en % entero
  * @returns {{nivel: 'descuento-falso'|'minimo'|'bajo'|'alto'|'siguiendo'|'sin-datos', texto: string, dias: number, minimo: number|null}}
  */
-export function veredictoPrecio(precioActual, resumen, { descuento = 0 } = {}) {
+export function veredictoPrecio(precioActual, resumen, opciones) {
   const p = Number(precioActual) || 0;
-  const r = resumen ?? { dias: 0, minimo: null, maximo: null };
+  const r = resumen ?? { dias: 0, minimo: null, maximo: null, desde: null, hasta: null };
+  // Igual de tolerante que con `resumen`: el feed escribe `descuento: null`
+  // cuando no hay descuento anunciado, y un default de parámetro solo cubre
+  // `undefined`. Un null no puede tumbar la construcción del feed entero.
+  const { descuento = 0 } = opciones ?? {};
 
-  if (!p || !r.dias || r.minimo === null) {
+  // La guarda mira el VALOR, no un centinela concreto: un undefined o un NaN
+  // que se colaran aquí tienen que degradar igual que un null.
+  if (!p || !r.dias || !Number.isFinite(r.minimo)) {
     return { nivel: 'sin-datos', texto: '', dias: 0, minimo: null };
   }
 
@@ -97,30 +136,55 @@ export function veredictoPrecio(precioActual, resumen, { descuento = 0 } = {}) {
     };
   }
 
-  const ventana = `${r.dias} ${r.dias === 1 ? 'día' : 'días'}`;
+  const diasTexto = `${r.dias} ${r.dias === 1 ? 'día' : 'días'}`;
 
   // ── El veredicto que es la marca ────────────────────────────────────────
   // Anuncia un descuentazo y su precio no se ha movido nunca. Va PRIMERO
   // porque un precio plano también cumple «está en su mínimo», y decir «el más
   // bajo en 20 días» de un precio que jamás cambió es técnicamente cierto y
   // engañoso: sugiere una bajada que no existe.
-  const d = Number(descuento) || 0;
-  const plano = Number.isFinite(r.maximo) && r.maximo <= r.minimo * (1 + MARGEN_PLANO);
-  if (d >= DESCUENTO_SOSPECHOSO && r.dias >= DIAS_DESCUENTO_FALSO && plano) {
+  //
+  // Pero este veredicto acusa por su nombre a un vendedor real de publicidad
+  // engañosa. Las cuatro puertas de abajo no son adorno: cada una es un modo
+  // conocido de acusar a un inocente.
+  const d = Number(descuento);
+
+  // Un rango imposible (máximo por debajo del mínimo) es dato roto, no un
+  // precio quieto: resumirHistorico solo comprueba que el mínimo sea > 0, así
+  // que una entrada corrupta puede dejar el máximo en cero. Se degrada.
+  const rangoValido = Number.isFinite(r.maximo) && r.maximo >= r.minimo;
+  const plano = rangoValido && r.maximo <= r.minimo * (1 + MARGEN_PLANO);
+
+  // El precio de HOY tiene que estar dentro de la banda plana. Si está por
+  // debajo, el descuento es real y hoy es justo el día en que bajó — el
+  // histórico todavía no lo sabe porque se registra después del build.
+  const sigueIgual = plano && p >= r.minimo * (1 - MARGEN_PLANO) && p <= r.maximo * (1 + MARGEN_PLANO);
+
+  // «no ha bajado en N días» habla de tiempo transcurrido, no de cuántas veces
+  // miramos. Sin densidad, quince fotos repartidas en cuarenta días mentirían:
+  // podar deja pasar hasta 30 días sin ver un producto sin borrarlo.
+  const ventana = diasEntre(r.desde, r.hasta);   // días de calendario, inclusive
+  const densa = ventana >= DIAS_DESCUENTO_FALSO && r.dias >= ventana * DENSIDAD_MINIMA;
+
+  // Un descuento imposible (Infinity, 250 %, negativo, ilegible) acabaría
+  // impreso tal cual dentro de la acusación. Ante la duda, callar.
+  const creible = Number.isFinite(d) && d >= DESCUENTO_SOSPECHOSO && d < 100;
+
+  if (creible && densa && sigueIgual) {
     return {
       nivel: 'descuento-falso',
-      texto: `Anuncia −${d} % y su precio no ha bajado en ${ventana}`,
+      texto: `Anuncia −${d} % y su precio no ha bajado en ${ventana} días`,
       dias: r.dias,
       minimo: r.minimo,
     };
   }
 
   if (p <= r.minimo * (1 + MARGEN_MINIMO)) {
-    return { nivel: 'minimo', texto: `El precio más bajo en ${ventana}`, dias: r.dias, minimo: r.minimo };
+    return { nivel: 'minimo', texto: `El precio más bajo en ${diasTexto}`, dias: r.dias, minimo: r.minimo };
   }
 
   if (p <= r.minimo * (1 + MARGEN_BAJO)) {
-    return { nivel: 'bajo', texto: `Cerca de su mínimo de ${ventana}`, dias: r.dias, minimo: r.minimo };
+    return { nivel: 'bajo', texto: `Cerca de su mínimo de ${diasTexto}`, dias: r.dias, minimo: r.minimo };
   }
 
   // El caso que da credibilidad: decir que NO es buen momento.
@@ -128,7 +192,7 @@ export function veredictoPrecio(precioActual, resumen, { descuento = 0 } = {}) {
   //  anteriores cubren todos los reales. Se eliminó, no se ejecutaba nunca.)
   return {
     nivel: 'alto',
-    texto: `Ha estado a ${fmt(r.minimo)} en ${ventana}`,
+    texto: `Ha estado a ${fmt(r.minimo)} en ${diasTexto}`,
     dias: r.dias,
     minimo: r.minimo,
   };
