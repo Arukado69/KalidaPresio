@@ -164,3 +164,20 @@ describe('podar — el archivo no puede crecer para siempre', () => {
     expect(podar(null, { hoy })).toEqual({});
   });
 });
+
+describe('registrarPrecio con volumen alto (pasada profunda)', () => {
+  it('acumula 500 productos nuevos sin perder los previos', () => {
+    let entradas = [['2026-09-07', 100, 100]];
+    entradas = registrarPrecio(entradas, '2026-09-08', 90);
+    expect(entradas).toHaveLength(2);
+    expect(entradas[0]).toEqual(['2026-09-08', 90, 90]);
+  });
+
+  it('dos observaciones del mismo día se funden en min/max', () => {
+    let e = registrarPrecio([], '2026-09-08', 120);
+    e = registrarPrecio(e, '2026-09-08', 95);
+    e = registrarPrecio(e, '2026-09-08', 130);
+    expect(e).toHaveLength(1);
+    expect(e[0]).toEqual(['2026-09-08', 95, 130]);
+  });
+});
