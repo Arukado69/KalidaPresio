@@ -41,7 +41,7 @@ const mxn = (n) => new Intl.NumberFormat('es-MX', {
 const items = lista
   .filter((o) => o?.id && o?.titulo && Number.isFinite(o.precio_actual))
   .map((o) => {
-    const v = veredictoPrecio(o.precio_actual, resumirHistorico(productosHist[o.id]));
+    const v = veredictoPrecio(o.precio_actual, resumirHistorico(productosHist[o.id]), { descuento: o.descuento });
     const senales = [
       o.score_kalidad_presio ? `Sello K-P ${o.score_kalidad_presio}/100` : null,
       o.rating ? `${o.rating}★` : null,
@@ -80,8 +80,10 @@ const items = lista
   });
 
 // El corte que da la credibilidad: 'alto' significa que ha estado más barato.
-const publicables = items.filter((i) => i.nivel !== 'alto');
-const noPublicar = items.filter((i) => i.nivel === 'alto');
+// Un descuento que es mentira no se reparte: repartirlo es prestarle nuestra
+// credibilidad a la mentira.
+const publicables = items.filter((i) => i.nivel !== 'alto' && i.nivel !== 'descuento-falso');
+const noPublicar = items.filter((i) => i.nivel === 'alto' || i.nivel === 'descuento-falso');
 
 // Tecnología primero: es el nicho que `npm run detectar-nichos` marcó como
 // canal propio. El resto va detrás, por Sello K-P.

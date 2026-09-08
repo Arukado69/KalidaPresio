@@ -535,6 +535,13 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
   .oferta-historial[data-nivel='minimo'] { color: var(--color-primary); font-weight: 600; }
   .oferta-historial[data-nivel='bajo'] { color: var(--color-primary); }
   .oferta-historial[data-nivel='alto'] { color: var(--color-warm, #e8a33d); }
+  /* El descuento falso va en rojo, un escalón por encima del ámbar de 'alto'.
+     'alto' dice «no es buen momento»; esto dice «lo que te están diciendo no
+     es verdad». Son cosas distintas y no deben verse igual. */
+  .oferta-historial[data-nivel='descuento-falso'] {
+    color: var(--color-error);
+    font-weight: 600;
+  }
   /* 'siguiendo' se queda en gris apagado: informa, no promete. */
 
   .oferta-precios {
