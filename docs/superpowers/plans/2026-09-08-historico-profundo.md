@@ -353,7 +353,7 @@ En `package.json`, en `scripts`, después de la línea de `"registrar-historico"
 - [ ] **Step 4: Correrlo de verdad**
 
 Run: `npm run observar-precios`
-Expected: cinco líneas `p1: … p5: …`, luego `💾 observaciones.json: N precios de 5/5 páginas` con **N ≥ 400**. Salida 0.
+Expected: cinco líneas `p1: … p5: …`, luego `💾 observaciones.json: N precios de 5/5 páginas` con **N ≈ 240** (48 tarjetas legibles por página, páginas disjuntas). Salida 0.
 
 Verificar la forma:
 
@@ -361,7 +361,7 @@ Verificar la forma:
 node -e "const o=require('./src/data/observaciones.json'); console.log(o.total, o.paginas, Object.entries(o.precios)[0])"
 ```
 
-Expected: algo como `489 5 [ 'MLM123456789', 337.5 ]`
+Expected: algo como `240 5 [ 'MLM123456789', 337.5 ]`
 
 - [ ] **Step 5: Verificar que git lo ignora**
 
@@ -824,7 +824,7 @@ gh workflow run actualizar-ofertas.yml
 gh run watch "$(gh run list --workflow=actualizar-ofertas.yml --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
 ```
 
-Expected: verde. En el log del paso «Observar precios» debe verse `💾 observaciones.json: N precios de 5/5 páginas` con N ≥ 400 (el `workflow_dispatch` fuerza la pasada sin esperar a las 6 o las 18).
+Expected: verde. En el log del paso «Observar precios» debe verse `💾 observaciones.json: N precios de 5/5 páginas` con N ≈ 240 (el `workflow_dispatch` fuerza la pasada sin esperar a las 6 o las 18).
 
 ---
 

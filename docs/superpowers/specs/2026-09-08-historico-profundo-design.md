@@ -105,17 +105,22 @@ el mismo día.
 
 **Medición que respalda la paginación (8 sep 2026):**
 
-```
-p1=115  p2=113  p3=112  p4=112  p5=113 ids
-unión de p1–p5           : 489 ids únicos
-p1 ∩ p2                  :  19  (las páginas son casi disjuntas)
+Primera medición (8-sep-2026) contó **ids crudos del HTML** — 489 — e incluía
+anuncios y recomendados que no son tarjetas de producto. La cifra que vale es la
+del script ya escrito, que cuenta tarjetas legibles:
 
-de p1–p5, ya en histórico: 137 (28 %)  ← historiales que se PROFUNDIZAN hoy
-de p1–p5, nuevos         : 352
+```
+48 tarjetas por página × 5 páginas = 240 productos únicos
+(las páginas son DISJUNTAS: 240 = 48×5 exacto, sin un solo id repetido)
+
+de esas 240, ya en histórico: 143  ← historiales que se PROFUNDIZAN hoy
+nuevas                       :  97
+cobertura del feed del sitio :  39 de 39 (todas)
 ```
 
-Refrescar 137 productos ya seguidos frente a los ~40 de hoy es **3.4× más**, y
-es exactamente la métrica que mueve la mediana.
+Refrescar 143 productos ya seguidos frente a los ~39 de hoy es **3.7× más**, y
+es exactamente la métrica que mueve la mediana. El recuento crudo estaba
+inflado; el número que decide salió algo mejor de lo estimado.
 
 **Costo:** de 8 peticiones diarias a **18** (8 del feed + 2×5 de la
 pasada). Por debajo del presupuesto conservador.
