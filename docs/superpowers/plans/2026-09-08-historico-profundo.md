@@ -730,6 +730,21 @@ Y actualizar el comentario de la línea 16:
  *     historico.nivel = 'descuento-falso' | 'minimo' | 'bajo' | 'alto' | 'siguiendo' | 'sin-datos'
 ```
 
+⚠️ **Y la línea 115, que es la que importa de verdad.** Hoy calcula los
+publicables como `nivel !== 'alto'`, así que un `descuento-falso` contaría como
+publicable y se repartiría por Telegram — el sitio anunciando fuera justo
+aquello de lo que desconfía. Cambiar a:
+
+```js
+// Ni los que han estado más baratos ni los que anuncian un descuento que no
+// existe. Repartir un descuento falso es prestarle nuestra credibilidad.
+const NO_PUBLICABLES = new Set(['alto', 'descuento-falso']);
+const publicables = items.filter((i) => !NO_PUBLICABLES.has(i.historico.nivel)).length;
+```
+
+Y ajustar el texto del `console.log` de la línea 119 para que nombre las dos
+razones, no solo los «alto».
+
 - [ ] **Step 3: Estilo en la tarjeta**
 
 En `src/components/TarjetaOferta.astro`, junto a las reglas de las líneas 535-537.
