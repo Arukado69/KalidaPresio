@@ -16,10 +16,13 @@
  *     historico.nivel = 'descuento-falso' | 'minimo' | 'bajo' | 'alto' | 'siguiendo' | 'sin-datos'
  *
  * `alto` significa que el producto ESTUVO MÁS BARATO hace poco: el «descuento»
- * es contra un precio inflado. Ese dato viaja en el feed a propósito, para que
- * cualquier publicador pueda negarse a anunciarlo. Es la única razón por la que
- * alguien seguiría este canal y no los otros veinte que copian las mismas
- * ofertas — y se pierde entera el día que se publique un descuento falso.
+ * es contra un precio inflado. `descuento-falso` es más grave: el precio pasó
+ * ≥14 días densamente observado SIN MOVERSE mientras el vendedor anuncia ≥20 %
+ * de rebaja — el descuento, tal como se publicita, no existe. Ese dato viaja
+ * en el feed a propósito, para que cualquier publicador pueda negarse a
+ * anunciarlo. Es la única razón por la que alguien seguiría este canal y no
+ * los otros veinte que copian las mismas ofertas — y se pierde entera el día
+ * que se publique un descuento falso.
  *
  * ── NO SE VERSIONA ─────────────────────────────────────────────────────────
  * Es un derivado: cada build lo regenera desde ofertas.json + histórico.

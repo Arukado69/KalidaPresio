@@ -123,6 +123,12 @@ const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'l
       --acento: #ff8a3d;
       --bien: #57c68e;
       --mal: #f0776c;
+      /* Mismo valor que --color-error en src/styles/global.css:62. Este panel
+         no carga el Layout del sitio (ver docblock de arriba) y por tanto no
+         hereda ese token, así que se replica su valor en vez de inventar uno
+         nuevo: 'descuento-falso' tiene que verse distinto de 'alto' (--mal)
+         aquí igual que en la tarjeta pública. */
+      --color-error: #ff5d76;
     }
     * { box-sizing: border-box; }
     body {
@@ -175,7 +181,10 @@ const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'l
     .t-veredicto { font-size: .8rem; margin: 0 0 10px; }
     .n-minimo, .n-bajo { color: var(--bien); }
     .n-alto { color: var(--mal); }
-    .n-siguiendo, .n-normal, .n-sin-datos { color: var(--tinta-2); }
+    /* Un escalón por encima de 'alto': ahí el precio solo ha estado más barato;
+       aquí el descuento anunciado directamente no existe. */
+    .n-descuento-falso { color: var(--color-error); font-weight: 600; }
+    .n-siguiendo, .n-sin-datos { color: var(--tinta-2); }
     .t-cat {
       display: inline-block; font-size: .68rem; text-transform: uppercase;
       letter-spacing: .1em; color: var(--tinta-2);
@@ -248,9 +257,11 @@ const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'l
       <>
         <h2>No publicar hoy <span class="cuenta">({noPublicar.length})</span></h2>
         <p class="aviso">
-          Estas han estado <b>más baratas</b> en los últimos días: el «descuento» es contra un precio
-          inflado. Publicarlas es lo que hacen los otros canales de ofertas — y no hacerlo es la única
-          razón por la que alguien seguiría el tuyo.
+          Estas se quedan fuera por una de dos razones: o han estado <b>más baratas</b> en los
+          últimos días (el «descuento» es contra un precio inflado), o el descuento que anuncian es
+          <b>directamente falso</b> — su precio no se ha movido. Publicarlas es lo que hacen los
+          otros canales de ofertas — y no hacerlo es la única razón por la que alguien seguiría el
+          tuyo.
         </p>
         {noPublicar.map((o) => (
           <article class="tarjeta">
@@ -258,7 +269,7 @@ const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'l
             <div>
               <p class="t-titulo">{o.titulo}<span class="t-cat">{o.categoria}</span></p>
               <p class="t-meta"><span class="t-precio">{o.precio}</span></p>
-              <p class="t-veredicto n-alto">{o.veredicto}</p>
+              <p class={`t-veredicto n-${o.nivel}`}>{o.veredicto}</p>
             </div>
           </article>
         ))}
