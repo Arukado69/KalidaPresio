@@ -500,7 +500,9 @@ console.log(`📈 [histórico] ${fecha}: ${lecturas.length} lecturas sobre ${Obj
 - [ ] **Step 4: Correrlo con las dos fuentes presentes**
 
 Run: `npm run observar-precios && npm run registrar-historico`
-Expected: `📈 [histórico] 2026-09-08: N lecturas sobre M productos` con **N ≥ 450** y **M > 598** (los previos más los nuevos de la paginación).
+Expected: `📈 [histórico] 2026-09-08: N lecturas sobre M productos` con **N ≈ 280** (240 de la pasada profunda + ~39 del feed) y **M > 598** (los previos más los nuevos de la paginación).
+
+La mediana NO sube en esta corrida y no debe esperarse que lo haga: la profundidad se acumula por días, no por lecturas. Lo que sí sube hoy es el número de productos seguidos.
 
 Comprobar que la mediana empieza a moverse:
 
