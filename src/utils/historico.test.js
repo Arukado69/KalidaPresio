@@ -110,6 +110,38 @@ describe('veredictoPrecio — solo se afirma lo observado', () => {
   });
 });
 
+describe('veredictoPrecio — descuento falso', () => {
+  /** Serie plana: el precio nunca se movió. */
+  const plana = (n, precio) => serie(n, precio);
+
+  it('acusa cuando hay descuento fuerte, historia larga y precio plano', () => {
+    const v = veredictoPrecio(500, resumirHistorico(plana(20, 500)), { descuento: 46 });
+    expect(v.nivel).toBe('descuento-falso');
+    expect(v.texto).toMatch(/46/);
+  });
+
+  it('NO acusa por debajo del umbral de días, por plano que esté', () => {
+    const v = veredictoPrecio(500, resumirHistorico(plana(10, 500)), { descuento: 46 });
+    expect(v.nivel).not.toBe('descuento-falso');
+  });
+
+  it('NO acusa si el descuento anunciado es pequeño', () => {
+    const v = veredictoPrecio(500, resumirHistorico(plana(20, 500)), { descuento: 5 });
+    expect(v.nivel).not.toBe('descuento-falso');
+  });
+
+  it('NO acusa si el precio se movió alguna vez, por poco que sea', () => {
+    const entradas = [...plana(19, 500), ['2026-07-01', 400, 400]];
+    const v = veredictoPrecio(500, resumirHistorico(entradas), { descuento: 46 });
+    expect(v.nivel).not.toBe('descuento-falso');
+  });
+
+  it('sin descuento declarado se comporta como antes (compatibilidad)', () => {
+    const v = veredictoPrecio(500, resumirHistorico(plana(20, 500)));
+    expect(v.nivel).toBe('minimo');
+  });
+});
+
 describe('registrarPrecio — acumula por día, no por corrida', () => {
   it('la primera observación del día crea la entrada', () => {
     expect(registrarPrecio([], '2026-08-20', 300)).toEqual([['2026-08-20', 300, 300]]);

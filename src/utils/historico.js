@@ -29,6 +29,21 @@ const MARGEN_MINIMO = 0.02;  // 2 %: absorbe centavos y redondeos de ML
 /** Umbral para «cerca del mínimo». */
 const MARGEN_BAJO = 0.10;
 
+/**
+ * Días de observación exigidos para AFIRMAR que un descuento es falso.
+ * Muy por encima de DIAS_MINIMOS (3) a propósito: este veredicto acusa a un
+ * vendedor de publicidad engañosa, y con cinco días de datos eso sería
+ * irresponsable. Un falso positivo daña más la credibilidad del sitio de lo
+ * que un veredicto extra la construye.
+ */
+export const DIAS_DESCUENTO_FALSO = 14;
+
+/** Descuento anunciado a partir del cual la afirmación merece comprobarse. */
+export const DESCUENTO_SOSPECHOSO = 20;
+
+/** Cuánto puede oscilar el precio y seguir considerándose «plano». */
+const MARGEN_PLANO = 0.02;
+
 const fmt = (n) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
 
@@ -60,9 +75,10 @@ export function resumirHistorico(entradas) {
  *
  * @param {number} precioActual
  * @param {ReturnType<typeof resumirHistorico>} resumen
- * @returns {{nivel: 'minimo'|'bajo'|'normal'|'alto'|'siguiendo'|'sin-datos', texto: string, dias: number, minimo: number|null}}
+ * @param {{descuento?: number}} [opciones] — descuento anunciado, en % entero
+ * @returns {{nivel: 'descuento-falso'|'minimo'|'bajo'|'alto'|'siguiendo'|'sin-datos', texto: string, dias: number, minimo: number|null}}
  */
-export function veredictoPrecio(precioActual, resumen) {
+export function veredictoPrecio(precioActual, resumen, { descuento = 0 } = {}) {
   const p = Number(precioActual) || 0;
   const r = resumen ?? { dias: 0, minimo: null, maximo: null };
 
@@ -83,6 +99,22 @@ export function veredictoPrecio(precioActual, resumen) {
 
   const ventana = `${r.dias} ${r.dias === 1 ? 'día' : 'días'}`;
 
+  // ── El veredicto que es la marca ────────────────────────────────────────
+  // Anuncia un descuentazo y su precio no se ha movido nunca. Va PRIMERO
+  // porque un precio plano también cumple «está en su mínimo», y decir «el más
+  // bajo en 20 días» de un precio que jamás cambió es técnicamente cierto y
+  // engañoso: sugiere una bajada que no existe.
+  const d = Number(descuento) || 0;
+  const plano = Number.isFinite(r.maximo) && r.maximo <= r.minimo * (1 + MARGEN_PLANO);
+  if (d >= DESCUENTO_SOSPECHOSO && r.dias >= DIAS_DESCUENTO_FALSO && plano) {
+    return {
+      nivel: 'descuento-falso',
+      texto: `Anuncia −${d} % y su precio no ha bajado en ${ventana}`,
+      dias: r.dias,
+      minimo: r.minimo,
+    };
+  }
+
   if (p <= r.minimo * (1 + MARGEN_MINIMO)) {
     return { nivel: 'minimo', texto: `El precio más bajo en ${ventana}`, dias: r.dias, minimo: r.minimo };
   }
@@ -92,16 +124,14 @@ export function veredictoPrecio(precioActual, resumen) {
   }
 
   // El caso que da credibilidad: decir que NO es buen momento.
-  if (p > r.minimo * (1 + MARGEN_BAJO)) {
-    return {
-      nivel: 'alto',
-      texto: `Ha estado a ${fmt(r.minimo)} en ${ventana}`,
-      dias: r.dias,
-      minimo: r.minimo,
-    };
-  }
-
-  return { nivel: 'normal', texto: `Precio habitual de los últimos ${ventana}`, dias: r.dias, minimo: r.minimo };
+  // (Antes había debajo una rama 'normal' INALCANZABLE: las tres condiciones
+  //  anteriores cubren todos los reales. Se eliminó, no se ejecutaba nunca.)
+  return {
+    nivel: 'alto',
+    texto: `Ha estado a ${fmt(r.minimo)} en ${ventana}`,
+    dias: r.dias,
+    minimo: r.minimo,
+  };
 }
 
 /**
