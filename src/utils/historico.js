@@ -44,6 +44,25 @@ export const DIAS_DESCUENTO_FALSO = 14;
 /** Descuento anunciado a partir del cual la afirmación merece comprobarse. */
 export const DESCUENTO_SOSPECHOSO = 20;
 
+/**
+ * Nombre del nivel que el carrusel Relámpago excluye — y SOLO ese nivel: un
+ * 'alto' sigue siendo un descuento real (el producto solo ha estado más
+ * barato), así que no pertenece aquí. Fuente única de verdad del string: todo
+ * consumidor que compare contra 'descuento-falso' debe importar esto en vez
+ * de repetir el literal, para que un rename lo rompa en vez de dejarlo callado.
+ */
+export const NIVEL_DESCUENTO_FALSO = 'descuento-falso';
+
+/**
+ * Niveles que JAMÁS se reparten: el feed público y el panel de reparto manual
+ * excluyen los DOS. No es lo mismo que NIVEL_DESCUENTO_FALSO — a propósito no
+ * se colapsan — porque el carrusel sí distribuye 'alto' (descuento real
+ * contra un precio que ya bajó antes) y solo el feed/panel también lo vetan
+ * (ahí el criterio es más estricto: ni siquiera un descuento real pero contra
+ * un precio inflado se anuncia). Congelado: nadie debe poder mutarlo en runtime.
+ */
+export const NIVELES_NO_DISTRIBUIBLES = Object.freeze(['alto', NIVEL_DESCUENTO_FALSO]);
+
 /** Cuánto puede oscilar el precio y seguir considerándose «plano». */
 const MARGEN_PLANO = 0.02;
 
@@ -172,7 +191,10 @@ export function veredictoPrecio(precioActual, resumen, opciones) {
 
   if (creible && densa && sigueIgual) {
     return {
-      nivel: 'descuento-falso',
+      // Usa la constante exportada, no el literal: es la que importan los
+      // consumidores (feed, panel, carrusel), y así el valor real que sale de
+      // aquí no puede divergir silenciosamente de lo que ellos comparan.
+      nivel: NIVEL_DESCUENTO_FALSO,
       texto: `Anuncia −${d} % y su precio no ha bajado en ${ventana} días`,
       dias: r.dias,
       minimo: r.minimo,

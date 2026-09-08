@@ -33,7 +33,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { categorizar } from '../utils/categorias.js';
-import { resumirHistorico, veredictoPrecio } from '../utils/historico.js';
+import { resumirHistorico, veredictoPrecio, NIVELES_NO_DISTRIBUIBLES } from '../utils/historico.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FEED = path.resolve(__dirname, '../data/ofertas.json');
@@ -117,8 +117,8 @@ const porNivel = items.reduce((acc, i) => {
 }, {});
 // Ni los que han estado más baratos ni los que anuncian un descuento que no
 // existe. Repartir un descuento falso es prestarle nuestra credibilidad.
-const NO_PUBLICABLES = new Set(['alto', 'descuento-falso']);
-const publicables = items.filter((i) => !NO_PUBLICABLES.has(i.historico.nivel)).length;
+// NIVELES_NO_DISTRIBUIBLES es la fuente única: ver src/utils/historico.js.
+const publicables = items.filter((i) => !NIVELES_NO_DISTRIBUIBLES.includes(i.historico.nivel)).length;
 
 console.log(`✅ [feed] ${items.length} ofertas en public/data/feed.json (esquema ${ESQUEMA}).`);
 console.log(`   Veredicto de precio: ${Object.entries(porNivel).map(([k, n]) => `${k}=${n}`).join(' · ')}`);

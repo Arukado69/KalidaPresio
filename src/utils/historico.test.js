@@ -16,6 +16,8 @@ import {
   DIAS_MINIMOS,
   DIAS_DESCUENTO_FALSO,
   DESCUENTO_SOSPECHOSO,
+  NIVEL_DESCUENTO_FALSO,
+  NIVELES_NO_DISTRIBUIBLES,
   diasEntre,
 } from './historico.js';
 
@@ -119,7 +121,10 @@ describe('veredictoPrecio — descuento falso', () => {
 
   it('acusa cuando hay descuento fuerte, historia larga y precio plano', () => {
     const v = veredictoPrecio(500, resumirHistorico(plana(20, 500)), { descuento: 46 });
-    expect(v.nivel).toBe('descuento-falso');
+    // Contra la CONSTANTE exportada, no el literal: si `veredictoPrecio` y
+    // `NIVEL_DESCUENTO_FALSO` alguna vez divergen (alguien edita uno y olvida
+    // el otro), este test es el que se entera.
+    expect(v.nivel).toBe(NIVEL_DESCUENTO_FALSO);
     expect(v.texto).toMatch(/46/);
   });
 
@@ -370,6 +375,43 @@ describe('veredictoPrecio — descuento falso: las puertas del veredicto', () =>
     const r = resumirHistorico(invertida);
     expect(r.minimo).toBe(500);
     expect(r.maximo).toBe(490);
-    expect(veredictoPrecio(495, r, { descuento: 46 }).nivel).not.toBe('descuento-falso');
+    expect(veredictoPrecio(495, r, { descuento: 46 }).nivel).not.toBe(NIVEL_DESCUENTO_FALSO);
+  });
+});
+
+/**
+ * NIVEL_DESCUENTO_FALSO y NIVELES_NO_DISTRIBUIBLES son la fuente única de
+ * verdad que usan generarFeedPublico.js, generarRelampago.js y panel/hoy.astro
+ * para no repartir un descuento falso (ver sus propios tests para la prueba de
+ * que de verdad las importan). Lo que se fija aquí es su VALOR: si alguien
+ * cambia qué niveles se excluyen sin querer, este test es el primero en
+ * enterarse — antes que cualquier consumidor.
+ */
+describe('NIVEL_DESCUENTO_FALSO y NIVELES_NO_DISTRIBUIBLES — la fuente única', () => {
+  it('NIVEL_DESCUENTO_FALSO es el string exacto que devuelve el veredicto', () => {
+    expect(NIVEL_DESCUENTO_FALSO).toBe('descuento-falso');
+  });
+
+  it('NIVELES_NO_DISTRIBUIBLES contiene exactamente "alto" y "descuento-falso"', () => {
+    expect([...NIVELES_NO_DISTRIBUIBLES].sort()).toEqual(['alto', 'descuento-falso']);
+  });
+
+  it('NIVELES_NO_DISTRIBUIBLES incluye a NIVEL_DESCUENTO_FALSO, no un duplicado suelto', () => {
+    // Si alguien cambiara el valor de NIVEL_DESCUENTO_FALSO pero
+    // NIVELES_NO_DISTRIBUIBLES siguiera con el string viejo escrito a mano,
+    // este test es el que lo detecta.
+    expect(NIVELES_NO_DISTRIBUIBLES).toContain(NIVEL_DESCUENTO_FALSO);
+  });
+
+  it('NIVELES_NO_DISTRIBUIBLES NO es lo mismo que el nivel del carrusel: el carrusel excluye menos', () => {
+    // La distinción que el propio fix pide no perder: 'alto' es un descuento
+    // real (el producto solo ha estado más barato), así que el carrusel SÍ lo
+    // distribuye — solo el feed y el panel son más estrictos.
+    expect(NIVELES_NO_DISTRIBUIBLES).toContain('alto');
+    expect(NIVEL_DESCUENTO_FALSO).not.toBe('alto');
+  });
+
+  it('está congelada: nadie debe poder colarle un nivel en runtime', () => {
+    expect(Object.isFrozen(NIVELES_NO_DISTRIBUIBLES)).toBe(true);
   });
 });

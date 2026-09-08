@@ -28,7 +28,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { categorizar } from '../utils/categorias.js';
-import { resumirHistorico, veredictoPrecio } from '../utils/historico.js';
+import { resumirHistorico, veredictoPrecio, NIVEL_DESCUENTO_FALSO } from '../utils/historico.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,7 +80,7 @@ try {
   const esDescuentoFalso = (o) => {
     const resumen = resumirHistorico(productosHist[o.id]);
     const v = veredictoPrecio(o.precio_actual, resumen, { descuento: o.descuento });
-    return v.nivel === 'descuento-falso';
+    return v.nivel === NIVEL_DESCUENTO_FALSO;
   };
 
   // Filtrar: descuento >= MIN y rating >= MIN, y que el descuento no sea falso

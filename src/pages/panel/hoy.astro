@@ -26,7 +26,7 @@
 import ofertasCrudas from '../../data/ofertas.json';
 import historicoCrudo from '../../data/historico-precios.json';
 import { categorizar } from '../../utils/categorias.js';
-import { resumirHistorico, veredictoPrecio } from '../../utils/historico.js';
+import { resumirHistorico, veredictoPrecio, NIVELES_NO_DISTRIBUIBLES } from '../../utils/historico.js';
 import { CANALES } from '../../utils/canales.js';
 
 const SITIO = String(Astro.site ?? 'https://kalidapresio.albis-labs.xyz').replace(/\/+$/, '');
@@ -81,9 +81,11 @@ const items = lista
 
 // El corte que da la credibilidad: 'alto' significa que ha estado más barato.
 // Un descuento que es mentira no se reparte: repartirlo es prestarle nuestra
-// credibilidad a la mentira.
-const publicables = items.filter((i) => i.nivel !== 'alto' && i.nivel !== 'descuento-falso');
-const noPublicar = items.filter((i) => i.nivel === 'alto' || i.nivel === 'descuento-falso');
+// credibilidad a la mentira. NIVELES_NO_DISTRIBUIBLES es la fuente única de
+// verdad de este par (ver src/utils/historico.js): un rename ahí rompe esta
+// comparación en vez de dejarla comparando contra un literal muerto.
+const publicables = items.filter((i) => !NIVELES_NO_DISTRIBUIBLES.includes(i.nivel));
+const noPublicar = items.filter((i) => NIVELES_NO_DISTRIBUIBLES.includes(i.nivel));
 
 // Tecnología primero: es el nicho que `npm run detectar-nichos` marcó como
 // canal propio. El resto va detrás, por Sello K-P.
