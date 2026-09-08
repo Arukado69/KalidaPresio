@@ -802,7 +802,7 @@ Y **antes** de ese paso, el que calcula la hora:
         run: echo "h=$(date -u +%H | sed 's/^0//')" >> "$GITHUB_OUTPUT"
 ```
 
-**Nota sobre `sed 's/^0//'`:** sin él, `08` se interpretaría como octal inválido en la comparación. El `sed` deja `8`. Para las 00:00 UTC deja cadena vacía, que `fromJSON` rechazaría — por eso las horas elegidas son 6 y 18, nunca 0.
+**Nota sobre `sed 's/^0//'`:** sin él, `08` se interpretaría como octal inválido en la comparación. El `sed` quita UN cero inicial, así que `08`→`8`, `18`→`18` y `00`→`0`. Nunca produce cadena vacía, y `fromJSON("0")` vale 0: la condición se evalúa sin error a cualquier hora.
 
 - [ ] **Step 2: Validar la sintaxis del workflow**
 
