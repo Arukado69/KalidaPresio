@@ -72,6 +72,28 @@ jobs:
           ML_MATT_WORD: ${{ secrets.ML_MATT_WORD }}
         run: npm run build
 
+      # La hora UTC hace falta para decidir si toca pasada profunda. El `sed`
+      # quita UN cero inicial ("08"→"8") porque bash interpreta un número con
+      # cero a la izquierda como octal y "08"/"09" revientan la comparación.
+      # Nunca deja la cadena vacía (00→0), así que fromJSON() de abajo siempre
+      # recibe un número válido.
+      - name: ¿Toca pasada profunda?
+        id: hora
+        run: echo "h=$(date -u +%H | sed 's/^0//')" >> "$GITHUB_OUTPUT"
+
+      # ── Pasada profunda: solo dos veces al día ──────────────────────
+      # El histórico acumula por DÍA (min/max), así que correr esto en las 8
+      # pasadas diarias gastaría 8× las peticiones para el mismo dato. Dos
+      # veces sí aporta: con una sola, el min y el max del día serían siempre
+      # el mismo número y se perdería el movimiento intradía.
+      #
+      # `continue-on-error` a propósito: si ML no responde, se registra lo que
+      # haya del feed. Una cobertura menor no debe tumbar la corrida.
+      - name: Observar precios en profundidad (p1-p5)
+        if: github.event_name == 'workflow_dispatch' || fromJSON(steps.hora.outputs.h) == 6 || fromJSON(steps.hora.outputs.h) == 18
+        continue-on-error: true
+        run: npm run observar-precios
+
       # ── Histórico de precios ─────────────────────────────────────
       # Cada corrida deja su foto. Es la ÚNICA parte del pipeline cuyo valor
       # depende de haber empezado antes: un día sin registrar es un día que no
