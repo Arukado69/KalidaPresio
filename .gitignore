@@ -22,6 +22,7 @@ docker/redirects.caddy
 public/data/relampago.json
 public/data/enlaces.json
 public/data/feed.json
+public/promos/
 src/data/observaciones.json
 
 # ── OBSERVACIÓN ACUMULADA — esto SÍ se versiona ─────────────────────────────
