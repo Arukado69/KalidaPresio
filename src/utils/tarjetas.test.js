@@ -1,5 +1,5 @@
 /**
- * Tests del generador de tarjetas.
+ * Tests de la tarjeta de promoción.
  *
  * Lo que se protege aquí ya falló una vez: la primera versión estimaba el
  * ancho de carácter en 0.52 y el título se salía del lienzo por la derecha
@@ -13,7 +13,7 @@
  * SVG de forma visible — lo hace ilegible para sharp y la tarjeta sale vacía.
  */
 import { describe, it, expect } from 'vitest';
-import { partirLineas, esc, pesos } from './generarTarjetasPromo.js';
+import { partirLineas, esc, pesos } from './tarjetas.js';
 
 /** El ancho real de un renglón, con el mismo factor que usa el generador. */
 const anchoAprox = (linea, tamano) => linea.length * tamano * 0.62;
