@@ -83,6 +83,14 @@
 		@datos path /data/relampago.json /data/feed.json /data/enlaces.json
 		header @datos Cache-Control "no-cache, must-revalidate"
 
+		# Las tarjetas de promoción tienen nombre estable (MLM123.png) pero
+		# contenido que cambia en cada build: el precio de dentro caduca. Sin
+		# esto, n8n podría publicar una tarjeta cacheada con un precio que ya
+		# no existe — y el sitio que presume de precios honestos sería el que
+		# anuncia el viejo.
+		@promos path /promos/*
+		header @promos Cache-Control "no-cache, must-revalidate"
+
 		# Assets con hash de Astro → caché agresiva e inmutable.
 		@assets path /_astro/*
 		header @assets Cache-Control "public, max-age=31536000, immutable"
