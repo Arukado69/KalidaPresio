@@ -39,6 +39,80 @@ viajan dentro del `matt_word`:
 
 ---
 
+## Montar n8n en el VPS
+
+El workflow de Telegram necesita un n8n donde correr. Va en su propio stack,
+igual que Umami, y por la misma razón: redesplegar el sitio no debe tirar el
+reparto.
+
+### 1. DNS
+
+En Porkbun, un registro **A**: `n8n.albis-labs.xyz` → la IP del VPS
+(`167.233.104.137`).
+
+### 2. El stack
+
+```bash
+sudo mkdir -p /opt/n8n && sudo cp /opt/kalidapresio/docker/n8n/docker-compose.yml /opt/n8n/
+```
+
+Los secretos, con `$( )` para que el shell **ejecute** `openssl`. Entre
+comillas literales escribiría el texto tal cual:
+
+```bash
+cd /opt/n8n && printf 'N8N_HOST=n8n.albis-labs.xyz\nN8N_ENCRYPTION_KEY=%s\n' "$(openssl rand -hex 32)" > .env.production && chmod 600 .env.production
+```
+
+⚠️ **Respalda esa `N8N_ENCRYPTION_KEY` fuera del servidor.** Cifra las
+credenciales guardadas, incluido el token del bot. Si se pierde, no hay forma
+de recuperarlas: hay que volver a escribirlas todas a mano.
+
+```bash
+cd /opt/n8n && docker compose --env-file .env.production up -d
+```
+
+Comprueba que arrancó sano y que se unió a la red compartida:
+
+```bash
+cd /opt/n8n && docker compose --env-file .env.production ps
+```
+
+```bash
+docker network inspect red_global --format '{{range .Containers}}{{.Name}} {{end}}'
+```
+
+Debe aparecer `n8n` junto a `proxy-app-1`, `kalidapresio_web`, `umami` y
+`ns-hub`.
+
+### 3. El Proxy Host
+
+En NPM, **en dos fases** — aprendido a golpes con Umami: si la petición de
+certificado falla, NPM **no guarda nada**, y pierdes también el proxy que sí
+funcionaba.
+
+**Fase 1**, pestaña Details:
+
+- **Domain Names:** `n8n.albis-labs.xyz` — escríbelo y **pulsa Enter** hasta
+  que quede como etiqueta. Si le das a Save con el texto suelto, el campo se
+  considera vacío.
+- **Scheme:** `http` · **Forward Hostname:** `n8n` · **Forward Port:** `5678`
+- **Websockets Support:** **on**. El editor de n8n lo necesita; sin esto la
+  interfaz carga pero se queda colgada al guardar un flujo.
+- **Cache Assets:** **off**. Es un panel, no un sitio estático.
+- SSL: **None** de momento. Guarda y comprueba que responde.
+
+**Fase 2:** edita el host → pestaña SSL → *Request a new SSL Certificate* +
+*Force SSL* + *HTTP/2 Support* → Save.
+
+### 4. La cuenta
+
+Entra a `https://n8n.albis-labs.xyz`. La primera visita pide crear la cuenta
+dueña — no hay contraseña por defecto que cambiar, a diferencia de Umami.
+
+Con eso ya puedes importar el workflow del paso siguiente.
+
+---
+
 ## Telegram, paso a paso
 
 ### 1. Crear el canal
