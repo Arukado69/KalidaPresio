@@ -2,7 +2,7 @@
  * generarTarjetasPromo.js — escribe las tarjetas de promoción a disco.
  *
  * Aquí viven SOLO los efectos: leer el feed, bajar la foto del producto,
- * componer con sharp y escribir el PNG. Cómo se ve una tarjeta está en
+ * componer con sharp y escribir el JPEG. Cómo se ve una tarjeta está en
  * `src/utils/tarjetas.js`, que se puede importar sin que ocurra nada — y por
  * eso se puede testear. Tenerlo todo junto tumbó la suite en CI una vez.
  *
@@ -89,14 +89,18 @@ async function main() {
 
     capas.push({ input: Buffer.from(svgTarjeta(o, esMentira)), top: 0, left: 0 });
 
-    const png = await sharp({
+    const imagen = await sharp({
       create: { width: ANCHO, height: ALTO, channels: 4, background: FONDO },
     })
       .composite(capas)
-      .png({ compressionLevel: 9 })
+      // JPEG y no PNG: la tarjeta es mayormente una foto, y ahí el PNG pesa
+      // 1 MB contra 150 KB del JPEG a calidad 90 sin diferencia visible. Con
+      // 43 tarjetas eso son 24 MB frente a 3.5 MB en cada despliegue, y son
+      // imágenes que Telegram y cualquier red recomprimen de todos modos.
+      .jpeg({ quality: 90, mozjpeg: true })
       .toBuffer();
 
-    writeFileSync(path.resolve(SALIDA, `${o.id}.png`), png);
+    writeFileSync(path.resolve(SALIDA, `${o.id}.jpg`), imagen);
     hechas++;
   }
 
