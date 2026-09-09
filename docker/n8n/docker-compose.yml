@@ -1,0 +1,103 @@
+# =============================================================================
+# n8n — el motor de reparto. Publica las ofertas fuera del sitio.
+#
+# Va en su propio stack (no dentro del compose de KalidaPresio) por la misma
+# razón que Umami: redesplegar el sitio no debe tirar los flujos, ni al revés.
+# Y como Umami, puede servir a NS Hub o a cualquier proyecto futuro.
+#
+# Se despliega en /opt/n8n:
+#   sudo mkdir -p /opt/n8n && cd /opt/n8n
+#   sudo cp /opt/kalidapresio/docker/n8n/docker-compose.yml .
+#   # crea .env.production (ver docs/reparto.md)
+#   docker compose --env-file .env.production up -d
+#
+# Publicado por Nginx Proxy Manager en n8n.albis-labs.xyz, por nombre de
+# contenedor a través de red_global.
+#
+# ── POR QUÉ SQLITE Y NO POSTGRES ─────────────────────────────────────────────
+# La documentación de n8n recomienda Postgres, y para una instalación con
+# decenas de flujos y ejecuciones concurrentes tiene razón. Esto no es eso: son
+# dos flujos que publican unas cuantas veces al día. SQLite ahorra un
+# contenedor y ~250 MB en un VPS de 4 GB que ya corre seis. Si algún día el
+# reparto crece, migrar es cambiar cuatro variables — pero hacerlo hoy es
+# pagar memoria por una capacidad que no se usa.
+# =============================================================================
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+
+    environment:
+      # ── Identidad pública ──────────────────────────────────────────────────
+      # n8n construye con esto las URLs de webhook y los enlaces del panel.
+      # Si no coincide con el dominio real, los webhooks apuntan a localhost y
+      # cualquier servicio externo que intente llamarlos falla en silencio.
+      N8N_HOST: ${N8N_HOST}
+      N8N_PROTOCOL: https
+      N8N_PORT: 5678
+      WEBHOOK_URL: https://${N8N_HOST}/
+      N8N_EDITOR_BASE_URL: https://${N8N_HOST}/
+
+      # NPM se sienta delante. Sin esto n8n ve la IP del proxy como cliente y
+      # su limitador de intentos de login cuenta a todo el mundo como uno solo.
+      N8N_PROXY_HOPS: 1
+
+      # ── Credenciales ───────────────────────────────────────────────────────
+      # Cifra los tokens guardados (el del bot de Telegram, entre otros).
+      # SI ESTA CLAVE SE PIERDE, LAS CREDENCIALES GUARDADAS SON IRRECUPERABLES:
+      # hay que volver a escribirlas todas a mano. Respáldala aparte.
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+
+      # ── Zona horaria ───────────────────────────────────────────────────────
+      # El VPS corre en UTC. Sin esto, un cron «a las 9» publicaría a las 3 de
+      # la madrugada en México.
+      GENERIC_TIMEZONE: America/Mexico_City
+      TZ: America/Mexico_City
+
+      # ── Higiene ────────────────────────────────────────────────────────────
+      # Sin esto el historial de ejecuciones crece para siempre. 14 días basta
+      # para diagnosticar qué salió mal sin llenar el disco.
+      EXECUTIONS_DATA_PRUNE: 'true'
+      EXECUTIONS_DATA_MAX_AGE: 336
+      N8N_DIAGNOSTICS_ENABLED: 'false'
+      N8N_VERSION_NOTIFICATIONS_ENABLED: 'false'
+      N8N_RUNNERS_ENABLED: 'true'
+
+    volumes:
+      # Aquí viven los flujos, las credenciales cifradas y el historial.
+      # Respáldalo: perderlo es rehacer todo el reparto.
+      - n8n_datos:/home/node/.n8n
+
+    # Solo loopback, para poder hacer curl desde el VPS. NPM llega por nombre.
+    ports:
+      - '127.0.0.1:5678:5678'
+
+    networks:
+      - default
+      - npm
+
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:5678/healthz >/dev/null 2>&1 || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+    # Un flujo mal hecho no debe poder comerse la máquina entera y llevarse por
+    # delante al sitio, a Umami y a NS Hub.
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+volumes:
+  n8n_datos:
+
+networks:
+  # La misma red compartida de Nginx Proxy Manager que usan ns-hub,
+  # kalidapresio_web y umami. Verifica el nombre real con `docker network ls`.
+  npm:
+    external: true
+    name: red_global
