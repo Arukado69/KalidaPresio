@@ -12,6 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { leerTarjeta } from '../utils/mlPayload.js';
 import { calcularScorePorSeccion, fraccionVolumen } from '../utils/scoreSecciones.js';
+import { descargarPagina, extraerAppProps, URL_OFERTAS } from '../utils/scrapeOfertas.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -27,40 +28,25 @@ try {
 const MATT_TOOL = process.env.ML_MATT_TOOL || '68549198';
 const MATT_WORD = process.env.ML_MATT_WORD || 'ci20241127172754';
 
-const URL_OFERTAS   = 'https://www.mercadolibre.com.mx/ofertas';
 const PRECIO_MINIMO = 200;   // Filtro guillotina
 const SCORE_MINIMO  = 70;    // Umbral de "joya"
 const OUTPUT        = path.resolve(__dirname, '../data/ofertas.json');
-
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-          '(KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 // ════════════════════════════════════════════════════════
 // PASO 1 — Descargar HTML
 // ════════════════════════════════════════════════════════
 async function descargarHtml() {
-  const res = await fetch(URL_OFERTAS, {
-    headers: { 'User-Agent': UA, 'Accept-Language': 'es-MX,es;q=0.9' },
-    signal: AbortSignal.timeout(30000),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} al descargar ${URL_OFERTAS}`);
-  return await res.text();
+  return await descargarPagina(1);
 }
 
 // ════════════════════════════════════════════════════════
 // PASO 2 — "Extraer Datos Base" (port del nodo Code de n8n)
 // ════════════════════════════════════════════════════════
 function extraerDatosBase(html) {
-  const regex = /"appProps":({.*?}),"mainEntry"/s;
-  const match = html.match(regex);
-  if (!match) throw new Error('No se encontró "appProps" en el HTML (¿cambió la estructura de ML?).');
-
-  const items = JSON.parse(match[1]).pageProps.data.items;
+  const items = extraerAppProps(html);
 
   // La lectura de cada tarjeta vive en src/utils/mlPayload.js: una sola vez,
-  // pura y con tests. Antes estaba copiada aquí y en extraer-secciones.mjs con
-  // distinta resistencia, y cuando ML renombró sus componentes en julio de 2026
-  // esta copia —la que alimenta el sitio— se rompió en silencio 43 días.
+  // pura y con tests.
   const aAfiliado = (url) => `${url.split('?')[0]}?matt_tool=${MATT_TOOL}&matt_word=${MATT_WORD}`;
 
   return items.map((item) => leerTarjeta(item, aAfiliado)).filter(Boolean);

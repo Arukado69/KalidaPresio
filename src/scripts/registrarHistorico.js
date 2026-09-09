@@ -29,6 +29,7 @@ import { registrarPrecio, podar } from '../utils/historico.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FEED = path.resolve(__dirname, '../data/ofertas.json');
+const OBSERVACIONES = path.resolve(__dirname, '../data/observaciones.json');
 const HISTORICO = path.resolve(__dirname, '../data/historico-precios.json');
 
 const DIAS_HISTORIA = 90;
@@ -43,28 +44,41 @@ function leerJson(ruta, porDefecto) {
   }
 }
 
+// ── Las DOS fuentes ────────────────────────────────────────────────────────
+// El feed del sitio (40 destacados, cada 3 h) da FRECUENCIA; la pasada
+// profunda (p1-p5, 2 veces al día) da COBERTURA. Sumarlas cuesta cero: las
+// observaciones del feed ya están pagadas.
 const crudo = leerJson(FEED, null);
 const ofertas = Array.isArray(crudo) ? crudo : (crudo?.items ?? []);
+const observado = leerJson(OBSERVACIONES, null);
+const precios = observado?.precios ?? {};
 
-if (!Array.isArray(ofertas) || ofertas.length === 0) {
-  console.error('❌ [histórico] ofertas.json vacío o ilegible. No se registra nada.');
+/** @type {Array<[string, number]>} pares [id, precio] de ambas fuentes */
+const lecturas = [
+  ...Object.entries(precios).map(([id, p]) => [id, Number(p)]),
+  ...ofertas.map((o) => [o.id, Number(o.precio_actual)]),
+].filter(([id, p]) => id && Number.isFinite(p) && p > 0);
+
+if (lecturas.length === 0) {
+  console.error('❌ [histórico] ni ofertas.json ni observaciones.json traen precios. No se registra nada.');
   process.exit(1);
 }
 
-// La fecha de la OBSERVACIÓN es la del feed, no la del reloj de quien ejecuta:
-// si se re-procesa un feed viejo, la foto tiene que quedar en su día real.
-const sello = Date.parse(crudo?.generadoEl ?? '');
-const momento = Number.isNaN(sello) ? new Date() : new Date(sello);
+// La fecha de la OBSERVACIÓN es la del dato, no la del reloj de quien ejecuta.
+// Se toma el sello más reciente de las fuentes disponibles.
+const sellos = [crudo?.generadoEl, observado?.generadoEl]
+  .map((s) => Date.parse(s ?? ''))
+  .filter((n) => !Number.isNaN(n));
+const momento = sellos.length ? new Date(Math.max(...sellos)) : new Date();
 const fecha = momento.toISOString().slice(0, 10);
 
 const previo = leerJson(HISTORICO, { productos: {} });
 const productos = { ...(previo.productos ?? {}) };
 
 let nuevos = 0;
-for (const o of ofertas) {
-  if (!o?.id || !Number.isFinite(o.precio_actual) || o.precio_actual <= 0) continue;
-  if (!productos[o.id]) nuevos++;
-  productos[o.id] = registrarPrecio(productos[o.id], fecha, o.precio_actual);
+for (const [id, precio] of lecturas) {
+  if (!productos[id]) nuevos++;
+  productos[id] = registrarPrecio(productos[id], fecha, precio);
 }
 
 const podados = podar(productos, { dias: DIAS_HISTORIA, diasOlvido: DIAS_OLVIDO, hoy: momento });
@@ -91,6 +105,6 @@ const total = Object.keys(podados).length;
 const conHistoria = Object.values(podados).filter((e) => e.length >= 3).length;
 const kb = (Buffer.byteLength(ahora) / 1024).toFixed(1);
 
-console.log(`📈 [histórico] ${fecha}: ${ofertas.length} precios observados.`);
+console.log(`📈 [histórico] ${fecha}: ${lecturas.length} lecturas sobre ${Object.keys(productos).length} productos.`);
 console.log(`   ${total} productos seguidos (${nuevos} nuevos, ${olvidados} olvidados) · ${conHistoria} ya con 3+ días.`);
 console.log(cambio ? `   Archivo actualizado (${kb} KB).` : '   Sin cambios de precio hoy; no se reescribe.');

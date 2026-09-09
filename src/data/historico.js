@@ -41,9 +41,13 @@ if (!datos) {
  * Qué se puede decir del precio de este producto, hoy.
  * @param {string} id — id de Mercado Libre
  * @param {number} precioActual
+ * @param {number} [descuento] — descuento anunciado, en % entero. Opcional:
+ *   sin él, esta función se comporta exactamente igual que antes (ningún otro
+ *   llamador se rompe), pero entonces `veredictoPrecio` nunca puede devolver
+ *   `'descuento-falso'` para este producto.
  * @returns {ReturnType<typeof veredictoPrecio>}
  */
-export function veredictoDe(id, precioActual) {
+export function veredictoDe(id, precioActual, descuento) {
   const entradas = datos?.productos?.[id];
-  return veredictoPrecio(precioActual, resumirHistorico(entradas));
+  return veredictoPrecio(precioActual, resumirHistorico(entradas), { descuento });
 }

@@ -14,6 +14,11 @@ import {
   registrarPrecio,
   podar,
   DIAS_MINIMOS,
+  DIAS_DESCUENTO_FALSO,
+  DESCUENTO_SOSPECHOSO,
+  NIVEL_DESCUENTO_FALSO,
+  NIVELES_NO_DISTRIBUIBLES,
+  diasEntre,
 } from './historico.js';
 
 /** Genera `n` días consecutivos hacia atrás con un precio fijo. */
@@ -33,7 +38,7 @@ describe('resumirHistorico', () => {
       ['2026-08-19', 280, 320],
       ['2026-08-18', 400, 400],
     ]);
-    expect(r).toEqual({ dias: 3, minimo: 280, maximo: 400, desde: '2026-08-18' });
+    expect(r).toEqual({ dias: 3, minimo: 280, maximo: 400, desde: '2026-08-18', hasta: '2026-08-20' });
   });
 
   it('ignora entradas corruptas en vez de tronar', () => {
@@ -44,7 +49,7 @@ describe('resumirHistorico', () => {
 
   it('sin historial, todo en cero/null', () => {
     for (const malo of [null, undefined, [], 'no', {}]) {
-      expect(resumirHistorico(malo)).toEqual({ dias: 0, minimo: null, maximo: null, desde: null });
+      expect(resumirHistorico(malo)).toEqual({ dias: 0, minimo: null, maximo: null, desde: null, hasta: null });
     }
   });
 });
@@ -110,6 +115,41 @@ describe('veredictoPrecio — solo se afirma lo observado', () => {
   });
 });
 
+describe('veredictoPrecio — descuento falso', () => {
+  /** Serie plana: el precio nunca se movió. */
+  const plana = (n, precio) => serie(n, precio);
+
+  it('acusa cuando hay descuento fuerte, historia larga y precio plano', () => {
+    const v = veredictoPrecio(500, resumirHistorico(plana(20, 500)), { descuento: 46 });
+    // Contra la CONSTANTE exportada, no el literal: si `veredictoPrecio` y
+    // `NIVEL_DESCUENTO_FALSO` alguna vez divergen (alguien edita uno y olvida
+    // el otro), este test es el que se entera.
+    expect(v.nivel).toBe(NIVEL_DESCUENTO_FALSO);
+    expect(v.texto).toMatch(/46/);
+  });
+
+  it('NO acusa por debajo del umbral de días, por plano que esté', () => {
+    const v = veredictoPrecio(500, resumirHistorico(plana(10, 500)), { descuento: 46 });
+    expect(v.nivel).not.toBe('descuento-falso');
+  });
+
+  it('NO acusa si el descuento anunciado es pequeño', () => {
+    const v = veredictoPrecio(500, resumirHistorico(plana(20, 500)), { descuento: 5 });
+    expect(v.nivel).not.toBe('descuento-falso');
+  });
+
+  it('NO acusa si el precio se movió alguna vez, por poco que sea', () => {
+    const entradas = [...plana(19, 500), ['2026-07-01', 400, 400]];
+    const v = veredictoPrecio(500, resumirHistorico(entradas), { descuento: 46 });
+    expect(v.nivel).not.toBe('descuento-falso');
+  });
+
+  it('sin descuento declarado se comporta como antes (compatibilidad)', () => {
+    const v = veredictoPrecio(500, resumirHistorico(plana(20, 500)));
+    expect(v.nivel).toBe('minimo');
+  });
+});
+
 describe('registrarPrecio — acumula por día, no por corrida', () => {
   it('la primera observación del día crea la entrada', () => {
     expect(registrarPrecio([], '2026-08-20', 300)).toEqual([['2026-08-20', 300, 300]]);
@@ -162,5 +202,216 @@ describe('podar — el archivo no puede crecer para siempre', () => {
   it('no truena con entradas basura', () => {
     expect(() => podar({ A: [null, 'x', ['2026-08-20', 1, 1]] }, { hoy })).not.toThrow();
     expect(podar(null, { hoy })).toEqual({});
+  });
+});
+
+describe('registrarPrecio con volumen alto (pasada profunda)', () => {
+  it('acumula 500 productos nuevos sin perder los previos', () => {
+    let entradas = [['2026-09-07', 100, 100]];
+    entradas = registrarPrecio(entradas, '2026-09-08', 90);
+    expect(entradas).toHaveLength(2);
+    expect(entradas[0]).toEqual(['2026-09-08', 90, 90]);
+  });
+
+  it('dos observaciones del mismo día se funden en min/max', () => {
+    let e = registrarPrecio([], '2026-09-08', 120);
+    e = registrarPrecio(e, '2026-09-08', 95);
+    e = registrarPrecio(e, '2026-09-08', 130);
+    expect(e).toHaveLength(1);
+    expect(e[0]).toEqual(['2026-09-08', 95, 130]);
+  });
+});
+
+describe('diasEntre — días de calendario, no observaciones', () => {
+  it('un único día observado es 1 día, no 0', () => {
+    expect(diasEntre('2026-08-20', '2026-08-20')).toBe(1);
+  });
+
+  it('cuenta los dos extremos', () => {
+    expect(diasEntre('2026-08-19', '2026-08-20')).toBe(2);
+    expect(diasEntre('2026-08-01', '2026-08-20')).toBe(20);
+  });
+
+  it('cruza meses, años y febreros bisiestos sin despeinarse', () => {
+    expect(diasEntre('2026-02-28', '2026-03-01')).toBe(2);   // 2026 no es bisiesto
+    expect(diasEntre('2024-02-28', '2024-03-01')).toBe(3);   // 2024 sí
+    expect(diasEntre('2025-12-31', '2026-01-01')).toBe(2);
+  });
+
+  it('ante basura o extremos al revés devuelve 0: sin ventana no se afirma nada', () => {
+    const basura = [
+      [null, '2026-08-20'],
+      ['2026-08-20', undefined],
+      ['ayer', 'hoy'],
+      [42, 42],
+      ['2026-08-20', '2026-08-01'],
+    ];
+    for (const [a, b] of basura) expect(diasEntre(a, b)).toBe(0);
+  });
+});
+
+describe('resumirHistorico — la ventana de calendario', () => {
+  it('reporta también la fecha más reciente, para poder medir la ventana', () => {
+    const r = resumirHistorico([
+      ['2026-08-18', 300, 300],
+      ['2026-08-20', 300, 300],
+      ['2026-08-19', 300, 300],
+    ]);
+    expect(r.desde).toBe('2026-08-18');
+    expect(r.hasta).toBe('2026-08-20');
+    expect(diasEntre(r.desde, r.hasta)).toBe(3);
+  });
+});
+
+/**
+ * Este veredicto ACUSA por su nombre a un vendedor real de publicidad
+ * engañosa. Un falso positivo aquí no es un test rojo: es una acusación
+ * pública a un negocio honesto. Estos tests fijan cada puerta que lo impide.
+ */
+describe('veredictoPrecio — descuento falso: las puertas del veredicto', () => {
+  const plana = (n, precio) => serie(n, precio);
+
+  /** `n` observaciones repartidas dentro de una ventana FIJA de 20 días. */
+  const conHuecos = (n, precio = 500) => {
+    const s = serie(20, precio);                 // 2026-08-01 … 2026-08-20
+    return [s[0], s[19], ...s.slice(1, n - 1)];  // conserva los dos extremos
+  };
+
+  it('NO acusa cuando el precio de HOY sí bajó: la rebaja es real', () => {
+    // El historial se registra DESPUÉS del build, así que el día en que un
+    // precio baja de verdad el histórico sigue plano. Sin mirar el precio
+    // actual se acusaría al vendedor el único día en que la oferta es cierta.
+    const v = veredictoPrecio(600, resumirHistorico(plana(20, 1000)), { descuento: 40 });
+    expect(v.nivel).not.toBe('descuento-falso');
+    expect(v.texto).not.toMatch(/no ha bajado/);
+  });
+
+  it('sí acusa si el precio de hoy sigue dentro de la banda plana', () => {
+    // La contraparte del test anterior: mirar el precio actual no desactiva el
+    // veredicto, solo lo condiciona.
+    const v = veredictoPrecio(1000, resumirHistorico(plana(20, 1000)), { descuento: 40 });
+    expect(v.nivel).toBe('descuento-falso');
+  });
+
+  it('NO acusa con historia dispersa: quince fotos no son cuarenta días', () => {
+    const espaciada = Array.from({ length: 15 }, (_, i) => [
+      new Date(Date.parse('2026-08-20') - i * 3 * 86_400_000).toISOString().slice(0, 10),
+      500,
+      500,
+    ]);
+    const r = resumirHistorico(espaciada);
+    expect(r.dias).toBe(15);
+    expect(diasEntre(r.desde, r.hasta)).toBe(43);   // 28 días sin observar
+    expect(veredictoPrecio(500, r, { descuento: 46 }).nivel).not.toBe('descuento-falso');
+  });
+
+  it('el texto cuenta días de CALENDARIO, no cuántas veces miramos', () => {
+    const r = resumirHistorico(conHuecos(18));
+    const v = veredictoPrecio(500, r, { descuento: 46 });
+    expect(v.nivel).toBe('descuento-falso');
+    expect(v.texto).toContain('20 días');   // la ventana observada
+    expect(v.dias).toBe(18);                // las observaciones, que son menos
+    expect(v.texto).not.toContain('18 días');
+  });
+
+  it('NO acusa con un descuento imposible, ni lo imprime', () => {
+    const imposibles = [Infinity, -Infinity, NaN, 250, 100, -30, 'mucho', null, undefined, {}];
+    for (const descuento of imposibles) {
+      const v = veredictoPrecio(500, resumirHistorico(plana(20, 500)), { descuento });
+      expect(v.nivel).not.toBe('descuento-falso');
+      expect(v.texto).not.toMatch(/Infinity|NaN|undefined|null/);
+    }
+  });
+
+  it('un tercer argumento null no truena: el feed escribe descuento: null', () => {
+    const r = resumirHistorico(plana(20, 500));
+    expect(() => veredictoPrecio(500, r, null)).not.toThrow();
+    expect(veredictoPrecio(500, r, null).nivel).toBe('minimo');
+    expect(veredictoPrecio(500, r, undefined).nivel).toBe('minimo');
+  });
+
+  it('un rango imposible degrada en vez de acusar', () => {
+    // [fecha, 100, -5] pasa el filtro de resumirHistorico (solo comprueba
+    // e[1] > 0) y deja el máximo por debajo del mínimo. Rango desconocido.
+    const corrupta = plana(20, 500).map(([fecha, min]) => [fecha, min, -5]);
+    const r = resumirHistorico(corrupta);
+    expect(r.maximo).toBeLessThan(r.minimo);
+    expect(veredictoPrecio(500, r, { descuento: 46 }).nivel).not.toBe('descuento-falso');
+  });
+
+  it('DIAS_DESCUENTO_FALSO es el umbral real, no un número suelto', () => {
+    const corto = resumirHistorico(plana(DIAS_DESCUENTO_FALSO - 1, 500));
+    const justo = resumirHistorico(plana(DIAS_DESCUENTO_FALSO, 500));
+    expect(veredictoPrecio(500, corto, { descuento: 46 }).nivel).not.toBe('descuento-falso');
+    expect(veredictoPrecio(500, justo, { descuento: 46 }).nivel).toBe('descuento-falso');
+  });
+
+  it('DESCUENTO_SOSPECHOSO es el umbral real, no un número suelto', () => {
+    const r = resumirHistorico(plana(20, 500));
+    expect(veredictoPrecio(500, r, { descuento: DESCUENTO_SOSPECHOSO - 1 }).nivel).not.toBe('descuento-falso');
+    expect(veredictoPrecio(500, r, { descuento: DESCUENTO_SOSPECHOSO }).nivel).toBe('descuento-falso');
+  });
+
+  it('«plano» aguanta un 2 % de oscilación y ni un pelo más', () => {
+    // MARGEN_PLANO es privado a propósito; se fija aquí por comportamiento.
+    const enElBorde = [...serie(19, 510), ['2026-08-01', 500, 500]];   // max = min × 1.02
+    const pasado = [...serie(19, 515), ['2026-08-01', 500, 500]];      // max = min × 1.03
+    expect(veredictoPrecio(510, resumirHistorico(enElBorde), { descuento: 46 }).nivel).toBe('descuento-falso');
+    expect(veredictoPrecio(515, resumirHistorico(pasado), { descuento: 46 }).nivel).not.toBe('descuento-falso');
+  });
+
+  it('la densidad exigida de la ventana es 0.7 y se comprueba en el borde', () => {
+    // DENSIDAD_MINIMA también es privada: 20 días de calendario exigen 14
+    // observaciones. Con 13 el sitio se calla.
+    expect(veredictoPrecio(500, resumirHistorico(conHuecos(14)), { descuento: 46 }).nivel).toBe('descuento-falso');
+    expect(veredictoPrecio(500, resumirHistorico(conHuecos(13)), { descuento: 46 }).nivel).not.toBe('descuento-falso');
+  });
+
+  it('un rango invertido tampoco acusa, aunque el precio de hoy encaje', () => {
+    // min/max intercambiados en el archivo: [fecha, 500, 490]. El máximo queda
+    // POR DEBAJO del mínimo, así que el rango es desconocido, no plano. Con un
+    // precio de hoy dentro de la banda, esta es la única puerta que lo frena.
+    const invertida = serie(20, 0).map(([fecha]) => [fecha, 500, 490]);
+    const r = resumirHistorico(invertida);
+    expect(r.minimo).toBe(500);
+    expect(r.maximo).toBe(490);
+    expect(veredictoPrecio(495, r, { descuento: 46 }).nivel).not.toBe(NIVEL_DESCUENTO_FALSO);
+  });
+});
+
+/**
+ * NIVEL_DESCUENTO_FALSO y NIVELES_NO_DISTRIBUIBLES son la fuente única de
+ * verdad que usan generarFeedPublico.js, generarRelampago.js y panel/hoy.astro
+ * para no repartir un descuento falso (ver sus propios tests para la prueba de
+ * que de verdad las importan). Lo que se fija aquí es su VALOR: si alguien
+ * cambia qué niveles se excluyen sin querer, este test es el primero en
+ * enterarse — antes que cualquier consumidor.
+ */
+describe('NIVEL_DESCUENTO_FALSO y NIVELES_NO_DISTRIBUIBLES — la fuente única', () => {
+  it('NIVEL_DESCUENTO_FALSO es el string exacto que devuelve el veredicto', () => {
+    expect(NIVEL_DESCUENTO_FALSO).toBe('descuento-falso');
+  });
+
+  it('NIVELES_NO_DISTRIBUIBLES contiene exactamente "alto" y "descuento-falso"', () => {
+    expect([...NIVELES_NO_DISTRIBUIBLES].sort()).toEqual(['alto', 'descuento-falso']);
+  });
+
+  it('NIVELES_NO_DISTRIBUIBLES incluye a NIVEL_DESCUENTO_FALSO, no un duplicado suelto', () => {
+    // Si alguien cambiara el valor de NIVEL_DESCUENTO_FALSO pero
+    // NIVELES_NO_DISTRIBUIBLES siguiera con el string viejo escrito a mano,
+    // este test es el que lo detecta.
+    expect(NIVELES_NO_DISTRIBUIBLES).toContain(NIVEL_DESCUENTO_FALSO);
+  });
+
+  it('NIVELES_NO_DISTRIBUIBLES NO es lo mismo que el nivel del carrusel: el carrusel excluye menos', () => {
+    // La distinción que el propio fix pide no perder: 'alto' es un descuento
+    // real (el producto solo ha estado más barato), así que el carrusel SÍ lo
+    // distribuye — solo el feed y el panel son más estrictos.
+    expect(NIVELES_NO_DISTRIBUIBLES).toContain('alto');
+    expect(NIVEL_DESCUENTO_FALSO).not.toBe('alto');
+  });
+
+  it('está congelada: nadie debe poder colarle un nivel en runtime', () => {
+    expect(Object.isFrozen(NIVELES_NO_DISTRIBUIBLES)).toBe(true);
   });
 });

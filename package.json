@@ -14,6 +14,7 @@
     "detectar-nichos": "node src/scripts/detectarNichos.js",
     "verificar-frescura": "node src/scripts/verificarFrescura.js",
     "registrar-historico": "node src/scripts/registrarHistorico.js",
+    "observar-precios": "node src/scripts/observarPrecios.js",
     "generar-feed": "node src/scripts/generarFeedPublico.js",
     "build": "node src/scripts/generadorRedirects.js && node src/scripts/generarRelampago.js && node src/scripts/generarFeedPublico.js && astro build",
     "build:completo": "node src/scripts/importarOfertas.js && npm run build",

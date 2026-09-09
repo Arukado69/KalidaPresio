@@ -15,17 +15,27 @@
  * El schema de salida es idéntico al que espera initRelampagoFetch() en Layout:
  *   { detectadoEl, ofertas: [{ id, titulo, precioActual, precioOriginal,
  *     descuentoReal, scoreKP, rating, vendidos, imagen, urlAfiliado, badge, endsAt }] }
+ *
+ * ── POR QUÉ TAMBIÉN MIRA EL HISTÓRICO ───────────────────────────────────────
+ * El filtro de arriba (descuento alto + buen rating) no sabe distinguir un
+ * descuento real de uno que el histórico ya demostró falso: este es el widget
+ * más visible del sitio, y promocionar ahí exactamente lo que el propio sitio
+ * acusa de mentir en otra parte sería la contradicción más visible posible.
+ * Por eso se descarta 'descuento-falso' antes de elegir candidatas — y SOLO
+ * ese nivel: un 'alto' (ha estado más barato) sigue siendo un descuento real.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { categorizar } from '../utils/categorias.js';
+import { resumirHistorico, veredictoPrecio, NIVEL_DESCUENTO_FALSO } from '../utils/historico.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ── Rutas ─────────────────────────────────────────────────────────────────────
 const OFERTAS_PATH = path.resolve(__dirname, '../data/ofertas.json');
+const HISTORICO_PATH = path.resolve(__dirname, '../data/historico-precios.json');
 const OUTPUT_DIR = path.resolve(__dirname, '../../public/data');
 const OUTPUT_PATH = path.resolve(OUTPUT_DIR, 'relampago.json');
 
@@ -53,12 +63,33 @@ try {
     process.exit(0);
   }
 
-  // Filtrar: descuento >= MIN y rating >= MIN
+  // Histórico de precios: es lo único que puede decir si el descuento
+  // anunciado es real. Si el archivo falta o está corrupto se degrada a "sin
+  // histórico" — mismo comportamiento que tendría un producto sin entradas,
+  // y por tanto sigue siendo elegible: no hay base para acusarlo de nada.
+  let productosHist = {};
+  try {
+    productosHist = JSON.parse(fs.readFileSync(HISTORICO_PATH, 'utf-8'))?.productos ?? {};
+  } catch { /* archivo ausente o ilegible: se sigue con {} */ }
+
+  // 'descuento-falso' es el único nivel que se filtra aquí: acusa al propio
+  // descuento anunciado de no ser real, y este es el carrusel más visible del
+  // sitio. 'alto' (ha estado más barato) NO se toca — sigue siendo un
+  // descuento genuino y excluirlo es una decisión de producto que no le toca
+  // a este fix.
+  const esDescuentoFalso = (o) => {
+    const resumen = resumirHistorico(productosHist[o.id]);
+    const v = veredictoPrecio(o.precio_actual, resumen, { descuento: o.descuento });
+    return v.nivel === NIVEL_DESCUENTO_FALSO;
+  };
+
+  // Filtrar: descuento >= MIN y rating >= MIN, y que el descuento no sea falso
   const candidatas = ofertas.filter(o =>
     (o.descuento ?? 0) >= MIN_DESCUENTO &&
     (o.rating ?? 0) >= MIN_RATING &&
     o.link_afiliado &&
-    o.titulo
+    o.titulo &&
+    !esDescuentoFalso(o)
   );
 
   if (candidatas.length === 0) {

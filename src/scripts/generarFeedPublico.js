@@ -13,13 +13,16 @@
  * ── LO QUE LO HACE DISTINTO DE UN FEED DE OFERTAS CUALQUIERA ───────────────
  * Cada ítem lleva el VEREDICTO DE PRECIO calculado contra el histórico:
  *
- *     historico.nivel = 'minimo' | 'bajo' | 'normal' | 'alto' | 'siguiendo' | 'sin-datos'
+ *     historico.nivel = 'descuento-falso' | 'minimo' | 'bajo' | 'alto' | 'siguiendo' | 'sin-datos'
  *
  * `alto` significa que el producto ESTUVO MÁS BARATO hace poco: el «descuento»
- * es contra un precio inflado. Ese dato viaja en el feed a propósito, para que
- * cualquier publicador pueda negarse a anunciarlo. Es la única razón por la que
- * alguien seguiría este canal y no los otros veinte que copian las mismas
- * ofertas — y se pierde entera el día que se publique un descuento falso.
+ * es contra un precio inflado. `descuento-falso` es más grave: el precio pasó
+ * ≥14 días densamente observado SIN MOVERSE mientras el vendedor anuncia ≥20 %
+ * de rebaja — el descuento, tal como se publicita, no existe. Ese dato viaja
+ * en el feed a propósito, para que cualquier publicador pueda negarse a
+ * anunciarlo. Es la única razón por la que alguien seguiría este canal y no
+ * los otros veinte que copian las mismas ofertas — y se pierde entera el día
+ * que se publique un descuento falso.
  *
  * ── NO SE VERSIONA ─────────────────────────────────────────────────────────
  * Es un derivado: cada build lo regenera desde ofertas.json + histórico.
@@ -30,7 +33,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { categorizar } from '../utils/categorias.js';
-import { resumirHistorico, veredictoPrecio } from '../utils/historico.js';
+import { resumirHistorico, veredictoPrecio, NIVELES_NO_DISTRIBUIBLES } from '../utils/historico.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FEED = path.resolve(__dirname, '../data/ofertas.json');
@@ -69,7 +72,7 @@ const items = ofertas
   .filter((o) => o?.id && o?.titulo && Number.isFinite(o.precio_actual))
   .map((o) => {
     const resumen = resumirHistorico(productosHist[o.id]);
-    const v = veredictoPrecio(o.precio_actual, resumen);
+    const v = veredictoPrecio(o.precio_actual, resumen, { descuento: o.descuento });
     return {
       id: o.id,
       titulo: o.titulo,
@@ -112,8 +115,11 @@ const porNivel = items.reduce((acc, i) => {
   acc[i.historico.nivel] = (acc[i.historico.nivel] ?? 0) + 1;
   return acc;
 }, {});
-const publicables = items.filter((i) => i.historico.nivel !== 'alto').length;
+// Ni los que han estado más baratos ni los que anuncian un descuento que no
+// existe. Repartir un descuento falso es prestarle nuestra credibilidad.
+// NIVELES_NO_DISTRIBUIBLES es la fuente única: ver src/utils/historico.js.
+const publicables = items.filter((i) => !NIVELES_NO_DISTRIBUIBLES.includes(i.historico.nivel)).length;
 
 console.log(`✅ [feed] ${items.length} ofertas en public/data/feed.json (esquema ${ESQUEMA}).`);
 console.log(`   Veredicto de precio: ${Object.entries(porNivel).map(([k, n]) => `${k}=${n}`).join(' · ')}`);
-console.log(`   ${publicables}/${items.length} publicables (los "alto" han estado más baratos: no se anuncian).`);
+console.log(`   ${publicables}/${items.length} publicables (los "alto" han estado más baratos y los "descuento-falso" anuncian un descuento que no existe: no se anuncian).`);
