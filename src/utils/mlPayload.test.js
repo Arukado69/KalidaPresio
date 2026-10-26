@@ -206,7 +206,7 @@ describe('leerCupon', () => {
 describe('leerTarjeta — el shape canónico del feed', () => {
   it('arma el item completo', () => {
     const item = { card: tarjeta(TITLE, REVIEW, PRICE, { type: 'seller', seller: { text: 'Cubot {icon_cockade}' } }) };
-    const r = leerTarjeta(item, (u) => `${u}?matt_tool=X`);
+    const r = leerTarjeta(item);
 
     expect(r).toMatchObject({
       id: 'MLM2577352885',
@@ -222,8 +222,10 @@ describe('leerTarjeta — el shape canónico del feed', () => {
       cupon: null,
       fin_oferta: null,   // ML dejó de publicar el countdown
     });
-    expect(r.link_afiliado).toContain('matt_tool=X');
-    expect(r.link_afiliado.startsWith('https://')).toBe(true);
+    // URL limpia del producto: nada de parámetros de afiliado armados a mano.
+    expect(r.url_producto.startsWith('https://')).toBe(true);
+    expect(r.url_producto).not.toContain('?');
+    expect(r).not.toHaveProperty('link_afiliado');
   });
 
   it('descarta la tarjeta si le falta lo mínimo, en vez de colar un hueco', () => {

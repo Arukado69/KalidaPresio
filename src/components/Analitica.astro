@@ -9,12 +9,11 @@
  *
  * QUÉ MIDE QUE IMPORTE
  * El pageview es ruido; el evento que se traduce en dinero es el CLIC SALIENTE
- * hacia Mercado Libre. Cada uno se manda con la sección de la que salió, y esa
- * sección se deduce del sufijo de `matt_word` — el MISMO identificador que ves
- * en el panel de afiliados de ML. Por eso las dos mitades del embudo se pueden
- * cruzar: Umami dice cuánta gente hizo clic en «imbatibles», ML dice cuánto se
- * compró desde «imbatibles». Sin ese par, no se sabe si el problema es tráfico,
- * clic o conversión — y son tres arreglos distintos.
+ * hacia Mercado Libre. Cada uno se manda con la sección de la que salió, que
+ * viaja en `data-kp-seccion` — NUNCA dentro del link: el link es el oficial
+ * del generador y se publica intacto. Umami dice cuánta gente hizo clic y
+ * desde dónde; el panel de afiliados de ML dice cuánto se compró. Sin ese par,
+ * no se sabe si el problema es tráfico, clic o conversión.
  *
  * SI NO ESTÁ CONFIGURADO, NO EXISTE
  * Sin PUBLIC_UMAMI_URL y PUBLIC_UMAMI_ID no se emite ni una etiqueta. En
@@ -69,16 +68,15 @@ const dominio = Astro.site?.hostname ?? '';
         if (window.__kpAnalitica) return;
         window.__kpAnalitica = true;
 
-        var HOST_ML = /(^|\.)mercadolibre\.com\.mx$/i;
+        // Mercado Libre y los dos dominios de los links cortos oficiales.
+        var HOST_ML = /(^|\.)mercadolibre\.com(\.mx)?$|^meli\.la$/i;
         var RUTA_CLOAK = '/recomienda/';
         var RUTA_CORTA = '/r/';
         var pendientes = [];
         var intentos = 0;
 
         // Códigos de canal, servidos por el <meta> de arriba (fuente única:
-        // src/utils/canales.js). Si el meta faltara, el canal degrada al sitio
-        // y la SECCIÓN se sigue leyendo entera: se pierde una dimensión, no el
-        // dato — que es mejor que reportar secciones partidas por la mitad.
+        // src/utils/canales.js). Si el meta faltara, el canal degrada al sitio.
         var metaCanales = document.querySelector('meta[name="kp-canales"]');
         var partesCanales = (metaCanales ? metaCanales.content : 'wb|').split('|');
         var CANAL_DEFECTO = partesCanales[0] || 'wb';
@@ -127,24 +125,7 @@ const dominio = Astro.site?.hostname ?? '';
             || u.pathname.indexOf(RUTA_CORTA) === 0;
         }
 
-        // Canal + sección desde el sufijo de matt_word. Se corta por el ÚLTIMO
-        // «_»: aLinkAfiliado sanea la sección a alfanuméricos, así que el sufijo
-        // nunca lo contiene y el matt_word base queda intacto aunque lo tenga.
-        // Después, las 2 primeras letras son el canal si son un código conocido
-        // (un enlace anterior a los canales no lo lleva: todo es sección).
-        function etiquetaDe(u) {
-          var w = u.searchParams.get('matt_word');
-          if (!w) return { canal: CANAL_DEFECTO, seccion: null };
-          var i = w.lastIndexOf('_');
-          if (i === -1) return { canal: CANAL_DEFECTO, seccion: null };
-          var s = w.slice(i + 1);
-          if (esCanal(s.slice(0, 2))) {
-            return { canal: s.slice(0, 2), seccion: s.slice(2) || null };
-          }
-          return { canal: CANAL_DEFECTO, seccion: s || null };
-        }
-
-        // El enlace corto no lleva matt_word: el canal está en la ruta.
+        // Enlaces viejos /r/<canal>/<id>: el canal está en la ruta.
         function canalDeRuta(u) {
           if (u.pathname.indexOf(RUTA_CORTA) !== 0) return null;
           var c = u.pathname.split('/')[2];
@@ -190,10 +171,11 @@ const dominio = Astro.site?.hostname ?? '';
           try { u = new URL(a.getAttribute('href'), location.href); } catch (_) { return; }
           if (!esSaliente(u)) return;
 
-          var etiqueta = etiquetaDe(u);
+          // /hoy marca el canal de quien llega (?c=ig, ?c=tt) en data-kp-canal.
+          var canalMarcado = atributo(a, 'data-kp-canal');
           enviar('clic-oferta', {
-            seccion: etiqueta.seccion || atributo(a, 'data-kp-seccion') || 'sin-etiqueta',
-            canal: canalDeRuta(u) || etiqueta.canal,
+            seccion: atributo(a, 'data-kp-seccion') || 'sin-etiqueta',
+            canal: canalDeRuta(u) || (esCanal(canalMarcado) ? canalMarcado : CANAL_DEFECTO),
             id: atributo(a, 'data-ml-id') || idDe(u),
             precio: num(atributo(a, 'data-precio')),
             score: num(atributo(a, 'data-kp')),
@@ -201,6 +183,8 @@ const dominio = Astro.site?.hostname ?? '';
             categoria: atributo(a, 'data-cat'),
             destino: u.pathname.indexOf(RUTA_CLOAK) === 0 ? 'recomienda'
               : u.pathname.indexOf(RUTA_CORTA) === 0 ? 'corto'
+              : /^meli\.la$/i.test(u.hostname) ? 'meli.la'
+              : u.pathname.indexOf('/sec/') === 0 ? 'sec'
               : 'directo',
           });
         }, { passive: true });

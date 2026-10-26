@@ -13,7 +13,7 @@
  * SVG de forma visible — lo hace ilegible para sharp y la tarjeta sale vacía.
  */
 import { describe, it, expect } from 'vitest';
-import { partirLineas, esc, pesos } from './tarjetas.js';
+import { partirLineas, esc, pesos, svgHistoria, finAbsoluto } from './tarjetas.js';
 
 /** El ancho real de un renglón, con el mismo factor que usa el generador. */
 const anchoAprox = (linea, tamano) => linea.length * tamano * 0.62;
@@ -86,5 +86,38 @@ describe('pesos', () => {
     expect(pesos(null)).toBe('$0');
     expect(pesos('abc')).toBe('$0');
     expect(pesos(undefined)).toBe('$0');
+  });
+});
+
+describe('svgHistoria', () => {
+  const base = {
+    id: 'MLM1', numero: 3, titulo: 'palabra '.repeat(40), precio_actual: 869, precio_previo: 2299,
+    descuento: 62, relampago: true, termina: '2026-10-27T05:00:00Z',
+  };
+
+  it('nada del texto de precio y fin cae sobre el botón «link en mi perfil»', () => {
+    // Peor caso: título de 3 líneas + precio anterior + hora de fin. El botón
+    // empieza en y=1660; la última línea de texto tiene que quedar antes.
+    const svg = svgHistoria(base);
+    const ys = [...svg.matchAll(/<text[^>]*\sy="(\d+)"[^>]*>(?!LINK|kalidapresio)/g)].map((m) => Number(m[1]));
+    const sobreBoton = ys.filter((y) => y > 1640 && y < 1790);
+    expect(sobreBoton).toEqual([]);
+  });
+
+  it('lleva el número del producto y la hora de fin en hora de CDMX', () => {
+    const svg = svgHistoria(base);
+    expect(svg).toContain('#3');
+    expect(svg).toContain('TERMINA 26 OCT · 23:00');
+  });
+
+  it('sin hora de fin real no inventa una', () => {
+    expect(svgHistoria({ ...base, termina: null })).not.toContain('TERMINA');
+  });
+});
+
+describe('finAbsoluto', () => {
+  it('fecha y hora absolutas de CDMX, o null', () => {
+    expect(finAbsoluto('2026-10-27T05:00:00Z')).toBe('26 oct · 23:00');
+    expect(finAbsoluto(null)).toBeNull();
   });
 });

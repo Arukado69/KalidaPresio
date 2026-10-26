@@ -45,7 +45,7 @@ const datosSitio = {
       name: 'KalidaPresio',
       inLanguage: 'es-MX',
       description:
-        'Rastreamos precios, calificaciones y ventas reales de Mercado Libre México para encontrar las mejores ofertas calidad-precio.',
+        'Revisamos precios, calificaciones y ventas reales de Mercado Libre México para recomendar las mejores ofertas calidad-precio.',
       publisher: { '@id': `${Astro.site}#org` },
     },
     {
@@ -517,16 +517,14 @@ const datosSitio = {
       const fmtMXN = (n: number) =>
         new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
 
-      // Re-etiqueta un link de afiliado ya armado con una campaña de sección:
-      // le suma un sufijo al matt_word para medir esa superficie en el panel de ML.
-      const conCampana = (url: string, campana: string) => {
-        try {
-          const u = new URL(url);
-          const w = u.searchParams.get('matt_word');
-          if (w && !w.endsWith('_' + campana)) u.searchParams.set('matt_word', `${w}_${campana}`);
-          return u.toString();
-        } catch { return url; }
-      };
+      // El link de cada card es el oficial de la vitrina y se pinta TAL CUAL:
+      // editarlo (sufijos, parámetros) es lo que hacía que ML no atribuyera la
+      // compra. La sección de la que sale el clic va en data-kp-seccion.
+      //
+      // Cuándo se retira: `endsAt` es la hora de fin REAL (hay cuenta
+      // regresiva); `caduca` es el retiro de seguridad de una relámpago sin
+      // hora conocida (sin cuenta regresiva: no se inventa una).
+      const finDe = (o: any) => o.endsAt || o.caduca || '';
 
       // Card del rail (vertical). Mapea el schema runtime (camelCase) al markup.
       // Mismos data-* que llevan las TarjetaOferta del SSG. El listener de
@@ -546,14 +544,14 @@ const datosSitio = {
         const img = o.imagen
           ? `<img src="${esc(o.imagen)}" alt="${esc(o.titulo)}" loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">`
           : '';
-        return `<li class="rs-item" data-fin="${esc(o.endsAt)}"${datosCard(o)}><article class="rs-card">`
+        return `<li class="rs-item" data-fin="${esc(finDe(o))}"${datosCard(o)}><article class="rs-card">`
           + `<div class="rs-media">${img}<span class="rs-img-fallback"${o.imagen ? ' style="display:none"' : ''} aria-hidden="true">⚡</span>`
           + (d > 0 ? `<span class="rs-desc">-${d}%</span>` : '')
           + `<span class="rs-kp" title="${esc(KP_LEYENDA)}"><strong>${Math.round(o.scoreKP || 0)}</strong><em>K-P</em></span></div>`
           + (o.endsAt ? `<span class="rs-count">⏱ Termina en <strong data-rs-count data-fin="${esc(o.endsAt)}">—</strong></span>` : '')
           + `<h3 class="rs-titulo">${esc(o.titulo)}</h3>`
           + `<div class="rs-precios"><span class="rs-precio">${fmtMXN(o.precioActual)}</span>${d > 0 ? `<em class="rs-ahorro">-${d}%</em>` : ''}</div>`
-          + `<a class="rs-cta" href="${esc(conCampana(o.urlAfiliado, 'relampago'))}" target="_blank" rel="nofollow sponsored noopener noreferrer">Ver oferta →</a>`
+          + `<a class="rs-cta" href="${esc(o.urlAfiliado)}" data-kp-seccion="relampago" target="_blank" rel="nofollow sponsored noopener noreferrer">Ver oferta →</a>`
           + `</article></li>`;
       }
       // Card de la franja móvil (horizontal compacta).
@@ -562,7 +560,7 @@ const datosSitio = {
         const img = o.imagen
           ? `<img src="${esc(o.imagen)}" alt="${esc(o.titulo)}" loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">`
           : '';
-        return `<li class="rs-fila-item" data-fin="${esc(o.endsAt)}"${datosCard(o)}><a class="rs-mini" href="${esc(conCampana(o.urlAfiliado, 'relampago'))}" target="_blank" rel="nofollow sponsored noopener noreferrer">`
+        return `<li class="rs-fila-item" data-fin="${esc(finDe(o))}"${datosCard(o)}><a class="rs-mini" href="${esc(o.urlAfiliado)}" data-kp-seccion="relampago" target="_blank" rel="nofollow sponsored noopener noreferrer">`
           + `<span class="rs-mini-media">${img}<span class="rs-img-fallback"${o.imagen ? ' style="display:none"' : ''} aria-hidden="true">⚡</span></span>`
           + `<span class="rs-mini-info"><span class="rs-mini-titulo">${esc(o.titulo)}</span>`
           + `<span class="rs-mini-fila"><strong class="rs-precio">${fmtMXN(o.precioActual)}</strong>${d > 0 ? `<em class="rs-ahorro">-${d}%</em>` : ''}</span>`
@@ -594,9 +592,10 @@ const datosSitio = {
           const data = await res.json();
           const lote = Array.isArray(data?.ofertas) ? data.ofertas : [];
           const now = Date.now();
-          // Filtra vencidas (endsAt < now). Sin endsAt → se mantiene (sin countdown).
+          // Filtra vencidas (fin real o retiro de seguridad < now). Sin ninguno
+          // de los dos → se mantiene (sin countdown).
           const vivas = lote
-            .filter((o: any) => !o.endsAt || new Date(o.endsAt).getTime() > now)
+            .filter((o: any) => !finDe(o) || new Date(finDe(o)).getTime() > now)
             .sort((a: any, b: any) => (b.scoreKP || 0) - (a.scoreKP || 0));
 
           // Stat del hero (runtime): muestra el conteo si hay vivas
@@ -609,7 +608,7 @@ const datosSitio = {
           if (data?.detectadoEl) {
             const f = new Date(data.detectadoEl);
             if (!Number.isNaN(f.getTime())) {
-              detectadoTxt = 'Precios detectados el ' + f.toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' });
+              detectadoTxt = 'Precios vistos el ' + f.toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' });
             }
           }
 
@@ -713,7 +712,8 @@ const datosSitio = {
           if (ratingNum) ratingNum.textContent = (o.rating || 0).toFixed(1);
           if (ratingOp) ratingOp.textContent = formatearVendidos(o.vendidos);
           if (cta) {
-            cta.setAttribute('href', conCampana(o.urlAfiliado || '#', 'hero'));
+            cta.setAttribute('href', o.urlAfiliado || '#');
+            cta.setAttribute('data-kp-seccion', 'hero');
             // Los data-* viajan CON el producto: el rotador cambia de oferta
             // cada pocos segundos, así que unos valores fijos en el HTML
             // mentirían en cuanto rotara. Se refrescan aquí, junto al href.

@@ -20,15 +20,15 @@ const total = SECCIONES_CON_PAGINA.reduce((n, s) => n + s.items.length, 0);
 
 <Layout
   title="Ofertas por sección — KalidaPresio"
-  description="Las ofertas de Mercado Libre México organizadas por sección: precios imbatibles, liquidación y lo mejor por menos de $500. Todo puntuado con el Sello K-P."
+  description="Las ofertas de Mercado Libre México que recomendamos, organizadas por sección y puntuadas con el Sello K-P."
 >
   <article class="hub">
     <header class="hub-head">
       <h1 class="hub-titulo">Ofertas por sección</h1>
       <p class="hub-sub">
         {total > 0
-          ? `${total} productos vivos, agrupados por el tipo de oferta que Mercado Libre les asigna y ordenados por el Sello K-P.`
-          : 'Estamos refrescando el catálogo. Vuelve en un momento.'}
+          ? `${total} productos que recomendamos, agrupados por sección y ordenados por el Sello K-P.`
+          : 'Estamos eligiendo las ofertas de hoy. Vuelve en un momento.'}
       </p>
       <p class="hub-frescura"><SelloFrescura generadoEl={GENERADO_EL} /></p>
     </header>
@@ -56,10 +56,9 @@ const total = SECCIONES_CON_PAGINA.reduce((n, s) => n + s.items.length, 0);
     )}
 
     <p class="hub-nota">
-      ¿Por qué no hay una sección de relámpago? Son ofertas por tiempo limitado y
-      Mercado Libre dejó de publicar su hora de fin, así que una página fija las
-      presentaría como vigentes sin poder garantizarlo. Las verás en el carrusel
-      de la portada, que se refresca solo.
+      ¿Por qué no hay una sección de relámpago? Son ofertas por tiempo limitado:
+      una página fija las seguiría mostrando después de que terminen. Las verás en
+      el carrusel de la portada, que las retira solo al vencer.
     </p>
 
     <ExplorarChips />

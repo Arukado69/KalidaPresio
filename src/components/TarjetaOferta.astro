@@ -5,7 +5,6 @@ import EstrellasKP from './EstrellasKP.astro';
 import BotonCTA from './BotonCTA.astro';
 import { generarVeredicto } from '../utils/veredicto.js';
 import { resenaKP } from '../utils/resenaKP.js';
-import { aLinkAfiliado } from '../utils/afiliado.js';
 import { formatearVendidos } from '../utils/mlPayload.js';
 import { veredictoDe } from '../data/historico.js';
 
@@ -18,7 +17,10 @@ export interface Oferta {
   rating: number;
   vendidos: number;
   score_kalidad_presio?: number;
+  /** Link OFICIAL de afiliado (meli.la/… o /sec/…), tal cual se pegó en la vitrina. */
   link_afiliado: string;
+  /** Cuándo se vio ese precio (ISO). Se muestra en la tarjeta. */
+  revisado?: string | null;
   imagen: string;
   // Capa de confianza + temporal (opcional)
   marca?: string | null;
@@ -49,15 +51,21 @@ export interface Props {
   categoria?: string;
   /** Layout: 'grid' (vertical, por defecto) o 'deal' (horizontal). */
   variant?: 'grid' | 'deal';
-  /** Etiqueta de sección para el matt_word (medición por sección en ML). */
+  /** Sección de la que sale el clic (viaja a Umami como data-kp-seccion). */
   campana?: string;
 }
 
 const { oferta, score, indice = 0, categoria, variant = 'grid', campana } = Astro.props;
 
-// Si se pasa `campana`, re-etiqueta el link con matt_word de esa sección
-// (para medir en el panel de ML). Si no, usa el link_afiliado tal cual.
-const enlaceCTA = campana ? aLinkAfiliado(oferta.link_afiliado, campana) : oferta.link_afiliado;
+// El link oficial se publica TAL CUAL: nada de sufijos ni parámetros. La
+// sección de la que salió el clic viaja aparte, en data-kp-seccion, para Umami.
+const enlaceCTA = oferta.link_afiliado;
+
+// «Precio visto el 26 oct»: fecha absoluta, así no envejece mal en un sitio
+// estático. Los precios de la vitrina los revisa una persona, no un bot.
+const vistoEl = oferta.revisado
+  ? new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' }).format(new Date(oferta.revisado))
+  : null;
 
 // Histórico de precios: solo se afirma lo OBSERVADO. Con menos de 3 días dice
 // cuánto lleva seguido; nunca insinúa un rango que no existe. Y avisa también
@@ -98,10 +106,9 @@ const fmt = (n: number) =>
 
 // ── Compartir por WhatsApp ─────────────────────────────────────────────────
 // México es WhatsApp-first y las ofertas circulan en grupos familiares. Cada
-// visitante puede convertirse en un canal, y el enlace lleva `whatsapp` como
-// campaña: en el panel de afiliados de ML verás por separado lo que vuelve
-// por ahí, sin mezclarlo con el clic directo desde la tarjeta.
-const enlaceCompartir = aLinkAfiliado(oferta.link_afiliado, 'whatsapp');
+// visitante puede convertirse en un canal: comparte el MISMO link oficial, así
+// que una compra de su grupo también se te atribuye.
+const enlaceCompartir = oferta.link_afiliado;
 const mensajeWhatsApp = `${oferta.titulo} — ${fmt(oferta.precio_actual)}${descuento > 0 ? ` (-${descuento}%)` : ''}
 
 Visto en KalidaPresio:
@@ -180,6 +187,7 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
       {precioOriginal && <span class="oferta-precio-original">{fmt(precioOriginal)}</span>}
       {descuento > 0 && <span class="oferta-descuento">-{descuento}%</span>}
     </div>
+    {vistoEl && <p class="oferta-visto">Precio visto el {vistoEl} · confírmalo en Mercado Libre</p>}
 
     {precio.nivel !== 'sin-datos' && (
       <p class="oferta-historial" data-nivel={precio.nivel}>
@@ -203,7 +211,7 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
 
     <div class="oferta-cta">
       <!-- CTA fijo del piloto: "Ver oferta →" (la flecha la pone el icono del botón) -->
-      <BotonCTA id={oferta.id} enlace={enlaceCTA} texto="Ver oferta" />
+      <BotonCTA id={oferta.id} enlace={enlaceCTA} seccion={campana} texto="Ver oferta" />
       <a
         class="oferta-compartir"
         href={urlWhatsApp}
@@ -585,6 +593,13 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
     color: var(--color-primary);
     letter-spacing: -0.02em;
     line-height: 1;
+  }
+
+  /* La fecha del precio: dato de contexto, del tamaño de una nota al pie. */
+  .oferta-visto {
+    margin: 0 0 0.45rem;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
   }
 
   .oferta-rating {

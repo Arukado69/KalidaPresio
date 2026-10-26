@@ -1,0 +1,528 @@
+---
+/**
+ * /panel/agregar — Donde entra cada producto a la vitrina.
+ *
+ * ── QUÉ PROBLEMA RESUELVE ──────────────────────────────────────────────────
+ * Un link de afiliado solo cobra si sale del generador de tu panel de Mercado
+ * Libre, y ese paso no se puede automatizar (no hay API pública). Lo que sí se
+ * puede es que todo lo demás cueste dos clics: el marcador lee la ficha del
+ * producto en TU navegador, esta página arma la entrada, valida que el link
+ * sea oficial y te da el archivo vitrina.json completo para pegarlo en GitHub.
+ *
+ * ── DÓNDE VIVEN LOS CAMBIOS ────────────────────────────────────────────────
+ * Lo que agregas aquí se guarda en ESTE navegador (borrador) hasta que lo
+ * subes. El sitio es estático: no hay base de datos que escribir, y eso es una
+ * ventaja — cada cambio queda como un commit en GitHub, con historia.
+ *
+ * Va con `noindex`, fuera del sitemap y con Disallow en robots.txt. No lleva
+ * secretos: solo productos que ya son públicos.
+ */
+import vitrinaCruda from '../../data/vitrina.json';
+import ofertasCrudas from '../../data/ofertas.json';
+import { claveProducto, urlProductoLimpia } from '../../utils/vitrina.js';
+import { enlaceMarcador } from '../../utils/marcador.js';
+import { CANALES } from '../../utils/canales.js';
+
+const SITIO = String(Astro.site ?? 'https://kalidapresio.albis-labs.xyz').replace(/\/+$/, '');
+const EDITAR_EN_GITHUB = import.meta.env.PUBLIC_EDITAR_VITRINA_URL
+  || 'https://github.com/Arukado69/KalidaPresio/edit/main/src/data/vitrina.json';
+
+// Sugerencias: lo mejor del último escaneo que funcionó (ofertas.json). Sus
+// precios son viejos; sirven solo para saber QUÉ abrir en Mercado Libre.
+const enVitrina = new Set(
+  (vitrinaCruda.productos ?? []).map((p) => claveProducto(p?.url_producto)).filter(Boolean),
+);
+const listaOfertas = Array.isArray(ofertasCrudas) ? ofertasCrudas : (ofertasCrudas?.items ?? []);
+const sugerencias = listaOfertas
+  .map((o) => ({
+    titulo: o.titulo,
+    imagen: o.imagen,
+    url: urlProductoLimpia(o.url_producto ?? o.link_afiliado),
+    score: o.score_kalidad_presio ?? 0,
+  }))
+  .filter((o) => o.url && !enVitrina.has(claveProducto(o.url)))
+  .sort((a, b) => b.score - a.score)
+  .slice(0, 24);
+const escaneoDel = ofertasCrudas?.generadoEl
+  ? new Date(ofertasCrudas.generadoEl).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })
+  : null;
+
+const marcador = enlaceMarcador(SITIO);
+const canalesExtra = Object.entries(CANALES).filter(([c]) => c !== 'wb');
+
+// Lo que el script del navegador necesita. `<` escapado: un título con
+// «</script>» no puede cerrar la etiqueta antes de tiempo.
+const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_GITHUB }).replace(/</g, '\\u003c');
+---
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Agregar productos — KalidaPresio</title>
+  <link rel="icon" href="/favicon.svg" />
+  <!-- Global: parte del contenido se pinta desde el script (filas, consejos)
+       y no lleva la marca de los estilos con alcance de Astro. -->
+  <style is:global>
+    :root {
+      --fondo: #140b21; --panel: #1d1230; --panel-2: #241636; --linea: #342346;
+      --tinta: #f0e8fa; --tinta-2: #a897be; --acento: #ff8a3d; --bien: #57c68e; --mal: #f0776c; --aviso: #f6d14f;
+    }
+    * { box-sizing: border-box; }
+    /* `hidden` tiene que ganarle a cualquier display de clase (.btn, .campo…). */
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--fondo); color: var(--tinta); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 0 16px 120px; }
+    .hoja { max-width: 820px; margin: 0 auto; }
+    header { padding: 28px 0 16px; border-bottom: 1px solid var(--linea); }
+    h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -.02em; }
+    h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .14em; color: var(--tinta-2); margin: 32px 0 12px; font-weight: 600; }
+    .sub { color: var(--tinta-2); font-size: .9rem; margin: 0; }
+    .nav { display: flex; gap: 14px; font-size: .85rem; margin-top: 10px; }
+    .nav a { color: var(--acento); }
+    .contadores { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .contador { background: var(--panel); border: 1px solid var(--linea); border-radius: 999px; padding: 4px 12px; font-size: .82rem; color: var(--tinta-2); }
+    .contador b { color: var(--tinta); }
+    details.guia { background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+    details.guia summary { cursor: pointer; font-weight: 600; }
+    .guia ol { padding-left: 20px; margin: 12px 0 0; color: var(--tinta-2); font-size: .92rem; }
+    .guia li { margin-bottom: 8px; }
+    .guia b { color: var(--tinta); }
+    .marcador { display: inline-block; background: var(--acento); color: #23120a; font-weight: 700; padding: 8px 16px; border-radius: 8px; text-decoration: none; cursor: grab; margin: 4px 0; }
+    form, .tarjeta { background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; padding: 16px; }
+    .campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .campo { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; color: var(--tinta-2); }
+    .campo.ancho { grid-column: 1 / -1; }
+    .campo input, .campo textarea { background: var(--fondo); border: 1px solid var(--linea); color: var(--tinta); border-radius: 8px; padding: 9px 11px; font: inherit; font-size: .92rem; width: 100%; }
+    .campo input:focus, .campo textarea:focus { outline: 2px solid var(--acento); outline-offset: 1px; }
+    .campo input[aria-invalid="true"] { border-color: var(--mal); }
+    .ayuda { font-size: .76rem; color: var(--tinta-2); }
+    .ayuda.mal { color: var(--mal); }
+    .ayuda.bien { color: var(--bien); }
+    .checks { display: flex; flex-wrap: wrap; gap: 16px; grid-column: 1 / -1; font-size: .88rem; }
+    .checks label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    details.extra { grid-column: 1 / -1; border-top: 1px dashed var(--linea); padding-top: 10px; }
+    details.extra summary { cursor: pointer; font-size: .85rem; color: var(--tinta-2); }
+    .acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+    .btn { border: 1px solid var(--linea); background: var(--panel-2); color: var(--tinta); border-radius: 8px; padding: 9px 14px; font-size: .86rem; cursor: pointer; font-family: inherit; text-decoration: none; display: inline-block; }
+    .btn-principal { background: var(--acento); border-color: var(--acento); color: #23120a; font-weight: 700; }
+    .btn-peligro { color: var(--mal); }
+    .btn:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+    .btn[data-hecho] { background: var(--bien); border-color: var(--bien); color: #06281a; }
+    .error { color: var(--mal); font-size: .88rem; margin: 10px 0 0; }
+    .lista { display: flex; flex-direction: column; gap: 10px; }
+    .fila { display: grid; grid-template-columns: 64px 1fr; gap: 12px; background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; padding: 12px; }
+    .fila img, .fila .sin-foto { width: 64px; height: 64px; object-fit: contain; background: #fff; border-radius: 8px; }
+    .fila .sin-foto { background: var(--panel-2); }
+    .f-titulo { font-weight: 600; font-size: .92rem; margin: 0 0 4px; line-height: 1.35; }
+    .f-meta { font-size: .82rem; color: var(--tinta-2); margin: 0 0 6px; }
+    .estado { display: inline-block; font-size: .74rem; border-radius: 999px; padding: 2px 9px; border: 1px solid currentColor; margin-right: 6px; }
+    .estado.ok { color: var(--bien); } .estado.mal { color: var(--mal); } .estado.aviso { color: var(--aviso); } .estado.local { color: var(--acento); }
+    .fila .acciones { margin-top: 8px; }
+    .fila .btn { padding: 6px 10px; font-size: .8rem; }
+    .vacio { color: var(--tinta-2); font-size: .9rem; }
+    .subir { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel-2); border-top: 2px solid var(--acento); padding: 12px 16px; z-index: 10; }
+    .subir-in { max-width: 820px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .subir p { margin: 0; flex: 1 1 100%; font-size: .84rem; }
+    .subir .btn { padding: 8px 12px; font-size: .82rem; }
+    .sugs { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+    .sug { background: var(--panel); border: 1px solid var(--linea); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; font-size: .82rem; }
+    .sug img { width: 100%; height: 110px; object-fit: contain; background: #fff; border-radius: 6px; }
+    .sug a { color: var(--acento); font-weight: 600; }
+    @media (max-width: 560px) { .campos { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="hoja">
+    <header>
+      <h1>Agregar productos a tu vitrina</h1>
+      <p class="sub">Todo lo que publica KalidaPresio sale de aquí, y cada producto lleva <b>tu link oficial</b> de afiliado.</p>
+      <div class="nav"><a href="/panel/hoy">→ Publicar en redes</a><a href="/hoy" target="_blank">→ Ver /hoy</a></div>
+      <div class="contadores" data-contadores></div>
+    </header>
+
+    <details class="guia" data-guia>
+      <summary>Cómo agregar un producto (2 minutos)</summary>
+      <ol>
+        <li>
+          <b>Instala el marcador una sola vez:</b> arrastra este botón a tu barra de marcadores
+          (en la computadora; si no ves la barra: Ctrl/Cmd + Shift + B).<br />
+          <a class="marcador" href={marcador} title="Arrástrame a tu barra de marcadores">➕ Agregar a KalidaPresio</a>
+          <br /><button class="btn" type="button" data-copiar-marcador>Copiar el código del marcador</button>
+          <span class="ayuda">(si tu navegador no deja arrastrarlo: crea un marcador nuevo y pega el código como dirección)</span>
+        </li>
+        <li><b>En Mercado Libre, con tu sesión iniciada</b>, abre la página del producto.</li>
+        <li><b>Genera tu link</b> con «Compartir» en la barra azul de afiliados (arriba de la página) y cópialo.</li>
+        <li><b>Toca el marcador.</b> Pega el link cuando te lo pida. Se abre esta página con todo lleno.</li>
+        <li><b>Revisa y guarda.</b> Cuando termines de agregar, sube los cambios con el botón de abajo.</li>
+      </ol>
+      <p class="ayuda">Para separar las ventas por red: en tu panel de afiliados crea una etiqueta por canal (whatsapp, telegram, instagram…), genera el link con esa etiqueta y pégalo en «Links por canal».</p>
+    </details>
+
+    <h2 data-titulo-form>Producto</h2>
+    <form data-form novalidate>
+      <div class="campos">
+        <label class="campo ancho">Link oficial de afiliado *
+          <input name="link" type="url" inputmode="url" placeholder="https://meli.la/…" autocomplete="off" required />
+          <span class="ayuda" data-ayuda-link>El link corto del generador: meli.la/… o mercadolibre.com/sec/… Pégalo sin editar.</span>
+        </label>
+        <label class="campo ancho">Título *
+          <input name="titulo" type="text" required />
+        </label>
+        <label class="campo">Precio actual *
+          <input name="precio" type="number" inputmode="decimal" min="1" step="any" required />
+        </label>
+        <label class="campo">Precio anterior (tachado)
+          <input name="precio_antes" type="number" inputmode="decimal" min="0" step="any" />
+        </label>
+        <label class="campo ancho">URL del producto en Mercado Libre
+          <input name="url_producto" type="url" placeholder="https://www.mercadolibre.com.mx/…/p/MLM…" />
+        </label>
+        <label class="campo ancho">Foto (URL de la imagen)
+          <input name="imagen" type="url" placeholder="https://http2.mlstatic.com/…" />
+        </label>
+        <label class="campo">Calificación (0–5)
+          <input name="rating" type="number" inputmode="decimal" min="0" max="5" step="0.1" />
+        </label>
+        <label class="campo">Unidades vendidas
+          <input name="vendidos" type="number" inputmode="numeric" min="0" step="1" />
+        </label>
+        <div class="checks">
+          <label><input name="envio_gratis" type="checkbox" /> Envío gratis</label>
+          <label><input name="destacado" type="checkbox" /> Destacado («Elegidos por nosotros»)</label>
+          <label><input name="relampago" type="checkbox" /> ⚡ Oferta relámpago</label>
+        </div>
+        <label class="campo ancho" data-campo-termina hidden>¿Cuándo termina la relámpago? (si no lo sabes, déjalo vacío: se retira sola a las 12 h)
+          <input name="termina" type="datetime-local" />
+        </label>
+        <label class="campo ancho">Tu nota (por qué lo recomiendas; sale en el sitio y en las publicaciones)
+          <textarea name="nota" rows="2" maxlength="160"></textarea>
+        </label>
+        <details class="extra">
+          <summary>Links por canal (opcional, para separar ventas por red)</summary>
+          <div class="campos" style="margin-top:10px">
+            {canalesExtra.map(([codigo, nombre]) => (
+              <label class="campo">{nombre}
+                <input name={`enlace_${codigo}`} type="url" placeholder="https://meli.la/…" data-enlace-canal={codigo} />
+              </label>
+            ))}
+          </div>
+        </details>
+      </div>
+      <p class="error" data-error hidden></p>
+      <div class="acciones">
+        <button class="btn btn-principal" type="submit" data-guardar>Guardar en la lista</button>
+        <button class="btn" type="button" data-limpiar>Limpiar</button>
+        <span class="ayuda">Guardar marca el precio como «visto hoy».</span>
+      </div>
+    </form>
+
+    <h2>Tu vitrina</h2>
+    <div class="lista" data-lista></div>
+
+    {sugerencias.length > 0 && (
+      <>
+        <h2>Ideas para empezar</h2>
+        <p class="sub" style="margin-bottom:12px">
+          Lo mejor del último escaneo automático{escaneoDel ? ` (${escaneoDel})` : ''}. Los precios de entonces ya no valen:
+          ábrelo en Mercado Libre, genera tu link y usa el marcador.
+        </p>
+        <div class="sugs">
+          {sugerencias.map((s) => (
+            <div class="sug">
+              {s.imagen && <img src={s.imagen} alt="" loading="lazy" />}
+              <span>{s.titulo}</span>
+              <a href={s.url} target="_blank" rel="noopener noreferrer">Abrir en Mercado Libre →</a>
+            </div>
+          ))}
+        </div>
+      </>
+    )}
+  </div>
+
+  <div class="subir" data-subir hidden>
+    <div class="subir-in">
+      <p data-subir-texto></p>
+      <button class="btn btn-principal" type="button" data-copiar-archivo>1. Copiar vitrina.json</button>
+      <a class="btn" data-abrir-github target="_blank" rel="noopener noreferrer">2. Abrir en GitHub y pegar</a>
+      <button class="btn btn-peligro" type="button" data-descartar>Descartar cambios</button>
+    </div>
+  </div>
+
+  <script type="application/json" id="kp-datos" set:html={datos}></script>
+
+  <script>
+    import { normalizarProducto, esLinkOficial, claveProducto, urlProductoLimpia, DIAS_VIGENCIA_PRECIO } from '../../utils/vitrina.js';
+    import { leerEnvioMarcador } from '../../utils/marcador.js';
+
+    const DATOS = JSON.parse(document.getElementById('kp-datos')?.textContent || '{}');
+    const ARCHIVO = DATOS.archivo || { productos: [] };
+    const CLAVE = 'kp-vitrina-borrador';
+    const $ = (s: string) => document.querySelector(s) as HTMLElement | null;
+
+    const form = $('[data-form]') as HTMLFormElement;
+    const campo = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
+    let editando: number | null = null;
+
+    // ── Borrador local ─────────────────────────────────────────────────────
+    function cargar(): any[] {
+      try {
+        const b = JSON.parse(localStorage.getItem(CLAVE) || 'null');
+        if (Array.isArray(b)) return b;
+      } catch { /* sin almacenamiento: se trabaja en memoria */ }
+      return structuredClone(ARCHIVO.productos || []);
+    }
+    let productos = cargar();
+    const iguales = () => JSON.stringify(productos) === JSON.stringify(ARCHIVO.productos || []);
+    function guardarBorrador() {
+      try {
+        if (iguales()) localStorage.removeItem(CLAVE);
+        else localStorage.setItem(CLAVE, JSON.stringify(productos));
+      } catch { /* modo privado: el borrador vive mientras la pestaña esté abierta */ }
+    }
+    const archivoCompleto = () => JSON.stringify({ _ayuda: ARCHIVO._ayuda, productos }, null, 2) + '\n';
+
+    // ── Copiar (con respaldo para http y navegadores viejos) ──────────────
+    function marcar(btn: HTMLElement, texto: string) {
+      const original = btn.textContent;
+      btn.textContent = texto;
+      btn.setAttribute('data-hecho', '');
+      setTimeout(() => { btn.textContent = original; btn.removeAttribute('data-hecho'); }, 1800);
+    }
+    async function copiar(btn: HTMLElement, texto: string) {
+      try {
+        await navigator.clipboard.writeText(texto);
+        marcar(btn, '✓ Copiado');
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = texto;
+        ta.style.cssText = 'position:fixed;inset:10% 5%;z-index:99;background:#1d1230;color:#f0e8fa;border:1px solid #ff8a3d;border-radius:10px;padding:12px';
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch { ok = false; }
+        if (ok) { ta.remove(); marcar(btn, '✓ Copiado'); }
+        else { ta.addEventListener('blur', () => ta.remove()); marcar(btn, 'Copia a mano ↑'); }
+      }
+    }
+
+    // ── Pintar ──────────────────────────────────────────────────────────────
+    const pesos = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
+    const esc = (s: any) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+    const enArchivo = new Set((ARCHIVO.productos || []).map((p: any) => JSON.stringify(p)));
+
+    function pintar() {
+      const ahora = Date.now();
+      const lista = $('[data-lista]')!;
+      let ok = 0, mal = 0;
+      lista.innerHTML = productos.length ? productos.map((p, i) => {
+        const r: any = normalizarProducto(p, ahora);
+        const dias = p.revisado ? Math.floor((ahora - Date.parse(p.revisado)) / 86_400_000) : null;
+        let estado = '';
+        if (r.motivo) { mal++; estado = `<span class="estado mal">✗ ${esc(r.motivo)}</span>`; }
+        else {
+          ok++;
+          estado = `<span class="estado ok">✓ Publicable</span>`;
+          if (r.producto.oferta_relampago) estado += `<span class="estado aviso">⚡ hasta ${esc(new Date(r.producto.caduca).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>`;
+          if (dias !== null && dias >= DIAS_VIGENCIA_PRECIO - 2) estado += `<span class="estado aviso">precio de hace ${dias} días</span>`;
+        }
+        if (!enArchivo.has(JSON.stringify(p))) estado += `<span class="estado local">sin subir</span>`;
+        const img = p.imagen ? `<img src="${esc(p.imagen)}" alt="" loading="lazy">` : '<div class="sin-foto"></div>';
+        const ml = urlProductoLimpia(p.url_producto);
+        return `<article class="fila">${img}<div>`
+          + `<p class="f-titulo">${esc(p.titulo || '(sin título)')}</p>`
+          + `<p class="f-meta">${p.precio ? pesos(Number(p.precio)) : 'sin precio'}${p.precio_antes ? ` · antes ${pesos(Number(p.precio_antes))}` : ''}${p.revisado ? ` · visto el ${esc(new Date(p.revisado).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }))}` : ''}</p>`
+          + `<div>${estado}</div>`
+          + `<div class="acciones">`
+          + `<button class="btn" type="button" data-editar="${i}">Editar</button>`
+          + (r.motivo ? '' : `<button class="btn" type="button" data-revisado="${i}" title="Abriste la ficha y el precio sigue igual">Ya revisé: sigue igual</button>`)
+          + (ml ? `<a class="btn" href="${esc(ml)}" target="_blank" rel="noopener noreferrer">Abrir en ML</a>` : '')
+          + `<button class="btn btn-peligro" type="button" data-quitar="${i}">Quitar</button>`
+          + `</div></div></article>`;
+      }).join('') : '<p class="vacio">Tu vitrina está vacía. Agrega el primer producto con el marcador o con el formulario de arriba.</p>';
+
+      const cambios = !iguales();
+      $('[data-contadores]')!.innerHTML =
+        `<span class="contador"><b>${ok}</b> publicables</span>`
+        + (mal ? `<span class="contador"><b>${mal}</b> con algo que arreglar</span>` : '')
+        + (cambios ? `<span class="contador"><b>cambios sin subir</b></span>` : '');
+      const barra = $('[data-subir]')!;
+      barra.hidden = !cambios;
+      $('[data-subir-texto]')!.textContent = 'Cambios sin subir. Cópialos, pégalos en GitHub reemplazando todo y guarda («Commit changes»): el sitio se actualiza en unos minutos.';
+      (document.querySelector('[data-guia]') as HTMLDetailsElement).open = ok === 0;
+    }
+
+    // ── Formulario ─────────────────────────────────────────────────────────
+    function aLocal(iso?: string) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      const p = (n: number) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+    function llenar(p: any) {
+      form.reset();
+      for (const n of ['link', 'titulo', 'precio', 'precio_antes', 'url_producto', 'imagen', 'rating', 'vendidos', 'nota']) {
+        if (p[n] !== undefined && p[n] !== null) campo(n).value = String(p[n]);
+      }
+      campo('envio_gratis').checked = p.envio_gratis === true;
+      campo('destacado').checked = Boolean(p.destacado);
+      campo('relampago').checked = p.relampago === true;
+      campo('termina').value = aLocal(p.termina);
+      for (const el of Array.from(form.querySelectorAll('[data-enlace-canal]')) as HTMLInputElement[]) {
+        el.value = p.enlaces?.[el.dataset.enlaceCanal as string] ?? '';
+      }
+      alternarTermina();
+      validarLink();
+    }
+    function leer(): any {
+      const n = (v: string) => (v.trim() === '' ? undefined : Number(v));
+      const t = (v: string) => (v.trim() === '' ? undefined : v.trim());
+      const previo = editando !== null ? productos[editando] : {};
+      const entrada: any = {
+        link: campo('link').value.trim(),
+        titulo: t(campo('titulo').value),
+        precio: n(campo('precio').value),
+        precio_antes: n(campo('precio_antes').value),
+        revisado: new Date().toISOString(),
+        imagen: t(campo('imagen').value),
+        url_producto: urlProductoLimpia(campo('url_producto').value) ?? t(campo('url_producto').value),
+        rating: n(campo('rating').value),
+        vendidos: n(campo('vendidos').value),
+        envio_gratis: campo('envio_gratis').checked || undefined,
+        relampago: campo('relampago').checked || undefined,
+        termina: campo('relampago').checked && campo('termina').value ? new Date(campo('termina').value).toISOString() : undefined,
+        // Conserva la etiqueta de texto si ya la tenía («Más vendido»).
+        destacado: campo('destacado').checked ? (typeof previo?.destacado === 'string' ? previo.destacado : true) : undefined,
+        nota: t(campo('nota').value),
+      };
+      const enlaces: Record<string, string> = {};
+      for (const el of Array.from(form.querySelectorAll('[data-enlace-canal]')) as HTMLInputElement[]) {
+        if (el.value.trim()) enlaces[el.dataset.enlaceCanal as string] = el.value.trim();
+      }
+      if (Object.keys(enlaces).length) entrada.enlaces = enlaces;
+      // Fuera los campos vacíos: el archivo queda legible para quien lo abra.
+      for (const k of Object.keys(entrada)) if (entrada[k] === undefined) delete entrada[k];
+      return entrada;
+    }
+    function validarLink() {
+      const v = campo('link').value.trim();
+      const ayuda = $('[data-ayuda-link]')!;
+      if (!v) { ayuda.className = 'ayuda'; ayuda.textContent = 'El link corto del generador: meli.la/… o mercadolibre.com/sec/… Pégalo sin editar.'; campo('link').removeAttribute('aria-invalid'); return; }
+      const ok = esLinkOficial(v);
+      campo('link').setAttribute('aria-invalid', String(!ok));
+      ayuda.className = ok ? 'ayuda bien' : 'ayuda mal';
+      ayuda.textContent = ok
+        ? '✓ Link oficial'
+        : /matt_tool|matt_word/.test(v)
+          ? '✗ Ese es un link armado a mano (matt_tool/matt_word): no genera comisión. Usa el link corto del generador.'
+          : '✗ No es un link corto oficial. Debe empezar con https://meli.la/ o https://mercadolibre.com/sec/';
+    }
+    function alternarTermina() {
+      ($('[data-campo-termina]') as HTMLElement).hidden = !campo('relampago').checked;
+    }
+    function editar(i: number | null) {
+      editando = i;
+      $('[data-titulo-form]')!.textContent = i === null ? 'Producto' : 'Editando producto';
+      ($('[data-guardar]') as HTMLElement).textContent = i === null ? 'Guardar en la lista' : 'Guardar cambios';
+    }
+
+    form.addEventListener('input', (e) => {
+      const t = e.target as HTMLInputElement;
+      if (t.name === 'link') validarLink();
+      if (t.name === 'relampago') alternarTermina();
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const entrada = leer();
+      const r: any = normalizarProducto(entrada, Date.now());
+      const error = $('[data-error]')!;
+      if (r.motivo) { error.textContent = `No se puede guardar: ${r.motivo}.`; error.hidden = false; return; }
+      error.hidden = true;
+      // Mismo producto ya en la lista → se actualiza en vez de duplicarlo.
+      const clave = claveProducto(entrada.url_producto);
+      const otro = editando ?? (clave ? productos.findIndex((p) => claveProducto(p.url_producto) === clave) : -1);
+      if (otro !== null && otro >= 0) productos[otro] = entrada;
+      else productos.unshift(entrada);
+      guardarBorrador();
+      form.reset();
+      editar(null);
+      validarLink();
+      alternarTermina();
+      pintar();
+      $('[data-lista]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('[data-limpiar]')!.addEventListener('click', () => { form.reset(); editar(null); validarLink(); alternarTermina(); });
+
+    document.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const ed = t.closest('[data-editar]');
+      if (ed) {
+        const i = Number(ed.getAttribute('data-editar'));
+        llenar(productos[i]);
+        editar(i);
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      const rev = t.closest('[data-revisado]');
+      if (rev) {
+        const i = Number(rev.getAttribute('data-revisado'));
+        productos[i] = { ...productos[i], revisado: new Date().toISOString() };
+        guardarBorrador();
+        pintar();
+        return;
+      }
+      const q = t.closest('[data-quitar]');
+      if (q) {
+        const i = Number(q.getAttribute('data-quitar'));
+        if (confirm(`¿Quitar «${productos[i]?.titulo ?? 'este producto'}» de la vitrina?`)) {
+          productos.splice(i, 1);
+          // Los índices se corren: cualquier edición abierta se cierra.
+          if (editando !== null) { form.reset(); editar(null); }
+          guardarBorrador();
+          pintar();
+        }
+        return;
+      }
+      if (t.closest('[data-copiar-archivo]')) { copiar(t.closest('[data-copiar-archivo]') as HTMLElement, archivoCompleto()); return; }
+      if (t.closest('[data-copiar-marcador]')) {
+        copiar(t.closest('[data-copiar-marcador]') as HTMLElement, (document.querySelector('.marcador') as HTMLAnchorElement).getAttribute('href') || '');
+        return;
+      }
+      if (t.closest('[data-descartar]') && confirm('¿Descartar todos los cambios que no has subido?')) {
+        productos = structuredClone(ARCHIVO.productos || []);
+        guardarBorrador();
+        form.reset();
+        editar(null);
+        pintar();
+      }
+    });
+    ($('[data-abrir-github]') as HTMLAnchorElement).href = DATOS.editarEnGithub;
+    // Un clic en el marcador desde ESTA página no hace nada útil: avisarlo.
+    $('.marcador')!.addEventListener('click', (e) => { e.preventDefault(); alert('Arrástrame a tu barra de marcadores y úsame en la página de un producto de Mercado Libre.'); });
+
+    // ── Lo que manda el marcador ───────────────────────────────────────────
+    const enviado = leerEnvioMarcador(location.hash);
+    if (enviado) {
+      history.replaceState(null, '', location.pathname);
+      const clave = claveProducto(enviado.url_producto);
+      const i = clave ? productos.findIndex((p) => claveProducto(p.url_producto) === clave) : -1;
+      if (i >= 0) {
+        // Ya estaba: se actualiza el precio y se conserva lo tuyo (link, nota,
+        // links por canal) si el marcador no trajo uno nuevo.
+        const actual = productos[i];
+        llenar({ ...actual, ...Object.fromEntries(Object.entries(enviado).filter(([, v]) => v !== '' && v !== null && v !== undefined)), link: enviado.link || actual.link, nota: actual.nota, enlaces: actual.enlaces, destacado: actual.destacado });
+        editar(i);
+      } else {
+        llenar(enviado);
+        editar(null);
+      }
+      form.scrollIntoView({ block: 'start' });
+      if (!enviado.link) campo('link').focus();
+    }
+
+    pintar();
+  </script>
+</body>
+</html>

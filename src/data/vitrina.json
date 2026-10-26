@@ -1,0 +1,38 @@
+{
+  "_ayuda": [
+    "Los productos que recomiendas. El sitio, el panel de publicación, el bot de Telegram y las tarjetas salen SOLO de aquí.",
+    "Cada producto necesita tu link OFICIAL de afiliado: el link corto que te da el generador de Mercado Libre (https://meli.la/... o https://mercadolibre.com/sec/...), pegado SIN editar.",
+    "La forma fácil de agregar productos: abre /panel/agregar en tu sitio, usa el marcador en la página del producto y copia aquí el archivo que te arma.",
+    "Campos: link (obligatorio), titulo, precio, revisado (fecha en que viste el precio) · opcionales: precio_antes, imagen, url_producto, rating, vendidos, envio_gratis, relampago, termina, destacado, nota, enlaces {wa, tg, fb, ig, tt, pn, cr}.",
+    "Un precio con más de 7 días sin revisar se esconde solo; una relámpago se retira al llegar a 'termina' (o 12 h después de 'revisado' si no pusiste hora de fin)."
+  ],
+  "productos": [
+    {
+      "link": "",
+      "titulo": "CeraVe Crema Hidratante Facial y Corporal Piel Seca a Muy Seca, 454 g",
+      "precio": 220,
+      "precio_antes": 549,
+      "imagen": "https://http2.mlstatic.com/D_NQ_NP_809615-MLA111022333978_052026-O.webp",
+      "url_producto": "https://www.mercadolibre.com.mx/cerave-crema-hidratante-facial-y-corporal-piel-seca-a-muy-seca-454-g/p/MLM19309318",
+      "destacado": true
+    },
+    {
+      "link": "",
+      "titulo": "Samsung Galaxy A16 128 GB 4 GB RAM NFC Verde Claro",
+      "precio": 2389,
+      "precio_antes": 4949,
+      "imagen": "https://http2.mlstatic.com/D_NQ_NP_919260-MLA100039816103_122025-O.webp",
+      "url_producto": "https://www.mercadolibre.com.mx/telefono-celular-samsung-galaxy-a16-128-gb-4-gb-de-ram-nfc-verde-claro/p/MLM44113911",
+      "destacado": "Más vendido"
+    },
+    {
+      "link": "",
+      "titulo": "Bocina Portátil Aiwa AWS600BT Bluetooth Waterproof Negra",
+      "precio": 849,
+      "precio_antes": 1666,
+      "imagen": "https://http2.mlstatic.com/D_NQ_NP_655583-MLA99989998391_112025-O.webp",
+      "url_producto": "https://www.mercadolibre.com.mx/bocina-portatil-aiwa-aws600bt-con-bluetooth-waterproof-negra/p/MLM19045710",
+      "destacado": true
+    }
+  ]
+}

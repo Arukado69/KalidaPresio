@@ -1,29 +1,21 @@
 ---
 /**
- * Curados — Sección "Elegidos por nosotros": los productos que TÚ curas a mano.
+ * Curados — Sección "Elegidos por nosotros": tus apuestas destacadas.
  *
- * Fuente: src/data/curados.json — una lista simple que tú mantienes.
- * Por cada entrada: { url, titulo, imagen, precio, precioPrevio?, badge? }.
- * El sitio le pega tu código de afiliado (aLinkAfiliado) y arma la tarjeta.
+ * Fuente: los productos de la vitrina (src/data/vitrina.json) marcados con
+ * `"destacado": true` (o con un texto, que sale como etiqueta: "Más vendido").
+ * Antes vivían en curados.json y el sitio les PEGABA tu código de afiliado a
+ * mano; ahora cada uno trae su link oficial y se publica tal cual.
  *
- * Este es tu CAMINO DEL DINERO, sin scraping ni API: pegas links, salen tarjetas.
  * Vive arriba (bajo el hero) porque son tus apuestas destacadas.
  */
-import curados from '../data/curados.json';
-import { aLinkAfiliado } from '../utils/afiliado.js';
+import { OFERTAS } from '../data/ofertas.js';
 import { categorizar } from '../utils/categorias.js';
 
 const fmt = (n) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
 
-// Enriquecemos cada entrada: link de afiliado + descuento calculado.
-const items = (Array.isArray(curados) ? curados : []).map((c) => {
-  const descuento = c.precioPrevio && c.precio
-    ? Math.round((1 - c.precio / c.precioPrevio) * 100)
-    : 0;
-  // campana 'elegidos' → en tu panel de ML verás los clics de ESTA sección aparte
-  return { ...c, enlace: aLinkAfiliado(c.url, 'elegidos'), descuento };
-});
+const items = OFERTAS.filter((o) => o.destacado);
 ---
 
 {items.length > 0 && (
@@ -37,10 +29,13 @@ const items = (Array.isArray(curados) ? curados : []).map((c) => {
           class="cur-card"
           data-spotlight
           data-ripple
-          data-precio={o.precio}
+          data-ml-id={o.id}
+          data-kp-seccion="elegidos"
+          data-precio={o.precio_actual}
           data-descuento={o.descuento}
+          data-kp={o.score_kalidad_presio}
           data-cat={categorizar(o.titulo ?? '')}
-          href={o.enlace}
+          href={o.link_afiliado}
           target="_blank"
           rel="nofollow sponsored noopener noreferrer"
           style={`--reveal-delay:${(i % 6) * 70}ms`}
@@ -50,14 +45,15 @@ const items = (Array.isArray(curados) ? curados : []).map((c) => {
               ? <img src={o.imagen} alt={o.titulo} loading="lazy" class="cur-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
               : null}
             <span class="cur-fallback" style={o.imagen ? 'display:none' : ''} aria-hidden="true">✨</span>
-            {o.badge && <span class="cur-badge">{o.badge}</span>}
+            <span class="cur-badge">{o.destacado}</span>
             {o.descuento > 0 && <span class="cur-desc">-{o.descuento}%</span>}
           </div>
           <div class="cur-info">
             <h3 class="cur-titulo">{o.titulo}</h3>
+            {o.nota && <p class="cur-nota">{o.nota}</p>}
             <div class="cur-precios">
-              <span class="cur-precio">{fmt(o.precio)}</span>
-              {o.precioPrevio && <s class="cur-prev">{fmt(o.precioPrevio)}</s>}
+              <span class="cur-precio">{fmt(o.precio_actual)}</span>
+              {o.precio_previo && <s class="cur-prev">{fmt(o.precio_previo)}</s>}
             </div>
             <span class="cur-cta">Ver oferta →</span>
           </div>
@@ -149,6 +145,8 @@ const items = (Array.isArray(curados) ? curados : []).map((c) => {
     display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     min-height: 2.5em;
   }
+  /* Tu nota es lo que ningún otro canal de ofertas puede escribir. */
+  .cur-nota { margin: 0; font-size: 0.82rem; color: var(--color-text-muted); line-height: 1.4; }
   .cur-precios { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
   .cur-precio {
     font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; color: #fff; letter-spacing: -0.02em;

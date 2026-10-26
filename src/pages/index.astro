@@ -9,21 +9,15 @@ import Curados from '../components/Curados.astro';
 import ExplorarChips from '../components/ExplorarChips.astro';
 import { generarVeredicto, tierKP } from '../utils/veredicto.js';
 import { scoreEfectivo } from '../utils/scoreSecciones.js';
-import { aLinkAfiliado } from '../utils/afiliado.js';
 import { categorizar } from '../utils/categorias.js';
 import { formatearVendidos } from '../utils/mlPayload.js';
 import { OFERTAS as ofertas } from '../data/ofertas.js';
-// Colecciones por sección (build-time, con fallback a ofertas.json si el
-// extractor aún no corrió). Relámpago e Imbatibles son el MVP; liquidación
-// y menos-500 quedan en backlog (los datos ya existen).
-// Relámpago ya NO se importa: es runtime (RelampagoSticky + initRelampagoFetch).
-import { ALL_IMBATIBLES, IMBATIBLES_COMPLETADO, SECCIONES_CON_PAGINA } from '../data/secciones.js';
+// Todo sale de la vitrina (src/data/vitrina.json): los productos que eliges,
+// cada uno con su link oficial. Relámpago NO se importa aquí: es runtime
+// (RelampagoSticky + initRelampagoFetch), porque tiene hora de fin.
+import { CATALOGO, SECCIONES_CON_PAGINA } from '../data/secciones.js';
 
-// El encabezado de la rejilla sigue al CONTENIDO, no al revés: si hubo que
-// completarla con el resto del catálogo, no se titula "Precios imbatibles".
-const rejilla = IMBATIBLES_COMPLETADO
-  ? { titulo: 'Lo mejor del catálogo', resumen: 'seleccionados y ordenados por el Sello K-P', campana: 'catalogo' }
-  : { titulo: 'Precios imbatibles', resumen: 'precio permanente bajo, ordenados por calidad real', campana: 'imbatibles' };
+const rejilla = { titulo: 'Lo que recomendamos hoy', resumen: 'elegidos a mano y ordenados por el Sello K-P', campana: 'catalogo' };
 
 const isHotSale = import.meta.env.IS_HOT_SALE === 'true';
 
@@ -38,9 +32,9 @@ const ofertasScored = ofertas
   // Mismo criterio que el scraper: K-P y, ante empate, mayor confianza.
   .sort((a, b) => b.score100 - a.score100 || (b.confianza ?? 0) - (a.confianza ?? 0));
 
-// El feed de ofertas.json (build-time) alimenta showpiece + bento + imbatibles.
-// Las relámpago se sirven aparte en runtime (no entran aquí).
-const evergreen = ofertasScored.filter((o) => !o.oferta_relampago);
+// La vitrina (build-time) alimenta showpiece + bento + rejilla. Las relámpago
+// se sirven aparte en runtime: OFERTAS ya viene sin ellas.
+const evergreen = ofertasScored;
 
 // PRODUCTO DEL DÍA (showpiece del hero): la oferta más perfecta —
 // mayor K-P y, ante empate, mayor descuento real. Se excluye del bento
@@ -111,20 +105,20 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
             <span class="hero-mask"><span class="hero-line hero-acento">de verdad valen la pena.</span></span>
           </h1>
           <p class="hero-subtitulo">
-            Rastreamos miles de ofertas y te mostramos únicamente las mejores según nuestro
+            Revisamos las ofertas una por una y te mostramos solo las que pasan nuestro
             <strong> Sello K-P</strong>: calidad real de los compradores + descuento real. Sin relleno.
           </p>
 
           <div class="hero-pills">
             <span class="hero-pill"><span class="dot"></span> Cero anuncios pagados</span>
             <span class="hero-pill"><span class="dot"></span> Datos reales de ML</span>
-            <span class="hero-pill"><span class="dot"></span> Actualizado a diario</span>
+            <span class="hero-pill"><span class="dot"></span> Elegidas a mano</span>
           </div>
 
           <div class="hero-stats">
             <div class="hero-stat">
               <span class="stat-numero" data-countup={ofertas.length}>0</span>
-              <span class="stat-label">Ofertas curadas</span>
+              <span class="stat-label">Ofertas elegidas</span>
             </div>
             <!-- Stat de relámpago: ahora runtime. Oculto al inicio; el fetch
                  lo rellena y muestra si hay ofertas vivas (initRelampagoFetch). -->
@@ -179,7 +173,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
                 <strong>{showpiece.rating?.toFixed(1)}</strong>
                 <em>{formatearVendidos(showpiece.vendidos)}</em>
               </div>
-              <BotonCTA id={showpiece.id} enlace={aLinkAfiliado(showpiece.link_afiliado, 'hero')} texto="Ver oferta" magnetic />
+              <BotonCTA id={showpiece.id} enlace={showpiece.link_afiliado} seccion="hero" texto="Ver oferta" magnetic />
               <!-- Puntos de progreso del rotador (los rellena initHeroSpotlight) -->
               <div class="hs-dots" data-hero-dots role="tablist" aria-label="Ofertas en rotación"></div>
             </div>
@@ -242,7 +236,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
             <!-- Título clicable: la card siempre tiene enlace a la vista,
                  aunque el CTA quede bajo el pliegue en pantallas chicas -->
             <h3 class="bh-titulo">
-              <a class="bh-titulo-link" href={aLinkAfiliado(veredicto.link_afiliado, 'bento')} target="_blank" rel="nofollow sponsored noopener noreferrer">{veredicto.titulo}</a>
+              <a class="bh-titulo-link" href={veredicto.link_afiliado} data-kp-seccion="bento" target="_blank" rel="nofollow sponsored noopener noreferrer">{veredicto.titulo}</a>
             </h3>
 
             <!-- El PRECIO va antes del bloque narrativo: es lo primero que
@@ -269,7 +263,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
               </div>
             </div>
 
-            <BotonCTA id={veredicto.id} enlace={aLinkAfiliado(veredicto.link_afiliado, 'bento')} texto="Ver oferta" />
+            <BotonCTA id={veredicto.id} enlace={veredicto.link_afiliado} seccion="bento" texto="Ver oferta" />
           </div>
         </article>
 
@@ -287,7 +281,8 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
             data-kp={o.score100}
             data-descuento={Math.round(o.descuento ?? 0)}
             data-cat={categorizar(o.titulo)}
-            href={aLinkAfiliado(o.link_afiliado, 'bento')}
+            href={o.link_afiliado}
+            data-kp-seccion="bento"
             target="_blank"
             rel="nofollow sponsored noopener noreferrer"
           >
@@ -318,15 +313,12 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
     </section>
   )}
 
-  <!-- ELEGIDOS: tus productos curados a mano (curados.json). Camino del dinero:
-       pegas links → tarjetas con tu código de afiliado. No depende de scraping. -->
+  <!-- ELEGIDOS: los productos de la vitrina marcados como destacados. -->
   <Curados />
 
-  <!-- Catálogo principal: IMBATIBLES (grid 3/2/1, score recalibrado 65/10/25).
-       Liquidación y menos-500: datos listos en secciones.js, render en el
-       siguiente sprint (backlog). -->
+  <!-- Catálogo principal: la vitrina completa (grid 3/2/1), menos relámpago. -->
   <SeccionGrid
-      productos={ALL_IMBATIBLES}
+      productos={CATALOGO}
       titulo={rejilla.titulo}
       resumen={rejilla.resumen}
       campana={rejilla.campana}

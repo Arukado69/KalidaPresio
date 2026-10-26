@@ -1,7 +1,16 @@
 name: Actualizar feed de ofertas
 
-# Refresca src/data/ofertas.json cada 3 horas. Ese push dispara deploy.yml →
-# rebuild en el VPS → precios frescos en la web.
+# ── PAUSADO (octubre 2026) ─────────────────────────────────────────────────
+# Desde el 8 de octubre de 2026 Mercado Libre responde a los runners de GitHub
+# con una pantalla de «verifica tu cuenta» (/gz/account-verification): el
+# scraper falló en cada corrida desde entonces. El sitio ya no depende de este
+# feed — sale de src/data/vitrina.json, tus productos con link oficial — así
+# que el cron se quitó para no dejar un rojo cada 3 horas. Queda la ejecución
+# manual (pestaña Actions → Run workflow) por si ML vuelve a permitirlo; lo que
+# escribe (ofertas.json, histórico) solo alimenta las sugerencias de
+# /panel/agregar y el histórico de precios.
+#
+# Original: refrescaba src/data/ofertas.json cada 3 horas.
 #
 # ── LA ALARMA ──────────────────────────────────────────────────────────────
 # Este pipeline estuvo muerto 43 días sin que nadie se enterara: el scraper
@@ -16,9 +25,7 @@ name: Actualizar feed de ofertas
 # las causas con una sola señal: scraper roto, ML cambiando su payload, cron
 # que no dispara, o el propio GitHub desactivando el workflow por inactividad.
 on:
-  schedule:
-    - cron: '0 */3 * * *' # cada 3 horas (UTC)
-  workflow_dispatch: {}     # permite ejecutarlo a mano desde la pestaña Actions
+  workflow_dispatch: {}     # solo a mano desde la pestaña Actions (ver arriba)
 
 permissions:
   contents: write
@@ -54,9 +61,6 @@ jobs:
       - name: Descargar y puntuar ofertas
         id: scrape
         continue-on-error: true
-        env:
-          ML_MATT_TOOL: ${{ secrets.ML_MATT_TOOL }}
-          ML_MATT_WORD: ${{ secrets.ML_MATT_WORD }}
         run: |
           set -o pipefail
           node src/scripts/importarOfertas.js 2>&1 | tee /tmp/scraper.log
@@ -67,9 +71,6 @@ jobs:
         if: steps.scrape.outcome == 'success'
         env:
           SITE_URL: ${{ vars.SITE_URL || 'https://kalidapresio.albis-labs.xyz' }}
-          SKIP_EXTRACCION: 'true'
-          ML_MATT_TOOL: ${{ secrets.ML_MATT_TOOL }}
-          ML_MATT_WORD: ${{ secrets.ML_MATT_WORD }}
         run: npm run build
 
       # La hora UTC hace falta para decidir si toca pasada profunda. El `sed`

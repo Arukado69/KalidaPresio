@@ -12,12 +12,10 @@ export function GET({ site }) {
 User-agent: *
 Allow: /
 
-# /recomienda/* son redirecciones de afiliado (302 a Mercado Libre): no hay
-# contenido propio que indexar y los enlaces ya van con rel="nofollow sponsored".
+# /recomienda/* y /r/* son redirecciones viejas (ya no se generan): no hay
+# contenido propio que indexar.
 Disallow: /recomienda/
 Disallow: /api/
-
-# /r/* son los enlaces cortos por canal (302 a Mercado Libre). Mismo caso.
 Disallow: /r/
 
 # /panel/* es la herramienta interna de reparto: no es contenido, y que salga

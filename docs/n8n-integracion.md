@@ -1,3 +1,8 @@
+> ⛔️ **No uses los links de este documento (octubre 2026).** Construye links de afiliado
+> pegando `matt_tool`/`matt_word` a la URL del producto: esa forma no generó comisión. Los
+> links válidos son los oficiales del generador, en `src/data/vitrina.json` (ver
+> `docs/vitrina.md`). El flujo de Telegram vigente es `n8n/telegram-tecnologia.json`.
+>
 > ⚠️ **OBSOLETO (agosto 2026).** Este documento describe el flujo n8n → `productos.json`,
 > un archivo que ya no existe: `/productos/*` se retiró por servir fichas de ejemplo con
 > datos inventados. El pipeline vivo es `src/scripts/importarOfertas.js` → `src/data/ofertas.json`,

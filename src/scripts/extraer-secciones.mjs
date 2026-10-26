@@ -22,16 +22,9 @@ import { calcularScorePorSeccion, fraccionVolumen } from '../utils/scoreSeccione
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// ── Credenciales de afiliado (de .env; NO hardcodear MATT_TOOL) ──────────────
-try {
-  process.loadEnvFile(path.resolve(__dirname, '../../.env'));
-} catch { /* sin .env: process.env del entorno */ }
-
-const MATT_TOOL = process.env.ML_MATT_TOOL;
-const MATT_WORD = process.env.ML_MATT_WORD || 'ci20241127172754';
-if (!MATT_TOOL) {
-  console.warn('⚠  ML_MATT_TOOL no está en el entorno. Los link_afiliado saldrán SIN matt_tool (solo prototipo).');
-}
+// OJO (octubre 2026): ya no corre en el build. Mercado Libre bloquea a los
+// servidores y el sitio sale de la vitrina (src/data/vitrina.json). Queda como
+// sondeo manual, y no arma links de afiliado: esos solo salen del generador.
 
 // Salida DERIVADA: no se versiona (está en .gitignore). Cada build la
 // regenera; si el extractor falla, secciones.js la descarta por edad y sirve
@@ -205,15 +198,11 @@ function extraerItem(item, seccion, faltantes) {
 
   if (!card?.metadata?.id) { cuenta('sin id (item descartado)'); return null; }
 
-  const aAfiliado = (url) => (MATT_TOOL
-    ? `${url.split('?')[0]}?matt_tool=${MATT_TOOL}&matt_word=${MATT_WORD}`
-    : url.split('?')[0]);
-
   // La lectura del payload de ML vive UNA sola vez, en src/utils/mlPayload.js.
   // Antes estaba copiada aquí y en importarOfertas.js con distinta resistencia;
   // cuando ML renombró sus componentes, la copia que alimenta el sitio se
   // rompió en silencio durante 43 días y esta ni se enteró.
-  const base = leerTarjeta(envuelto, aAfiliado);
+  const base = leerTarjeta(envuelto);
   if (!base) { cuenta('tarjeta incompleta (sin título o precio)'); return null; }
 
   // Contadores para el reporte (informan, no truenan)

@@ -13,7 +13,7 @@ de los puertos 80/443 del VPS.
                                       │  red_global (por nombre de contenedor)
                           ┌───────────┴────────────┐
                           │  kalidapresio_web:80   │  Caddy + sitio Astro SSG
-                          │    ├── /recomienda/*   │  → 302 a ML con tu código
+                          │    ├── /recomienda/*   │  → 302 a la portada (viejo)
                           │    ├── /api/*  ────────┼──┐
                           │    └── resto → /srv    │  │
                           └────────────────────────┘  │
@@ -74,8 +74,7 @@ Un solo archivo cubre los dos mundos. Lo mínimo para arrancar:
 ```bash
 # BUILD-TIME (se hornean; cambiarlos exige --build)
 SITE_URL=https://kalidapresio.albis-labs.xyz     # ← el build FALLA si falta
-ML_MATT_TOOL=68549198
-ML_MATT_WORD=ci20241127172754
+# (Ya no hay ML_MATT_*: los links oficiales viven en src/data/vitrina.json.)
 
 # RUNTIME (basta con up -d)
 SITE_ADDRESS=:80                       # HTTP plano: el TLS lo da NPM
@@ -185,7 +184,7 @@ docker compose --env-file .env.production up -d --build
 docker image prune -f
 ```
 
-> ¿Cambiaste `SITE_URL` o `ML_MATT_*`? **Siempre `--build`**: sin reconstruir, el
+> ¿Cambiaste `SITE_URL` o la vitrina? **Siempre `--build`**: sin reconstruir, el
 > valor viejo sigue horneado en el HTML.
 > ¿Cambiaste solo un secreto de runtime (`RESEND_API_KEY`, `EXPORT_TOKEN`…)?
 > Basta `up -d` sin `--build`.
@@ -198,7 +197,6 @@ docker image prune -f
 | `SSH_USER` | usuario SSH |
 | `SSH_KEY` | **clave privada** (ya no contraseña) |
 | `SSH_PORT` | opcional, por defecto 22 |
-| `ML_MATT_TOOL` / `ML_MATT_WORD` | para el bot que refresca el feed |
 
 Genera el par de claves:
 
@@ -229,23 +227,18 @@ docker compose --env-file .env.production up -d --build
 # ... y cuando main esté reparado: git checkout main && git pull && up -d --build
 ```
 
-## 8. Frescura de los datos (automática)
+## 8. Frescura de los datos
 
-- `actualizar-ofertas.yml` re-escanea `ofertas.json` cada 3 h, **verifica que el
-  sitio compile con el feed nuevo** y solo entonces lo commitea.
-- Ese push dispara `deploy.yml` → tests + build en CI → SSH → rebuild en el VPS.
-- Durante el build, el hook de `astro.config.mjs` intenta refrescar el feed por
-  secciones desde ML. Si ML bloquea la IP del VPS (habitual), `secciones.js`
-  **descarta el archivo por edad** (TTL de 12 h) y sirve `ofertas.json`, que es
-  el que el bot mantiene fresco. En el log del build lo verás explícito:
-
-  ```
-  ⚠ [secciones] Feed seccionado descartado (...). Sirviendo ofertas.json (41 items del bot de 3 h).
-  ```
-
-  Ese aviso **no es un error**: es el sistema haciendo justo lo que debe. El
-  fallo silencioso anterior —quedarse con un JSON de hace dos meses— es lo que
-  se arregló.
+- Los productos y sus precios viven en `src/data/vitrina.json`. Cada vez que lo
+  actualizas desde `/panel/agregar` (copiar → pegar en GitHub → commit), el push
+  a `main` dispara `deploy.yml` → tests + build en CI → SSH → rebuild en el VPS.
+- Un precio con más de 7 días sin revisar se esconde solo; una relámpago se
+  retira al llegar a su hora de fin. El panel te marca lo que hay que revisar.
+- `actualizar-ofertas.yml` (el scraper de cada 3 h) **está pausado**: desde el
+  8 de octubre de 2026 Mercado Libre responde a los servidores con una pantalla
+  de «verifica tu cuenta». Queda la ejecución manual en la pestaña *Actions*.
+  Si sigue abierto el issue «🔴 El feed de ofertas dejó de refrescarse», ya se
+  puede cerrar: el sitio no depende de ese feed.
 
 ## 9. Operación diaria
 
@@ -313,10 +306,11 @@ docker compose --env-file .env.production up --build
 - **Puerto 80/443 ocupado al levantar:** ya no debería pasar — este compose no
   los publica. Si lo ves, tienes una versión vieja del `docker-compose.yml`
   (`git pull`).
-- **`/recomienda/<id>` devuelve 404:** correcto si esa oferta ya salió del feed.
-  Si devuelve 404 para TODAS, `docker/redirects.caddy` no se generó: mira el log
-  del build (`generadorRedirects.js`) y comprueba
-  `docker exec kalidapresio_web wc -l /etc/caddy/redirects.caddy`.
+- **`/recomienda/<id>` lleva a la portada:** correcto. Eran links armados a mano;
+  el sitio ya no redirige a Mercado Libre desde su propio dominio.
+- **Un producto no aparece:** abre `/panel/agregar`: cada producto que no se
+  publica dice por qué (link no oficial, precio de más de 7 días, relámpago
+  terminada…). El log del build lo dice también (`[vitrina]`).
 - **El boletín responde 503:** falta `SUBSCRIBE_SECRET` o `RESEND_API_KEY`. El
   log del backend lo dice al arrancar:
   `docker compose --env-file .env.production logs api | head -20`.

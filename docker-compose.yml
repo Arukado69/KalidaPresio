@@ -6,7 +6,7 @@
 #                                            └── /api/* → kalidapresio-api:3001
 #
 # UN SOLO archivo de entorno manda ambos mundos → .env.production:
-#   · build.args ${...}  → build-time (SITE_URL, ML_MATT_*: se hornean)
+#   · build.args ${...}  → build-time (SITE_URL, PUBLIC_*: se hornean)
 #   · env_file           → runtime    (RESEND_API_KEY, SUBSCRIBE_SECRET, …)
 #
 # Arranque (build + up):
@@ -24,8 +24,6 @@ services:
       args:
         # Se pasan como ARG al Dockerfile → ENV antes de `astro build`.
         SITE_URL: ${SITE_URL}
-        ML_MATT_TOOL: ${ML_MATT_TOOL}
-        ML_MATT_WORD: ${ML_MATT_WORD}
         PUBLIC_RELAMPAGO_URL: ${PUBLIC_RELAMPAGO_URL:-/data/relampago.json}
         IS_HOT_SALE: ${IS_HOT_SALE:-false}
         # Analítica (Umami). Vacías = sitio sin rastreo, sin romper nada.
