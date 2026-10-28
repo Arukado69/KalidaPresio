@@ -54,7 +54,9 @@
 	# eran links armados a mano que no generaban comisión; los que sigan
 	# publicados por ahí llevan a la portada, donde están las ofertas de hoy.
 	handle /recomienda/* {
-		redir / 302
+		# El `*` NO sobra: en `redir / 302` Caddy lee «/» como matcher de ruta
+		# (solo la ruta exacta «/»), nada coincide y responde un 200 vacío.
+		redir * / 302
 	}
 
 	# /r/<canal>/<id>: enlaces viejos publicados en Telegram/WhatsApp. El
