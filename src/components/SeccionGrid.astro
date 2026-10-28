@@ -12,8 +12,8 @@
  *  · Grid 3 col (desktop) / 2 (tablet) / 1 (móvil) con TarjetaOferta vertical.
  *  · Filtros por categoría + orden en vivo: los cablea el Layout con
  *    `[data-grid-filtrable]`, que es SINGULAR — una rejilla por página.
- *  · `campana` define el sufijo de matt_word: la misma etiqueta que verás en
- *    el panel de afiliados de ML y en Umami.
+ *  · `campana` nombra la sección en la analítica (data-kp-seccion en cada
+ *    CTA). Ya NO toca el link: el link oficial se publica tal cual.
  */
 import TarjetaOferta from './TarjetaOferta.astro';
 import { categorizar, ORDEN_CATEGORIAS } from '../utils/categorias.js';
@@ -25,7 +25,7 @@ export interface Props {
   titulo: string;
   /** Frase corta tras el conteo: «12 productos · <resumen>». */
   resumen: string;
-  /** Sufijo de matt_word para atribuir los clics de esta sección. */
+  /** Nombre de la sección para la analítica de clics (data-kp-seccion). */
   campana: string;
   /** `h2` en la portada (hay un h1 arriba); `h1` en la página propia. */
   encabezado?: 'h1' | 'h2';

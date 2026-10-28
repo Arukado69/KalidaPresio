@@ -17,10 +17,7 @@ src/data/ids_curados.json
 # durante dos meses: el extractor falló, nadie se enteró, y el JSON viejo
 # seguía en el repo listo para desplegarse.
 src/data/secciones-feed.json
-public/_redirects
-docker/redirects.caddy
 public/data/relampago.json
-public/data/enlaces.json
 public/data/feed.json
 public/promos/
 src/data/observaciones.json

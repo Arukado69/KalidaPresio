@@ -204,11 +204,13 @@ export function leerImagen(card) {
  * Lee una tarjeta entera al shape canónico del feed.
  * Devuelve null si la tarjeta no trae lo mínimo (id, título, precio).
  *
+ * Ya NO arma links de afiliado: guarda la URL limpia del producto. El link que
+ * cobra solo puede salir del generador de tu panel (ver src/utils/vitrina.js).
+ *
  * @param {object} item — elemento de pageProps.data.items
- * @param {(url: string) => string} aAfiliado — cómo convertir la URL en link de afiliado
  * @returns {object|null}
  */
-export function leerTarjeta(item, aAfiliado = (u) => u) {
+export function leerTarjeta(item) {
   const card = item?.card;
   if (!card) return null;
 
@@ -228,7 +230,7 @@ export function leerTarjeta(item, aAfiliado = (u) => u) {
     descuento,
     rating: leerRating(card),
     vendidos: leerVendidos(card),
-    link_afiliado: aAfiliado(url),
+    url_producto: url.split(/[?#]/)[0],
     imagen: leerImagen(card),
     // Señal nueva: descuento EXTRA que no viene descontado del precio.
     cupon: leerCupon(card),

@@ -1,13 +1,12 @@
 /**
  * Tests de la lógica de negocio pura.
  *
- * Son las cuatro funciones que deciden QUÉ se muestra, EN QUÉ ORDEN y A DÓNDE
- * lleva el clic. Ninguna toca red, disco ni DOM, así que blindarlas cuesta
- * poco y protege el camino del dinero.
+ * Son las funciones que deciden QUÉ se muestra y EN QUÉ ORDEN. A dónde lleva
+ * el clic lo protege vitrina.test.js. Ninguna toca red, disco ni DOM, así que
+ * blindarlas cuesta poco.
  */
 import { describe, it, expect } from 'vitest';
 import { calcularScorePorSeccion, scoreEfectivo, PESOS_SECCION } from './scoreSecciones.js';
-import { aLinkAfiliado } from './afiliado.js';
 import { categorizar, ORDEN_CATEGORIAS } from './categorias.js';
 import { generarVeredicto, tierKP } from './veredicto.js';
 
@@ -64,44 +63,6 @@ describe('scoreEfectivo', () => {
 
   it('conserva un score persistido de 0 (no lo confunde con "ausente")', () => {
     expect(scoreEfectivo({ score_kalidad_presio: 0, rating: 5 })).toBe(0);
-  });
-});
-
-describe('aLinkAfiliado — el camino del dinero', () => {
-  const URL_ML = 'https://www.mercadolibre.com.mx/producto/p/MLM123';
-
-  it('pega matt_tool y matt_word a una URL limpia', () => {
-    const r = new URL(aLinkAfiliado(URL_ML));
-    expect(r.searchParams.get('matt_tool')).toBeTruthy();
-    expect(r.searchParams.get('matt_word')).toBeTruthy();
-  });
-
-  it('descarta los parámetros previos en vez de acumularlos', () => {
-    const r = aLinkAfiliado(`${URL_ML}?matt_tool=OTRO&utm_source=facebook#resenas`);
-    expect(r).not.toContain('OTRO');
-    expect(r).not.toContain('utm_source');
-    expect(r).not.toContain('#resenas');
-  });
-
-  it('etiqueta canal y sección en el matt_word', () => {
-    // El sufijo es `<canal><seccion>`; sin canal explícito, el canal es el
-    // sitio ('wb'). Ver canales.js para por qué el canal va SIEMPRE delante.
-    const base = new URL(aLinkAfiliado(URL_ML)).searchParams.get('matt_word');
-    const delSitio = new URL(aLinkAfiliado(URL_ML, 'relampago')).searchParams.get('matt_word');
-    const deTelegram = new URL(aLinkAfiliado(URL_ML, 'relampago', 'tg')).searchParams.get('matt_word');
-    expect(delSitio).toBe(`${base}_wbrelampago`);
-    expect(deTelegram).toBe(`${base}_tgrelampago`);
-  });
-
-  it('sanea la campaña: nada que rompa el parámetro', () => {
-    const word = new URL(aLinkAfiliado(URL_ML, 'menos-500 &raro')).searchParams.get('matt_word');
-    expect(word).toMatch(/_wbmenos500raro$/);
-  });
-
-  it('degrada a "#" con entradas inservibles en vez de generar un enlace roto', () => {
-    for (const malo of [null, undefined, '', '   ', 42, {}]) {
-      expect(aLinkAfiliado(malo)).toBe('#');
-    }
   });
 });
 

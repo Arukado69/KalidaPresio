@@ -39,12 +39,10 @@ db.exec(`
   )
 `);
 
-// Mapa de enlaces cortos: id de ML → URL del producto, SIN parámetros.
-// Es ACUMULATIVO a propósito. `/recomienda/*` lo regenera cada build y por eso
-// un id que salió del feed devuelve 404 — aceptable dentro del sitio, fatal
-// para un enlace publicado en Telegram hace tres semanas. Aquí una fila entra
-// y no se borra: el enlace compartido sigue llevando a la oferta aunque el
-// feed de hoy ya no la traiga.
+// Mapa de enlaces cortos VIEJOS: id de ML → URL del producto, SIN parámetros.
+// Se llenó hasta octubre de 2026 y ya no crece: los enlaces nuevos son los
+// oficiales del generador de afiliados (ver src/data/vitrina.json). Se conserva
+// para que los /r/<canal>/<id> que siguen publicados lleven a la ficha.
 db.exec(`
   CREATE TABLE IF NOT EXISTS enlaces (
     ml_id TEXT PRIMARY KEY,

@@ -20,12 +20,20 @@
  * Se regeneran en cada build desde feed.json, así que NO se versionan. Van a
  * public/promos/ y Caddy las sirve sin caché, que es como n8n las alcanza.
  *
+ * ── DOS IMÁGENES POR PRODUCTO ──────────────────────────────────────────────
+ *   · /promos/<id>.jpg           4:5  → feed de Telegram, WhatsApp, Facebook
+ *   · /promos/<id>-historia.jpg  9:16 → estados, historias, TikTok
+ * El panel de publicación (/panel/hoy) ofrece la que toca según la red.
+ *
  * Ejecutar:  npm run generar-tarjetas
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ANCHO, FOTO_ALTO, BANDA_ALTO, ALTO, FONDO, svgFondo, svgTarjeta } from '../utils/tarjetas.js';
+import {
+  ANCHO, FOTO_ALTO, BANDA_ALTO, ALTO, FONDO, svgFondo, svgTarjeta,
+  HISTORIA_ALTO, HISTORIA_FOTO_Y, HISTORIA_FOTO_ALTO, svgHistoria,
+} from '../utils/tarjetas.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FEED = path.resolve(__dirname, '../../public/data/feed.json');
@@ -50,16 +58,18 @@ async function main() {
 
   const crudo = JSON.parse(readFileSync(FEED, 'utf-8'));
   const items = Array.isArray(crudo) ? crudo : (crudo?.items ?? []);
-  if (items.length === 0) {
-    console.error('❌ [tarjetas] feed.json vacío. No se genera nada.');
-    process.exit(1);
-  }
 
   // Se borra y se rehace: son datos derivados, y una tarjeta huérfana de una
   // oferta que ya no existe es exactamente la clase de archivo viejo que este
   // proyecto ya pagó caro una vez.
   if (existsSync(SALIDA)) rmSync(SALIDA, { recursive: true, force: true });
   mkdirSync(SALIDA, { recursive: true });
+
+  if (items.length === 0) {
+    // Vitrina vacía: no es un error, solo no hay nada que dibujar todavía.
+    console.log('🖼️  [tarjetas] La vitrina está vacía: no hay tarjetas que generar.');
+    return;
+  }
 
   const { default: sharp } = await import('sharp');
   let hechas = 0;
@@ -101,11 +111,31 @@ async function main() {
       .toBuffer();
 
     writeFileSync(path.resolve(SALIDA, `${o.id}.jpg`), imagen);
+
+    // ── Historia 9:16: la foto entera sobre blanco (sin recortar el producto)
+    const capasHistoria = [{ input: Buffer.from(svgFondo(HISTORIA_ALTO)), top: 0, left: 0 }];
+    if (foto) {
+      try {
+        const encajada = await sharp(foto)
+          .resize(ANCHO - 92, HISTORIA_FOTO_ALTO - 12, { fit: 'contain', background: '#ffffff' })
+          .flatten({ background: '#ffffff' })
+          .toBuffer();
+        capasHistoria.push({ input: encajada, top: HISTORIA_FOTO_Y + 6, left: 46 });
+      } catch { /* la historia se hace igual, solo con el marco */ }
+    }
+    capasHistoria.push({ input: Buffer.from(svgHistoria(o)), top: 0, left: 0 });
+    const historia = await sharp({
+      create: { width: ANCHO, height: HISTORIA_ALTO, channels: 4, background: FONDO },
+    })
+      .composite(capasHistoria)
+      .jpeg({ quality: 88, mozjpeg: true })
+      .toBuffer();
+    writeFileSync(path.resolve(SALIDA, `${o.id}-historia.jpg`), historia);
     hechas++;
   }
 
   const mentiras = items.filter((o) => o.historico?.nivel === 'descuento-falso').length;
-  console.log(`🖼️  [tarjetas] ${hechas} generadas en public/promos/ (${mentiras} de descuento falso).`);
+  console.log(`🖼️  [tarjetas] ${hechas} productos × 2 formatos en public/promos/ (${mentiras} de descuento falso).`);
   if (sinFoto) console.log(`   ${sinFoto} sin foto del producto: la tarjeta se hizo igual, solo con el marco.`);
 }
 

@@ -18,6 +18,12 @@
  *
  *   · oferta   → franja verde. El precio manda; el veredicto lo respalda.
  *   · mentira  → franja roja. La acusación manda; el precio es el detalle.
+ *
+ * ── LOS DOS FORMATOS ───────────────────────────────────────────────────────
+ *   · post     (4:5, 1080×1350) → feed de Telegram, WhatsApp, Facebook.
+ *   · historia (9:16, 1080×1920) → estados de WhatsApp, historias de
+ *     Instagram/Facebook y TikTok. Lleva el NÚMERO del producto en /hoy,
+ *     porque ahí el link no se puede tocar: «link en mi perfil, el #3».
  */
 
 // ── Lienzo ─────────────────────────────────────────────────────────────────
@@ -94,12 +100,12 @@ export function partirLineas(texto, tamano, anchoMax, maxLineas) {
  * TODO el lienzo en la misma capa que el texto, después de componer la foto:
  * la tapaba por completo y las tarjetas salían sin producto.
  */
-export function svgFondo() {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${ANCHO}" height="${ALTO}">
+export function svgFondo(alto = ALTO) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${ANCHO}" height="${alto}">
   <defs><linearGradient id="f" x1="0" y1="0" x2="1" y2="1">
     <stop offset="0%" stop-color="${FONDO}"/><stop offset="100%" stop-color="${VIOLETA}"/>
   </linearGradient></defs>
-  <rect width="${ANCHO}" height="${ALTO}" fill="url(#f)"/>
+  <rect width="${ANCHO}" height="${alto}" fill="url(#f)"/>
 </svg>`;
 }
 
@@ -115,7 +121,9 @@ export function svgTarjeta(o, esMentira) {
   const etiqueta = esMentira ? 'EL DESCUENTO NO ES REAL' : 'CALIDAD-PRECIO VERIFICADO';
 
   const titulo = partirLineas(o.titulo, 38, 980, 2);
-  const veredicto = o.historico?.texto ?? '';
+  // El veredicto del histórico manda; si no hay, tu nota. Si no hay ninguno,
+  // la caja no se dibuja (antes salía un recuadro vacío).
+  const veredicto = o.historico?.texto || o.nota || '';
   const lineasVer = partirLineas(veredicto, 40, 940, 2);
 
   const yContenido = BANDA_ALTO + FOTO_ALTO;
@@ -161,13 +169,13 @@ export function svgTarjeta(o, esMentira) {
       : ''
   }
 
-  <!-- Insignia de descuento -->
-  <rect x="${ANCHO - 216}" y="${yContenido + 170}" width="160" height="82" rx="16" fill="${acento}"/>
-  <text x="${ANCHO - 136}" y="${yContenido + 226}" font-family="sans-serif" font-size="46" font-weight="bold" fill="${FONDO}" text-anchor="middle">-${esc(o.descuento)}%</text>
+  <!-- Insignia de descuento (solo si lo hay: un «-0%» no vende nada) -->
+  ${Number(o.descuento) > 0 ? `<rect x="${ANCHO - 216}" y="${yContenido + 170}" width="160" height="82" rx="16" fill="${acento}"/>
+  <text x="${ANCHO - 136}" y="${yContenido + 226}" font-family="sans-serif" font-size="46" font-weight="bold" fill="${FONDO}" text-anchor="middle">-${esc(o.descuento)}%</text>` : ''}
 
   <!-- El veredicto: esto es lo que nadie más puede escribir -->
-  <rect x="56" y="${yContenido + 312}" width="${ANCHO - 112}" height="${lineasVer.length > 1 ? 122 : 84}" rx="18" fill="${acento}" fill-opacity="0.14"/>
-  <rect x="56" y="${yContenido + 312}" width="7" height="${lineasVer.length > 1 ? 122 : 84}" rx="3" fill="${acento}"/>
+  ${lineasVer.length ? `<rect x="56" y="${yContenido + 312}" width="${ANCHO - 112}" height="${lineasVer.length > 1 ? 122 : 84}" rx="18" fill="${acento}" fill-opacity="0.14"/>
+  <rect x="56" y="${yContenido + 312}" width="7" height="${lineasVer.length > 1 ? 122 : 84}" rx="3" fill="${acento}"/>` : ''}
   ${lineasVer
     .map(
       (l, i) =>
@@ -178,5 +186,73 @@ export function svgTarjeta(o, esMentira) {
   <!-- Pie: el sello y la prueba social -->
   <text x="56" y="${ALTO - 74}" font-family="sans-serif" font-size="26" fill="${TENUE}">Sello K-P <tspan fill="${AMBAR}" font-weight="bold">${esc(o.score)}</tspan>   ·   ${esc(o.rating ?? '—')}★   ·   ${esc(Number(o.vendidos) >= 1000 ? `+${Math.round(Number(o.vendidos) / 1000)} mil vendidos` : `${o.vendidos ?? 0} vendidos`)}</text>
   <text x="56" y="${ALTO - 34}" font-family="sans-serif" font-size="26" fill="${acento}" fill-opacity="0.75">kalidapresio.albis-labs.xyz</text>
+</svg>`;
+}
+
+// ── Historia 9:16 ──────────────────────────────────────────────────────────
+// Instagram y TikTok tapan ~250 px arriba y abajo con su propia interfaz: lo
+// importante (precio, número) va dentro de la franja segura.
+export const HISTORIA_ALTO = 1920;
+export const HISTORIA_FOTO_Y = 250;
+// 800 y no más: con un título de 3 líneas, precio, precio anterior y hora de
+// fin, cualquier foto más alta empuja la hora de fin encima del botón.
+export const HISTORIA_FOTO_ALTO = 800;
+
+/**
+ * «26 oct · 23:00» en hora de CDMX. Absoluta a propósito: la imagen se
+ * descarga y se publica horas después del build, y un «hoy» horneado mentiría.
+ * @param {string|null|undefined} iso
+ * @returns {string|null}
+ */
+export function finAbsoluto(iso) {
+  const t = Date.parse(iso ?? '');
+  if (Number.isNaN(t)) return null;
+  const f = new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Mexico_City', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date(t));
+  const v = (tipo) => f.find((p) => p.type === tipo)?.value ?? '';
+  return `${v('day')} ${v('month').replace('.', '')} · ${v('hour')}:${v('minute')}`;
+}
+
+/**
+ * El marco de la historia vertical. Va ENCIMA de la foto.
+ *
+ * @param {object} o — item de feed.json (esquema 2)
+ * @returns {string} SVG
+ */
+export function svgHistoria(o) {
+  const relampago = Boolean(o.relampago);
+  const acento = relampago ? AMBAR : VERDE;
+  const etiqueta = relampago ? 'OFERTA RELÁMPAGO' : 'CALIDAD-PRECIO VERIFICADO';
+  const titulo = partirLineas(o.titulo, 50, 968, 3);
+  const y = HISTORIA_FOTO_Y + HISTORIA_FOTO_ALTO + 40;
+  const fin = relampago ? finAbsoluto(o.termina) : null;
+  const tienePrevio = Number(o.precio_previo) > Number(o.precio_actual);
+  const yPrecio = y + 60 + titulo.length * 62 + 110;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${ANCHO}" height="${HISTORIA_ALTO}" viewBox="0 0 ${ANCHO} ${HISTORIA_ALTO}">
+  <!-- Marca y de qué va -->
+  <text x="56" y="150" font-family="sans-serif" font-size="40" font-weight="bold" fill="${TEXTO}" letter-spacing="3">KALIDA<tspan fill="${acento}">PRESIO</tspan></text>
+  <text x="56" y="200" font-family="sans-serif" font-size="28" font-weight="bold" fill="${acento}" letter-spacing="3">${esc(etiqueta)}</text>
+  ${o.numero ? `<circle cx="${ANCHO - 120}" cy="160" r="72" fill="${acento}"/>
+  <text x="${ANCHO - 120}" y="182" font-family="sans-serif" font-size="64" font-weight="bold" fill="${FONDO}" text-anchor="middle">#${esc(o.numero)}</text>` : ''}
+
+  <!-- Marco de la foto -->
+  <rect x="40" y="${HISTORIA_FOTO_Y}" width="${ANCHO - 80}" height="${HISTORIA_FOTO_ALTO}" rx="28" fill="none" stroke="${acento}" stroke-width="6"/>
+  ${Number(o.descuento) > 0 ? `<rect x="${ANCHO - 290}" y="${HISTORIA_FOTO_Y + 30}" width="220" height="104" rx="20" fill="${ROJO}"/>
+  <text x="${ANCHO - 180}" y="${HISTORIA_FOTO_Y + 104}" font-family="sans-serif" font-size="62" font-weight="bold" fill="#ffffff" text-anchor="middle">-${esc(o.descuento)}%</text>` : ''}
+
+  <!-- Título -->
+  ${titulo.map((l, i) => `<text x="56" y="${y + 60 + i * 62}" font-family="sans-serif" font-size="50" fill="${TEXTO}">${esc(l)}</text>`).join('\n  ')}
+
+  <!-- Precio -->
+  <text x="56" y="${yPrecio}" font-family="sans-serif" font-size="140" font-weight="bold" fill="${TEXTO}">${esc(pesos(o.precio_actual))}</text>
+  ${tienePrevio ? `<text x="60" y="${yPrecio + 64}" font-family="sans-serif" font-size="46" fill="${TENUE}" text-decoration="line-through">antes ${esc(pesos(o.precio_previo))}</text>` : ''}
+  ${fin ? `<text x="56" y="${yPrecio + (tienePrevio ? 130 : 70)}" font-family="sans-serif" font-size="40" font-weight="bold" fill="${AMBAR}">TERMINA ${esc(fin.toUpperCase())}</text>` : ''}
+
+  <!-- Llamado: el link no se toca en una historia, así que se dice dónde está -->
+  <rect x="56" y="1660" width="${ANCHO - 112}" height="120" rx="60" fill="${acento}"/>
+  <text x="${ANCHO / 2}" y="1736" font-family="sans-serif" font-size="44" font-weight="bold" fill="${FONDO}" text-anchor="middle">${o.numero ? `LINK EN MI PERFIL · #${esc(o.numero)}` : 'LINK EN MI PERFIL'}</text>
+  <text x="${ANCHO / 2}" y="1836" font-family="sans-serif" font-size="28" fill="${TENUE}" text-anchor="middle">kalidapresio.albis-labs.xyz/hoy · enlace de afiliado</text>
 </svg>`;
 }

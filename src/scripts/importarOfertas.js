@@ -16,18 +16,15 @@ import { descargarPagina, extraerAppProps, URL_OFERTAS } from '../utils/scrapeOf
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// ── Carga de credenciales de afiliado (opcional) ─────────────────────────────────
-// En local: desde .env. En Cloudflare: desde Environment Variables del dashboard.
-try {
-  process.loadEnvFile(path.resolve(__dirname, '../../.env'));
-} catch { /* sin .env: se usan los defaults de abajo / process.env */ }
-
 // ════════════════════════════════════════════════════════
 // CONFIGURACIÓN (idéntica a la del flujo n8n)
+//
+// OJO (octubre 2026): Mercado Libre responde a los servidores con una pantalla
+// de «verifica tu cuenta», así que esto ya no corre en GitHub ni en el VPS. El
+// sitio tampoco depende de él: sale de la vitrina (src/data/vitrina.json).
+// Queda como herramienta manual para explorar ofertas desde tu computadora, y
+// NO arma links de afiliado: esos solo salen del generador de tu panel.
 // ════════════════════════════════════════════════════════
-const MATT_TOOL = process.env.ML_MATT_TOOL || '68549198';
-const MATT_WORD = process.env.ML_MATT_WORD || 'ci20241127172754';
-
 const PRECIO_MINIMO = 200;   // Filtro guillotina
 const SCORE_MINIMO  = 70;    // Umbral de "joya"
 const OUTPUT        = path.resolve(__dirname, '../data/ofertas.json');
@@ -47,9 +44,7 @@ function extraerDatosBase(html) {
 
   // La lectura de cada tarjeta vive en src/utils/mlPayload.js: una sola vez,
   // pura y con tests.
-  const aAfiliado = (url) => `${url.split('?')[0]}?matt_tool=${MATT_TOOL}&matt_word=${MATT_WORD}`;
-
-  return items.map((item) => leerTarjeta(item, aAfiliado)).filter(Boolean);
+  return items.map((item) => leerTarjeta(item)).filter(Boolean);
 }
 
 // ════════════════════════════════════════════════════════

@@ -6,15 +6,14 @@
  * URL inexistente devolvía la portada con HTTP 200. Google lo registra como
  * soft-404 y diluye el rastreo de las páginas que sí importan.
  *
- * La ruta más común para caer aquí es un /recomienda/<id> de una oferta que ya
- * salió del feed, así que el copy empuja de vuelta a las ofertas vivas.
+ * La ruta más común para caer aquí es un enlace viejo a una oferta que ya
+ * terminó, así que el copy empuja de vuelta a las ofertas vivas.
  */
 import Layout from '../layouts/Layout.astro';
-import { ALL_IMBATIBLES } from '../data/secciones.js';
-import { aLinkAfiliado } from '../utils/afiliado.js';
+import { CATALOGO } from '../data/secciones.js';
 
-// Tres sugerencias reales del catálogo vivo, no enlaces genéricos.
-const sugerencias = ALL_IMBATIBLES.slice(0, 3);
+// Tres sugerencias reales de la vitrina, no enlaces genéricos.
+const sugerencias = CATALOGO.slice(0, 3);
 ---
 
 <Layout
@@ -40,7 +39,7 @@ const sugerencias = ALL_IMBATIBLES.slice(0, 3);
         <ul class="e404-lista">
           {sugerencias.map((o) => (
             <li>
-              <a href={aLinkAfiliado(o.link_afiliado, 'sugerencia404')} target="_blank" rel="nofollow sponsored noopener noreferrer">
+              <a href={o.link_afiliado} data-ml-id={o.id} data-kp-seccion="sugerencia404" target="_blank" rel="nofollow sponsored noopener noreferrer">
                 <span class="e404-sug-titulo">{o.titulo}</span>
                 <span class="e404-sug-precio">
                   {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(o.precio_actual)}

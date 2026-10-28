@@ -18,8 +18,7 @@ import {
   correoBienvenida,
 } from './email.js';
 import {
-  arrancarSincronizacion,
-  conEtiqueta,
+  destinoLimpio,
   normalizarCanal,
   normalizarId,
   normalizarSeccion,
@@ -43,10 +42,6 @@ if (!SUBSCRIBE_SECRET) avisos.push('SUBSCRIBE_SECRET ausente → /api/subscribe 
 if (!espConfigurado()) avisos.push('RESEND_API_KEY ausente → no se pueden enviar correos.');
 if (!EXPORT_TOKEN) avisos.push('EXPORT_TOKEN ausente → /api/export/subscribers responderá 503.');
 if (!SUPPORT_INBOX) avisos.push('SUPPORT_INBOX ausente → los mensajes solo se guardan en la base.');
-if (!process.env.ML_MATT_TOOL || !process.env.ML_MATT_WORD) {
-  // Esto no rompe el redirect, lo vuelve gratis: manda a ML sin tu código.
-  avisos.push('ML_MATT_TOOL / ML_MATT_WORD ausentes → /r/ redirige SIN etiqueta de afiliado (no cobras).');
-}
 
 // Trust proxy: NPM + Caddy = 2 saltos. Configurable por si cambia la topología.
 app.set('trust proxy', Number(process.env.TRUST_PROXY ?? 2));
@@ -86,9 +81,8 @@ const limitadorFormularios = rateLimit({
   message: { ok: false, error: 'Demasiadas peticiones, intenta más tarde.' },
 });
 
-// Limitador de los enlaces cortos: ancho a propósito. Esto NO es un formulario,
-// es una redirección que puede recibir una ráfaga legítima en cuanto se publica
-// una oferta en un canal — y un 429 aquí es una comisión que no se cobra.
+// Limitador de los enlaces cortos viejos: ancho a propósito. Esto NO es un
+// formulario, es una redirección que puede recibir una ráfaga legítima.
 const limitadorEnlaces = rateLimit({
   windowMs: 60 * 1000,
   max: 120,
@@ -416,29 +410,25 @@ app.get('/api/export/subscribers', limitadorExport, (req, res) => {
 });
 
 /**
- * GET /r/:canal/:id — El enlace corto que se comparte FUERA del sitio.
+ * GET /r/:canal/:id — Enlaces cortos VIEJOS, publicados antes de octubre 2026.
  *
  *   /r/tg/MLM4542172640?s=relampago
- *    │  │       │           └─ sección opcional (de dónde salió dentro del canal)
- *    │  │       └─ id de la oferta
- *    │  └─ canal: tg, wa, vv, pn, cr, rs, cm (ver backend/enlaces.js)
- *    └─ 302 a ML con matt_word = <base>_<canal><seccion>
  *
- * POR QUÉ AQUÍ Y NO EN CADDY: `/recomienda/*` se regenera en cada build, así
- * que un id que salió del feed devuelve 404. Un enlace publicado hace tres
- * semanas en Telegram tiene que seguir sirviendo — y esta tabla no borra filas.
+ * Antes redirigían a Mercado Libre con un `matt_word` armado a mano
+ * (`<base>_<canal><seccion>`). Esa etiqueta no la reconoce Mercado Libre y sus
+ * términos prohíben editar el link generado, así que ninguna de esas compras
+ * se atribuía. Ningún enlace nuevo usa esta ruta: el sitio, el panel y el bot
+ * publican el link OFICIAL del generador (meli.la/…, /sec/…) tal cual.
  *
- * Un id desconocido NO devuelve error: manda al sitio. Un enlace compartido que
- * termina en una página de error es una venta perdida y una queja; que al menos
- * llegue a la portada. Queda registrado con resuelto=0 para poder contarlos.
+ * Lo que queda es no romper lo que ya anda publicado: si el id está en la
+ * tabla, se manda a la ficha del producto SIN parámetros; si no, a la portada.
+ * El clic se sigue contando para saber cuánto tráfico traen todavía.
  */
 app.get('/r/:canal/:id', limitadorEnlaces, (req, res) => {
   const canal = normalizarCanal(req.params.canal);
   const mlId = normalizarId(req.params.id);
   const seccion = normalizarSeccion(req.query.s);
 
-  // Nunca cachear: el destino cambia con cada refresco del feed, y una
-  // redirección cacheada por un proxy intermedio se queda pegada meses.
   res.setHeader('Cache-Control', 'no-store');
 
   if (!mlId) {
@@ -448,13 +438,7 @@ app.get('/r/:canal/:id', limitadorEnlaces, (req, res) => {
 
   const url = resolver(mlId);
   registrarClic(mlId, canal, seccion, Boolean(url));
-
-  if (!url) {
-    console.warn(`[Enlaces] ${mlId} no está en la tabla (canal ${canal}); se manda al sitio.`);
-    return res.redirect(302, `${SITE_URL}/`);
-  }
-
-  return res.redirect(302, conEtiqueta(url, canal, seccion));
+  return res.redirect(302, url ? destinoLimpio(url) : `${SITE_URL}/`);
 });
 
 // Healthcheck (lo usa docker-compose para saber si el contenedor está sano)
@@ -472,9 +456,6 @@ const HOST = process.env.HOST || '0.0.0.0';
 app.listen(PORT, HOST, () => {
   console.log(`🚀 [Backend] Servidor iniciado en http://${HOST}:${PORT}`);
   console.log(`🛡️  [Backend] CORS restringido · rate limit 5/min · trust proxy = ${app.get('trust proxy')}`);
-  // Los enlaces cortos necesitan el mapa del sitio. Se baja al arrancar y cada
-  // ENLACES_SYNC_MIN minutos; si falla, se sigue con lo que ya hay en la tabla.
-  arrancarSincronizacion();
   if (avisos.length) {
     console.warn('⚠️  [Backend] Configuración incompleta:');
     for (const a of avisos) console.warn(`   · ${a}`);

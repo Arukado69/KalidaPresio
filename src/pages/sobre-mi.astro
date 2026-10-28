@@ -39,10 +39,10 @@ import SelloKP from '../components/SelloKP.astro';
         <span class="autor-badge">Inteligencia de Precios · Mercado Libre MX</span>
         <h1 class="autor-nombre">KalidaPresio</h1>
         <p class="autor-bio">
-          Somos un proyecto independiente de inteligencia de precios que rastrea ofertas
-          reales en Mercado Libre México. Ordenamos cada producto con un único criterio:
-          la relación calidad-precio real, basada en la calificación y las ventas reales
-          que publica la propia plataforma.
+          Somos un proyecto independiente de inteligencia de precios que revisa ofertas
+          reales en Mercado Libre México. Elegimos cada producto a mano y lo ordenamos con
+          un único criterio: la relación calidad-precio real, basada en la calificación y
+          las ventas reales que publica la propia plataforma.
           No vendemos posiciones, no aceptamos pago por aparecer y nuestro algoritmo
           es público y trata a todos los productos por igual.
         </p>
@@ -66,9 +66,9 @@ import SelloKP from '../components/SelloKP.astro';
           </div>
           <h3 class="criterio-titulo">1. Ofertas reales, no inventario inventado</h3>
           <p class="criterio-desc">
-            Capturamos ofertas activas directamente del catálogo de Mercado Libre mediante un rastreo
-            automatizado. No escribimos fichas a mano ni listamos productos fantasma: si aparece aquí,
-            está vivo en Mercado Libre al momento de actualizar el feed.
+            Revisamos cada oferta en su ficha de Mercado Libre antes de publicarla y anotamos el día en
+            que vimos el precio. No listamos productos fantasma: si aparece aquí, estaba vivo en Mercado
+            Libre cuando lo revisamos, y si un precio pasa una semana sin revisarse, lo retiramos.
           </p>
         </article>
 
@@ -161,7 +161,8 @@ import SelloKP from '../components/SelloKP.astro';
         </p>
         <p class="formula-linea" style="margin-top: var(--spacing-sm);">
           <span class="formula-tag">Filtros</span>
-          solo mostramos ofertas con precio ≥ $200 MXN, con calificación real, y score ≥ 70.
+          cada oferta la elige una persona; el Sello K-P la puntúa igual que a todas. Un precio que
+          pasa 7 días sin revisarse se retira solo.
         </p>
       </div>
     </section>

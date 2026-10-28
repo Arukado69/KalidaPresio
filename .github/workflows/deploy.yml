@@ -1,8 +1,8 @@
 name: Desplegar en Hetzner
 
-# Cada push a main —incluidos los commits de datos del bot cada 3 h— reconstruye
-# el sitio en el VPS. Es lo que mantiene los precios frescos: sin esto, el
-# sitio se congela con el feed del último despliegue manual.
+# Cada push a main reconstruye el sitio en el VPS. Desde octubre de 2026 eso
+# incluye cada vez que editas src/data/vitrina.json (agregar un producto,
+# actualizar un precio): el cambio sale publicado en unos minutos.
 #
 # El deploy solo hace SSH + rebuild (no commitea), así que no hay bucle.
 on:
@@ -32,7 +32,6 @@ jobs:
       - run: npm test
       - env:
           SITE_URL: ${{ vars.SITE_URL || 'https://kalidapresio.albis-labs.xyz' }}
-          SKIP_EXTRACCION: 'true'
         run: npm run build
 
   desplegar:
@@ -73,7 +72,7 @@ jobs:
               && docker tag kalidapresio_api:latest kalidapresio_api:prev || true
 
             # Reconstruye e intercambia ambos servicios.
-            # --build SIEMPRE: SITE_URL y ML_MATT_* se hornean en el bundle;
+            # --build SIEMPRE: SITE_URL y la vitrina se hornean en el bundle;
             # sin reconstruir, el valor viejo sigue dentro.
             docker compose --env-file .env.production up -d --build
 

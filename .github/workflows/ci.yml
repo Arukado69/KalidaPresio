@@ -35,13 +35,8 @@ jobs:
         run: npm test
 
       - name: Build
-        # SKIP_EXTRACCION: los runners de GitHub salen por IPs que Mercado Libre
-        # bloquea. Saltarse el sondeo hace el CI rápido y determinista; el feed
-        # seccionado se genera en el VPS, y si allí falla el sitio degrada a
-        # ofertas.json (que este mismo repo mantiene fresco cada 3 h).
         env:
           SITE_URL: ${{ vars.SITE_URL || 'https://kalidapresio.albis-labs.xyz' }}
-          SKIP_EXTRACCION: 'true'
         run: npm run build
 
       - name: Comprobar que la canónica NO apunta a localhost
@@ -56,7 +51,16 @@ jobs:
           fi
           echo "✅ Canónicas correctas."
 
-      - name: Comprobar que los redirects de afiliado se generaron
+      - name: Comprobar que no hay links de afiliado armados a mano
+        # Guardia de regresión de la comisión que no llegó: el sitio pegaba
+        # matt_tool/matt_word a la URL del producto y Mercado Libre no atribuía
+        # la compra. Los únicos links válidos son los oficiales de la vitrina.
+        # /panel/ queda fuera: muestra el archivo de la vitrina tal cual para que
+        # veas qué arreglar, incluido un link mal pegado (que no se publica).
         run: |
-          test -s docker/redirects.caddy || { echo "❌ docker/redirects.caddy vacío o ausente."; exit 1; }
-          echo "✅ $(grep -c '^redir ' docker/redirects.caddy) redirects de afiliado."
+          if grep -rlq --exclude-dir=panel 'matt_tool=' dist/; then
+            echo "❌ Hay links con matt_tool armados a mano en el build:"
+            grep -rl --exclude-dir=panel 'matt_tool=' dist/ | head
+            exit 1
+          fi
+          echo "✅ Ningún link armado a mano."

@@ -1,25 +1,29 @@
 ---
 export interface Props {
   id: string;
-  enlace?: string;
+  /** Link OFICIAL de afiliado, tal cual sale del generador. Obligatorio. */
+  enlace: string;
   texto?: string;
+  /** Sección de la que sale el clic: viaja a Umami como data-kp-seccion. */
+  seccion?: string;
   /** CTA principal: el botón "imanta" hacia el cursor (bindMagnetic en Layout).
       Solo para los CTA protagonistas (showpiece/bento hero), no para listas. */
   magnetic?: boolean;
 }
 
 // "Ver oferta" + icono flecha = el "Ver oferta →" del copy fijo.
-const { id, enlace, texto = 'Ver oferta', magnetic = false } = Astro.props;
-// Enlace directo al permalink de afiliado que SÍ registra métricas (igual que en
-// Facebook). Si no se pasa `enlace`, se usa el cloaking /recomienda/{id} como respaldo.
-const destino = enlace ?? `/recomienda/${id}`;
+// Ya no hay respaldo a /recomienda/{id}: el sitio no redirige a Mercado Libre
+// desde su propio dominio. Lo que se enlaza es el link oficial, sin disfrazar.
+const { id, enlace, texto = 'Ver oferta', seccion, magnetic = false } = Astro.props;
 ---
 <div class="cta-wrapper" data-magnetic={magnetic ? '' : undefined}>
   <a
-    href={destino}
+    href={enlace}
     rel="nofollow sponsored noopener noreferrer"
     target="_blank"
     class="cta-button"
+    data-ml-id={id}
+    data-kp-seccion={seccion}
     data-ripple
   >
     <span class="cta-text">{texto}</span>

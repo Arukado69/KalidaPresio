@@ -48,23 +48,18 @@
 		-Server
 	}
 
-	# ── Enlaces de afiliado (cloaking) ───────────────────────────────────────
-	# redirects.caddy lo genera `generadorRedirects.js` en cada build desde
-	# ofertas.json y el Dockerfile lo copia a /etc/caddy/. Antes esto vivía en
-	# public/_redirects (formato de Cloudflare) y Caddy no lo leía: cada clic
-	# en /recomienda/... caía en el try_files y devolvía la PORTADA con 200.
+	# ── Redirecciones viejas de afiliado ─────────────────────────────────────
+	# El sitio ya NO redirige a Mercado Libre desde su propio dominio: publica
+	# el link oficial del generador (meli.la/…, /sec/…) tal cual. /recomienda/*
+	# eran links armados a mano que no generaban comisión; los que sigan
+	# publicados por ahí llevan a la portada, donde están las ofertas de hoy.
 	handle /recomienda/* {
-		import /etc/caddy/redirects.caddy
-		# Un id que ya no está en el feed: 404 honesto, no la portada.
-		respond "Esta oferta ya no está disponible." 404
+		redir / 302
 	}
 
-	# ── Enlace corto POR CANAL → backend (/r/<canal>/<id>) ───────────────────
-	# NO se genera en el build como /recomienda/*: este es el enlace que se
-	# publica FUERA del sitio (Telegram, WhatsApp, un video), y tiene que seguir
-	# funcionando semanas después aunque la oferta ya no esté en el feed de hoy.
-	# El backend lo resuelve contra su tabla acumulada y estampa el canal en el
-	# matt_word antes de redirigir.
+	# /r/<canal>/<id>: enlaces viejos publicados en Telegram/WhatsApp. El
+	# backend los manda a la ficha del producto (sin parámetros de afiliado) o
+	# a la portada. Ningún enlace nuevo usa esta ruta.
 	handle /r/* {
 		reverse_proxy api:3001
 	}
@@ -77,10 +72,10 @@
 	# ── Sitio estático (Astro SSG) ──────────────────────────────────────────
 	handle {
 		# Los JSON de datos NO se cachean. El de relámpago porque el sitio lo lee
-		# en runtime (frescura del carrusel sin rebuild); feed.json y
-		# enlaces.json porque los consumen n8n y el backend, y un intermediario
-		# que sirva una copia vieja hace publicar precios que ya no existen.
-		@datos path /data/relampago.json /data/feed.json /data/enlaces.json
+		# en runtime (frescura del carrusel sin rebuild); feed.json porque lo
+		# consume n8n, y un intermediario que sirva una copia vieja hace
+		# publicar precios que ya no existen.
+		@datos path /data/relampago.json /data/feed.json
 		header @datos Cache-Control "no-cache, must-revalidate"
 
 		# Las tarjetas de promoción tienen nombre estable (MLM123.png) pero

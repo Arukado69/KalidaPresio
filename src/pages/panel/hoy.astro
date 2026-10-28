@@ -1,108 +1,48 @@
 ---
 /**
- * /panel/hoy — La herramienta de reparto manual.
+ * /panel/hoy — El centro de publicación: tu vitrina, lista para cada red.
  *
  * ── QUÉ PROBLEMA RESUELVE ──────────────────────────────────────────────────
- * Telegram se automatiza con n8n. Los canales de WhatsApp NO tienen API, y en
- * grupos y comunidades publicar a mano es lo único que respeta sus reglas. Sin
- * esta página, cada publicación son cinco minutos de abrir el sitio, copiar el
- * título, buscar el precio, armar el enlace y equivocarse con la etiqueta del
- * canal — que es exactamente el tipo de fricción que hace abandonar un canal a
- * la tercera semana.
+ * Publicar a diario en cinco redes solo se sostiene si cada publicación sale
+ * en dos toques. Aquí eliges la red arriba y cada producto te da el texto ya
+ * escrito en el formato de esa red, con TU link oficial (el de la etiqueta de
+ * ese canal si lo generaste) y la imagen del tamaño correcto: 4:5 para el feed,
+ * 9:16 para estados, historias y TikTok.
  *
- * Aquí el mensaje ya viene armado, con el enlace `/r/<canal>/<id>` correcto
- * según el canal que elijas arriba. Copiar y pegar: dos toques.
- *
- * ── POR QUÉ NO USA EL Layout DEL SITIO ─────────────────────────────────────
- * No es una página del sitio: es una herramienta interna. Meterle el Header, el
- * boletín y la analítica ensuciaría las métricas con tu propio uso diario.
- * Va con `noindex`, fuera del sitemap y con Disallow en robots.txt.
+ * Arriba está el «paquete relámpago»: un solo mensaje con lo mejor del día,
+ * para soltarlo de una vez en un canal o grupo.
  *
  * ── LO QUE NO HACE, A PROPÓSITO ────────────────────────────────────────────
- * No publica por ti en ningún lado. Repartir a mano es lo que te obliga a mirar
- * lo que estás publicando, y es la diferencia entre participar en una comunidad
- * y ser el que la llena de enlaces hasta que lo expulsan.
+ * No publica por ti. Repartir a mano es lo que te obliga a mirar lo que
+ * publicas, y es la diferencia entre participar en una comunidad y ser el que
+ * la llena de enlaces hasta que lo expulsan. (Telegram sí puede ir solo: ver
+ * n8n/telegram-tecnologia.json.)
+ *
+ * Va con `noindex`, fuera del sitemap y con Disallow en robots.txt.
  */
-import ofertasCrudas from '../../data/ofertas.json';
 import historicoCrudo from '../../data/historico-precios.json';
-import { categorizar } from '../../utils/categorias.js';
+import { VITRINA } from '../../data/ofertas.js';
+import { ordenParaPublicar } from '../../utils/vitrina.js';
 import { resumirHistorico, veredictoPrecio, NIVELES_NO_DISTRIBUIBLES } from '../../utils/historico.js';
-import { CANALES } from '../../utils/canales.js';
+import { FORMATOS, HORARIOS_SUGERIDOS } from '../../utils/publicacion.js';
 
 const SITIO = String(Astro.site ?? 'https://kalidapresio.albis-labs.xyz').replace(/\/+$/, '');
-
-const lista = Array.isArray(ofertasCrudas) ? ofertasCrudas : (ofertasCrudas?.items ?? []);
 const productosHist = historicoCrudo?.productos ?? {};
 
-const mxn = (n) => new Intl.NumberFormat('es-MX', {
-  style: 'currency', currency: 'MXN', maximumFractionDigits: 0,
-}).format(Number(n) || 0);
+// El MISMO orden y numeración que /hoy y feed.json.
+const ordenados = ordenParaPublicar(VITRINA).map((p, i) => {
+  const v = veredictoPrecio(p.precio_actual, resumirHistorico(productosHist[p.id]), { descuento: p.descuento });
+  return { ...p, numero: i + 1, nivel: v.nivel, veredicto: v.texto };
+});
 
-const items = lista
-  .filter((o) => o?.id && o?.titulo && Number.isFinite(o.precio_actual))
-  .map((o) => {
-    const v = veredictoPrecio(o.precio_actual, resumirHistorico(productosHist[o.id]), { descuento: o.descuento });
-    const senales = [
-      o.score_kalidad_presio ? `Sello K-P ${o.score_kalidad_presio}/100` : null,
-      o.rating ? `${o.rating}★` : null,
-      o.envio_gratis ? 'envío gratis' : null,
-    ].filter(Boolean);
+// El corte que da la credibilidad: 'alto' = ha estado más barato; el
+// descuento es contra un precio inflado. Repartirlo es prestarle nuestra
+// credibilidad a la mentira. NIVELES_NO_DISTRIBUIBLES es la fuente única.
+const publicables = ordenados.filter((p) => !NIVELES_NO_DISTRIBUIBLES.includes(p.nivel));
+const noPublicar = ordenados.filter((p) => NIVELES_NO_DISTRIBUIBLES.includes(p.nivel));
 
-    const precio = o.precio_previo && o.precio_previo > o.precio_actual
-      ? `${mxn(o.precio_actual)} (antes ${mxn(o.precio_previo)}${o.descuento ? `, −${o.descuento}%` : ''})`
-      : mxn(o.precio_actual);
-
-    // El mensaje se arma aquí entero menos el enlace, que depende del canal que
-    // se elija en el navegador. `{{enlace}}` lo sustituye el script.
-    const plantilla = [
-      `🔥 ${o.titulo}`,
-      '',
-      `💰 ${precio}`,
-      senales.length ? `⭐ ${senales.join(' · ')}` : null,
-      v.texto ? `📉 ${v.texto}` : null,
-      '',
-      '👉 {{enlace}}',
-      '',
-      'Enlace de afiliado: si compras, KalidaPresio recibe una comisión sin costo extra para ti. El precio es del momento en que se detectó; confírmalo en Mercado Libre.',
-    ].filter((l) => l !== null).join('\n');
-
-    return {
-      id: o.id,
-      titulo: o.titulo,
-      imagen: o.imagen,
-      categoria: categorizar(o.titulo),
-      precio,
-      score: o.score_kalidad_presio ?? null,
-      nivel: v.nivel,
-      veredicto: v.texto,
-      plantilla,
-    };
-  });
-
-// El corte que da la credibilidad: 'alto' significa que ha estado más barato.
-// Un descuento que es mentira no se reparte: repartirlo es prestarle nuestra
-// credibilidad a la mentira. NIVELES_NO_DISTRIBUIBLES es la fuente única de
-// verdad de este par (ver src/utils/historico.js): un rename ahí rompe esta
-// comparación en vez de dejarla comparando contra un literal muerto.
-const publicables = items.filter((i) => !NIVELES_NO_DISTRIBUIBLES.includes(i.nivel));
-const noPublicar = items.filter((i) => NIVELES_NO_DISTRIBUIBLES.includes(i.nivel));
-
-// Tecnología primero: es el nicho que `npm run detectar-nichos` marcó como
-// canal propio. El resto va detrás, por Sello K-P.
-const orden = (a, b) => {
-  if (a.categoria !== b.categoria) {
-    if (a.categoria === 'Tecnología') return -1;
-    if (b.categoria === 'Tecnología') return 1;
-    return a.categoria.localeCompare(b.categoria, 'es');
-  }
-  return (b.score ?? 0) - (a.score ?? 0);
-};
-publicables.sort(orden);
-
-// Solo los canales donde se reparte a mano. Telegram no está: lo hace n8n, y
-// ofrecerlo aquí invitaría a publicar dos veces la misma oferta.
-const CANALES_MANUALES = ['wa', 'cm', 'pn', 'cr'];
-const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Mexico_City' });
+const datos = JSON.stringify({ sitio: SITIO, productos: publicables }).replace(/</g, '\\u003c');
 ---
 
 <!doctype html>
@@ -111,167 +51,152 @@ const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'l
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>Panel de reparto — KalidaPresio</title>
+  <title>Publicar hoy — KalidaPresio</title>
   <link rel="icon" href="/favicon.svg" />
-  <style>
+  <!-- Global: parte del contenido se pinta desde el script (filas, consejos)
+       y no lleva la marca de los estilos con alcance de Astro. -->
+  <style is:global>
     :root {
-      --marca: #280455;
-      --fondo: #140b21;
-      --panel: #1d1230;
-      --panel-2: #241636;
-      --linea: #342346;
-      --tinta: #f0e8fa;
-      --tinta-2: #a897be;
-      --acento: #ff8a3d;
-      --bien: #57c68e;
-      --mal: #f0776c;
-      /* Mismo valor que --color-error en src/styles/global.css:62. Este panel
-         no carga el Layout del sitio (ver docblock de arriba) y por tanto no
-         hereda ese token, así que se replica su valor en vez de inventar uno
-         nuevo: 'descuento-falso' tiene que verse distinto de 'alto' (--mal)
-         aquí igual que en la tarjeta pública. */
+      --fondo: #140b21; --panel: #1d1230; --panel-2: #241636; --linea: #342346;
+      --tinta: #f0e8fa; --tinta-2: #a897be; --acento: #ff8a3d; --bien: #57c68e; --mal: #f0776c; --aviso: #f6d14f;
+      /* Mismo valor que --color-error en src/styles/global.css. */
       --color-error: #ff5d76;
     }
     * { box-sizing: border-box; }
-    body {
-      margin: 0; background: var(--fondo); color: var(--tinta);
-      font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
-      padding: 0 16px 80px;
-    }
-    .hoja { max-width: 780px; margin: 0 auto; }
-    header { padding: 28px 0 20px; border-bottom: 1px solid var(--linea); }
+    /* `hidden` tiene que ganarle a cualquier display de clase (.btn, .campo…). */
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--fondo); color: var(--tinta); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 0 16px 80px; }
+    .hoja { max-width: 820px; margin: 0 auto; }
+    header { padding: 28px 0 16px; border-bottom: 1px solid var(--linea); }
     h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -.02em; }
     .sub { color: var(--tinta-2); font-size: .9rem; margin: 0; }
-
-    .barra {
-      position: sticky; top: 0; z-index: 5; background: var(--fondo);
-      padding: 14px 0; border-bottom: 1px solid var(--linea);
-      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-    }
-    .barra-label {
-      font-size: .72rem; text-transform: uppercase; letter-spacing: .12em;
-      color: var(--tinta-2); width: 100%;
-    }
-    .chip {
-      border: 1px solid var(--linea); background: var(--panel);
-      color: var(--tinta-2); border-radius: 999px; padding: 7px 14px;
-      font-size: .82rem; cursor: pointer; font-family: inherit;
-    }
-    .chip[aria-pressed="true"] {
-      background: var(--acento); border-color: var(--acento); color: #23120a; font-weight: 600;
-    }
-    .chip:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
-
-    h2 {
-      font-size: .78rem; text-transform: uppercase; letter-spacing: .14em;
-      color: var(--tinta-2); margin: 32px 0 12px; font-weight: 600;
-    }
+    .nav { display: flex; gap: 14px; font-size: .85rem; margin-top: 10px; flex-wrap: wrap; }
+    .nav a { color: var(--acento); }
+    .barra { position: sticky; top: 0; z-index: 5; background: var(--fondo); padding: 12px 0; border-bottom: 1px solid var(--linea); }
+    .barra-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .12em; color: var(--tinta-2); display: block; margin-bottom: 8px; }
+    .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+    .chip { border: 1px solid var(--linea); background: var(--panel); color: var(--tinta-2); border-radius: 999px; padding: 7px 14px; font-size: .82rem; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .chip[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: #23120a; font-weight: 600; }
+    .chip:focus-visible, .btn:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+    .consejo { font-size: .84rem; color: var(--tinta-2); margin: 10px 0 0; }
+    .consejo b { color: var(--tinta); }
+    h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .14em; color: var(--tinta-2); margin: 28px 0 12px; font-weight: 600; }
     .cuenta { color: var(--acento); }
-
-    .tarjeta {
-      display: grid; grid-template-columns: 72px 1fr; gap: 14px;
-      background: var(--panel); border: 1px solid var(--linea);
-      border-radius: 12px; padding: 14px; margin-bottom: 10px;
-    }
-    .tarjeta img {
-      width: 72px; height: 72px; object-fit: contain;
-      background: #fff; border-radius: 8px;
-    }
+    .caja { background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; padding: 14px; }
+    .caja pre { white-space: pre-wrap; word-break: break-word; font: .84rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0 0 10px; max-height: 260px; overflow: auto; color: var(--tinta); }
+    .horarios { display: flex; flex-direction: column; gap: 6px; font-size: .86rem; }
+    .horarios span b { color: var(--acento); font-variant-numeric: tabular-nums; margin-right: 8px; }
+    .tarjeta { display: grid; grid-template-columns: 84px 1fr; gap: 14px; background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+    .media { position: relative; }
+    .media img { width: 84px; height: 84px; object-fit: contain; background: #fff; border-radius: 8px; display: block; }
+    .numero { position: absolute; top: -8px; left: -8px; background: var(--acento); color: #23120a; font-weight: 800; font-size: .78rem; border-radius: 999px; padding: 2px 8px; }
     .t-titulo { font-size: .93rem; font-weight: 600; margin: 0 0 6px; line-height: 1.35; }
-    .t-meta { font-size: .82rem; color: var(--tinta-2); margin: 0 0 4px; }
+    .t-meta { font-size: .82rem; color: var(--tinta-2); margin: 0 0 6px; }
     .t-precio { color: var(--tinta); font-weight: 600; }
-    .t-veredicto { font-size: .8rem; margin: 0 0 10px; }
-    .n-minimo, .n-bajo { color: var(--bien); }
-    .n-alto { color: var(--mal); }
-    /* Un escalón por encima de 'alto': ahí el precio solo ha estado más barato;
-       aquí el descuento anunciado directamente no existe. */
-    .n-descuento-falso { color: var(--color-error); font-weight: 600; }
-    .n-siguiendo, .n-sin-datos { color: var(--tinta-2); }
-    .t-cat {
-      display: inline-block; font-size: .68rem; text-transform: uppercase;
-      letter-spacing: .1em; color: var(--tinta-2);
-      border: 1px solid var(--linea); border-radius: 999px; padding: 2px 8px;
-      margin-left: 6px; vertical-align: middle;
-    }
+    .etiquetas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .etiqueta { font-size: .72rem; border-radius: 999px; padding: 2px 9px; border: 1px solid currentColor; }
+    .e-relampago { color: var(--aviso); } .e-destacado { color: var(--bien); } .e-veredicto { color: var(--tinta-2); }
     .acciones { display: flex; gap: 8px; flex-wrap: wrap; }
-    .btn {
-      border: 1px solid var(--linea); background: var(--panel-2); color: var(--tinta);
-      border-radius: 8px; padding: 8px 13px; font-size: .82rem; cursor: pointer;
-      font-family: inherit;
-    }
+    .btn { border: 1px solid var(--linea); background: var(--panel-2); color: var(--tinta); border-radius: 8px; padding: 8px 13px; font-size: .82rem; cursor: pointer; font-family: inherit; text-decoration: none; display: inline-block; }
     .btn-principal { background: var(--acento); border-color: var(--acento); color: #23120a; font-weight: 600; }
-    .btn:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
     .btn[data-hecho] { background: var(--bien); border-color: var(--bien); color: #06281a; }
-
-    .aviso {
-      border-left: 3px solid var(--mal); background: var(--panel);
-      padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0 16px;
-      font-size: .88rem; color: var(--tinta-2);
-    }
+    .idea { margin-top: 10px; font-size: .82rem; color: var(--tinta-2); white-space: pre-line; border-left: 3px solid var(--acento); padding-left: 10px; }
+    .aviso { border-left: 3px solid var(--mal); background: var(--panel); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0 16px; font-size: .88rem; color: var(--tinta-2); }
     .aviso b { color: var(--tinta); }
-    .vacio { color: var(--tinta-2); font-size: .88rem; }
-    footer {
-      margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--linea);
-      font-size: .78rem; color: var(--tinta-2);
-    }
-    @media (max-width: 520px) {
-      .tarjeta { grid-template-columns: 56px 1fr; }
-      .tarjeta img { width: 56px; height: 56px; }
-    }
+    .n-alto { color: var(--mal); } .n-descuento-falso { color: var(--color-error); font-weight: 600; }
+    .vacio { color: var(--tinta-2); font-size: .9rem; }
+    .vacio a { color: var(--acento); }
+    footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--linea); font-size: .8rem; color: var(--tinta-2); }
+    footer li { margin-bottom: 6px; }
+    @media (max-width: 520px) { .tarjeta { grid-template-columns: 64px 1fr; } .media img { width: 64px; height: 64px; } }
   </style>
 </head>
 <body>
   <div class="hoja">
     <header>
-      <h1>Panel de reparto</h1>
-      <p class="sub">{fecha} · {publicables.length} listas para publicar · el enlace se etiqueta solo con el canal que elijas</p>
+      <h1>Publicar hoy</h1>
+      <p class="sub">{fecha} · <span data-cuenta>{publicables.length}</span> productos listos · cada texto lleva tu link oficial del canal que elijas</p>
+      <div class="nav"><a href="/panel/agregar">→ Agregar productos</a><a href="/hoy" target="_blank">→ Ver /hoy (tu «link en bio»)</a></div>
     </header>
 
-    <div class="barra" role="group" aria-label="Canal de destino">
-      <span class="barra-label">Canal</span>
-      {CANALES_MANUALES.map((codigo, i) => (
-        <button class="chip" type="button" data-canal={codigo} aria-pressed={i === 0 ? 'true' : 'false'}>
-          {CANALES[codigo]}
-        </button>
-      ))}
+    <div class="barra" role="group" aria-label="Red donde vas a publicar">
+      <span class="barra-label">¿Dónde vas a publicar?</span>
+      <div class="chips">
+        {FORMATOS.map((f, i) => (
+          <button class="chip" type="button" data-formato={f.id} aria-pressed={i === 0 ? 'true' : 'false'} title={f.detalle}>{f.nombre}</button>
+        ))}
+      </div>
+      <p class="consejo" data-consejo></p>
     </div>
 
-    <h2>Listas para publicar <span class="cuenta">({publicables.length})</span></h2>
-    {publicables.length === 0 && <p class="vacio">Ninguna hoy. Es una respuesta válida: no hay que publicar por publicar.</p>}
-    {publicables.map((o) => (
-      <article class="tarjeta">
-        {o.imagen ? <img src={o.imagen} alt="" loading="lazy" width="72" height="72" /> : <div></div>}
-        <div>
-          <p class="t-titulo">{o.titulo}<span class="t-cat">{o.categoria}</span></p>
-          <p class="t-meta"><span class="t-precio">{o.precio}</span>{o.score ? ` · K-P ${o.score}` : ''}</p>
-          <p class={`t-veredicto n-${o.nivel}`}>{o.veredicto || 'Sin histórico suficiente todavía'}</p>
-          <div class="acciones">
-            <button class="btn btn-principal" type="button" data-copiar={o.plantilla} data-id={o.id}>
-              Copiar publicación
-            </button>
-            <button class="btn" type="button" data-copiar-enlace data-id={o.id}>Solo el enlace</button>
-          </div>
+    {publicables.length === 0 ? (
+      <p class="vacio" style="margin-top:28px">
+        Todavía no hay productos publicables. <a href="/panel/agregar">Agrega el primero</a> con tu link oficial.
+      </p>
+    ) : (
+      <>
+        <h2>⚡ Paquete relámpago <span class="cuenta">(un solo mensaje con lo mejor de hoy)</span></h2>
+        <div class="caja">
+          <pre data-paquete></pre>
+          <button class="btn btn-principal" type="button" data-copiar-paquete>Copiar paquete</button>
         </div>
-      </article>
-    ))}
+
+        <h2>Horario sugerido</h2>
+        <div class="caja horarios">
+          {HORARIOS_SUGERIDOS.slice(0, publicables.length).map((hora, i) => (
+            <span><b>{hora}</b>#{publicables[i].numero} {publicables[i].titulo}</span>
+          ))}
+          <span class="consejo" style="margin:6px 0 0">Una a la vez, repartidas: la ventana para que una compra cuente después del clic es corta, así que varias publicaciones a lo largo del día rinden más que un bloque.</span>
+        </div>
+
+        <h2>Uno por uno <span class="cuenta">({publicables.length})</span></h2>
+        <div data-lista>
+          {publicables.map((p) => (
+            <article class="tarjeta" data-id={p.id} data-caduca={p.caduca ?? ''}>
+              <div class="media">
+                {p.imagen ? <img src={p.imagen} alt="" loading="lazy" width="84" height="84" /> : <div></div>}
+                <span class="numero">#{p.numero}</span>
+              </div>
+              <div>
+                <p class="t-titulo">{p.titulo}</p>
+                <p class="t-meta">
+                  <span class="t-precio">${Math.round(p.precio_actual).toLocaleString('es-MX')}</span>
+                  {p.precio_previo ? ` · antes $${Math.round(p.precio_previo).toLocaleString('es-MX')} (−${p.descuento}%)` : ''}
+                  {p.score_kalidad_presio ? ` · K-P ${p.score_kalidad_presio}` : ''}
+                </p>
+                <div class="etiquetas">
+                  {p.oferta_relampago && <span class="etiqueta e-relampago" data-fin-texto>⚡ relámpago</span>}
+                  {p.destacado && <span class="etiqueta e-destacado">{p.destacado}</span>}
+                  {p.veredicto && <span class="etiqueta e-veredicto">{p.veredicto}</span>}
+                </div>
+                <div class="acciones">
+                  <button class="btn btn-principal" type="button" data-copiar-texto={p.id}>Copiar texto</button>
+                  <button class="btn" type="button" data-copiar-link={p.id}>Solo el link</button>
+                  <a class="btn" data-imagen={p.id} href={`/promos/${p.id}.jpg`} download={`kalidapresio-${p.numero}.jpg`}>Descargar imagen</a>
+                  <button class="btn" type="button" data-idea={p.id} hidden>Idea de video</button>
+                </div>
+                <p class="idea" data-idea-texto={p.id} hidden></p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </>
+    )}
 
     {noPublicar.length > 0 && (
       <>
         <h2>No publicar hoy <span class="cuenta">({noPublicar.length})</span></h2>
         <p class="aviso">
-          Estas se quedan fuera por una de dos razones: o han estado <b>más baratas</b> en los
-          últimos días (el «descuento» es contra un precio inflado), o el descuento que anuncian es
-          <b>directamente falso</b> — su precio no se ha movido. Publicarlas es lo que hacen los
-          otros canales de ofertas — y no hacerlo es la única razón por la que alguien seguiría el
-          tuyo.
+          El histórico dice que estas han estado <b>más baratas</b> hace poco, o que el descuento que anuncian
+          es <b>directamente falso</b>. Publicarlas es lo que hacen los otros canales de ofertas — y no hacerlo
+          es la razón por la que alguien seguiría el tuyo.
         </p>
-        {noPublicar.map((o) => (
+        {noPublicar.map((p) => (
           <article class="tarjeta">
-            {o.imagen ? <img src={o.imagen} alt="" loading="lazy" width="72" height="72" /> : <div></div>}
+            <div class="media">{p.imagen ? <img src={p.imagen} alt="" loading="lazy" width="84" height="84" /> : <div></div>}</div>
             <div>
-              <p class="t-titulo">{o.titulo}<span class="t-cat">{o.categoria}</span></p>
-              <p class="t-meta"><span class="t-precio">{o.precio}</span></p>
-              <p class={`t-veredicto n-${o.nivel}`}>{o.veredicto}</p>
+              <p class="t-titulo">{p.titulo}</p>
+              <p class={`t-meta n-${p.nivel}`}>{p.veredicto}</p>
             </div>
           </article>
         ))}
@@ -279,87 +204,142 @@ const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'l
     )}
 
     <footer>
-      Telegram no aparece aquí: lo publica n8n solo. · Precios de la última corrida del bot;
-      si el sitio lleva horas sin reconstruirse, verifícalos antes de publicar.
+      <ul>
+        <li><b>Siempre di que es enlace de afiliado.</b> Los textos ya lo incluyen: no lo borres.</li>
+        <li><b>Grupos ajenos:</b> lee sus reglas antes. Casi todos prohíben enlaces de afiliado; ahí aporta sin link y lleva a la gente a tu canal.</li>
+        <li><b>Para separar ventas por red:</b> crea una etiqueta por canal en tu panel de afiliados y pega esos links en «Links por canal» al agregar el producto.</li>
+        <li>Los precios son los que viste al agregar el producto. Si pasó más de un día, ábrelo en Mercado Libre antes de publicar.</li>
+      </ul>
     </footer>
   </div>
 
-  <script is:inline define:vars={{ SITIO }}>
-    (function () {
-      var canal = 'wa';
+  <script type="application/json" id="kp-datos" set:html={datos}></script>
 
-      function enlaceDe(id) {
-        return SITIO + '/r/' + canal + '/' + id + '?s=panel';
+  <script>
+    import { FORMATOS, textoProducto, textoPaquete, ideaVideo } from '../../utils/publicacion.js';
+    import { enlacePara } from '../../utils/vitrina.js';
+
+    const DATOS = JSON.parse(document.getElementById('kp-datos')?.textContent || '{}');
+    const SITIO: string = DATOS.sitio || '';
+    const CLAVE = 'kp-panel-formato';
+
+    // Las relámpago que ya terminaron no se ofrecen, aunque la página sea de antes.
+    const ahora = Date.now();
+    const vivos = (DATOS.productos || []).filter((p: any) => !p.caduca || Date.parse(p.caduca) > ahora);
+    document.querySelectorAll('[data-caduca]').forEach((el) => {
+      const c = el.getAttribute('data-caduca');
+      if (c && Date.parse(c) <= ahora) (el as HTMLElement).hidden = true;
+    });
+    const cuenta = document.querySelector('[data-cuenta]');
+    if (cuenta) cuenta.textContent = String(vivos.length);
+    const porId = new Map(vivos.map((p: any) => [p.id, p]));
+
+    const CONSEJOS: Record<string, string> = {
+      wa: '<b>WhatsApp:</b> los *asteriscos* salen en negritas. En tu canal, una publicación cada pocas horas; en grupos ajenos, solo si las reglas lo permiten.',
+      estado: '<b>Estado:</b> sube la imagen vertical y pega el texto encima. El link sí se puede tocar en los estados.',
+      tg: '<b>Telegram:</b> los **dobles asteriscos** salen en negritas al enviar. Si tienes el bot de n8n, no publiques aquí lo mismo a mano.',
+      fb: '<b>Facebook:</b> pega el texto y espera a que cargue la vista previa del link antes de publicar. En grupos, revisa sus reglas.',
+      ig: '<b>Instagram no deja links en el texto.</b> Pon en tu perfil: <code data-bio></code> <button class="btn" type="button" data-copiar-bio>Copiar</button> y di el número del producto.',
+      tt: '<b>TikTok no deja links en el texto.</b> Pon en tu perfil: <code data-bio></code> <button class="btn" type="button" data-copiar-bio>Copiar</button> y di el número en el video.',
+      pn: '<b>Pinterest:</b> crea un pin con la imagen 4:5, el título y pega el link en «Destino».',
+      cr: '<b>Correo:</b> la primera línea es el asunto.',
+    };
+
+    let formato = 'wa';
+    try {
+      const guardado = localStorage.getItem(CLAVE);
+      if (guardado && FORMATOS.some((f) => f.id === guardado)) formato = guardado;
+    } catch { /* sin almacenamiento */ }
+
+    const fmt = () => FORMATOS.find((f) => f.id === formato) ?? FORMATOS[0];
+    const bio = () => `${SITIO}/hoy?c=${fmt().canal}`;
+
+    function pintar() {
+      const f = fmt();
+      document.querySelectorAll('[data-formato]').forEach((c) => c.setAttribute('aria-pressed', String(c.getAttribute('data-formato') === f.id)));
+      const consejo = document.querySelector('[data-consejo]') as HTMLElement | null;
+      if (consejo) {
+        consejo.innerHTML = CONSEJOS[f.id] ?? '';
+        const code = consejo.querySelector('[data-bio]');
+        if (code) code.textContent = bio();
       }
+      const paquete = document.querySelector('[data-paquete]');
+      if (paquete) paquete.textContent = textoPaquete(f.id, vivos, { sitio: SITIO });
+      const sinLink = f.id === 'ig' || f.id === 'tt';
+      document.querySelectorAll('[data-copiar-link]').forEach((b) => ((b as HTMLElement).hidden = sinLink));
+      document.querySelectorAll('[data-idea]').forEach((b) => ((b as HTMLElement).hidden = !sinLink));
+      if (!sinLink) document.querySelectorAll('[data-idea-texto]').forEach((b) => ((b as HTMLElement).hidden = true));
+      document.querySelectorAll('[data-imagen]').forEach((a) => {
+        const id = a.getAttribute('data-imagen');
+        const historia = f.imagen === 'historia';
+        a.setAttribute('href', `/promos/${id}${historia ? '-historia' : ''}.jpg`);
+        a.textContent = historia ? 'Imagen vertical (9:16)' : 'Imagen (4:5)';
+      });
+    }
 
-      function marcar(btn, texto) {
-        var original = btn.textContent;
-        btn.textContent = texto;
-        btn.setAttribute('data-hecho', '');
-        setTimeout(function () {
-          btn.textContent = original;
-          btn.removeAttribute('data-hecho');
-        }, 1600);
-      }
-
-      // Copiado con DOS respaldos, porque `navigator.clipboard` no existe fuera
-      // de HTTPS — y este panel se abre desde el teléfono, que es justo donde
-      // más falta hace. `prompt()` NO sirve de respaldo: hay contextos donde
-      // lanza y entonces el fallo se come también al plan B.
-      function conTextarea(texto) {
-        var ta = document.createElement('textarea');
+    function marcar(btn: HTMLElement, texto: string) {
+      const original = btn.textContent;
+      btn.textContent = texto;
+      btn.setAttribute('data-hecho', '');
+      setTimeout(() => { btn.textContent = original; btn.removeAttribute('data-hecho'); }, 1600);
+    }
+    // Copiado con respaldo: navigator.clipboard no existe fuera de HTTPS, y
+    // este panel se usa desde el teléfono, que es donde más falta hace.
+    async function copiar(btn: HTMLElement, texto: string) {
+      try {
+        await navigator.clipboard.writeText(texto);
+        marcar(btn, '✓ Copiado');
+      } catch {
+        const ta = document.createElement('textarea');
         ta.value = texto;
         ta.setAttribute('readonly', '');
         ta.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(92vw,520px);height:40vh;z-index:99;padding:12px;border-radius:10px;border:1px solid #ff8a3d;background:#1d1230;color:#f0e8fa;font:14px/1.5 system-ui';
         document.body.appendChild(ta);
         ta.focus();
         ta.select();
-        var ok = false;
-        try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
-        if (ok) {
-          ta.remove();
-          return true;
-        }
-        // Ni eso: se deja visible y seleccionado para copiar a mano.
-        ta.addEventListener('blur', function () { ta.remove(); });
-        return false;
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch { ok = false; }
+        if (ok) { ta.remove(); marcar(btn, '✓ Copiado'); }
+        else { ta.addEventListener('blur', () => ta.remove()); marcar(btn, 'Copia a mano ↑'); }
       }
+    }
 
-      async function copiar(btn, texto) {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          try {
-            await navigator.clipboard.writeText(texto);
-            marcar(btn, '✓ Copiado');
-            return;
-          } catch (_) { /* sigue a los respaldos */ }
-        }
-        marcar(btn, conTextarea(texto) ? '✓ Copiado' : 'Copia a mano ↑');
+    document.addEventListener('click', (ev) => {
+      const t = ev.target as HTMLElement;
+      const chip = t.closest('[data-formato]');
+      if (chip) {
+        formato = chip.getAttribute('data-formato') || 'wa';
+        try { localStorage.setItem(CLAVE, formato); } catch { /* sin almacenamiento */ }
+        pintar();
+        return;
       }
+      const btnTexto = t.closest('[data-copiar-texto]') as HTMLElement | null;
+      if (btnTexto) {
+        const p = porId.get(btnTexto.getAttribute('data-copiar-texto'));
+        if (p) copiar(btnTexto, textoProducto(formato, p, { numero: (p as any).numero, sitio: SITIO }));
+        return;
+      }
+      const btnLink = t.closest('[data-copiar-link]') as HTMLElement | null;
+      if (btnLink) {
+        const p = porId.get(btnLink.getAttribute('data-copiar-link'));
+        if (p) copiar(btnLink, enlacePara(p as any, fmt().canal));
+        return;
+      }
+      const btnIdea = t.closest('[data-idea]') as HTMLElement | null;
+      if (btnIdea) {
+        const id = btnIdea.getAttribute('data-idea');
+        const p: any = porId.get(id);
+        const caja = document.querySelector(`[data-idea-texto="${id}"]`) as HTMLElement | null;
+        if (p && caja) { caja.textContent = ideaVideo(p, p.numero); caja.hidden = !caja.hidden; }
+        return;
+      }
+      const btnPaquete = t.closest('[data-copiar-paquete]') as HTMLElement | null;
+      if (btnPaquete) { copiar(btnPaquete, textoPaquete(formato, vivos, { sitio: SITIO })); return; }
+      const btnBio = t.closest('[data-copiar-bio]') as HTMLElement | null;
+      if (btnBio) copiar(btnBio, bio());
+    });
 
-      document.addEventListener('click', function (ev) {
-        var chip = ev.target.closest('[data-canal]');
-        if (chip) {
-          canal = chip.getAttribute('data-canal');
-          document.querySelectorAll('[data-canal]').forEach(function (c) {
-            c.setAttribute('aria-pressed', String(c === chip));
-          });
-          return;
-        }
-
-        var soloEnlace = ev.target.closest('[data-copiar-enlace]');
-        if (soloEnlace) {
-          copiar(soloEnlace, enlaceDe(soloEnlace.getAttribute('data-id')));
-          return;
-        }
-
-        var btn = ev.target.closest('[data-copiar]');
-        if (btn) {
-          var texto = btn.getAttribute('data-copiar')
-            .replace('{{enlace}}', enlaceDe(btn.getAttribute('data-id')));
-          copiar(btn, texto);
-        }
-      });
-    })();
+    pintar();
   </script>
 </body>
 </html>

@@ -4,10 +4,11 @@ El sitio es una superficie. Este documento cubre las demás: cómo se publica en
 cada una, qué está automatizado y qué no, y dónde está la línea que no conviene
 cruzar.
 
-La regla que ordena todo lo de abajo: **cada enlace que sale de aquí lleva el
-código de su canal**, así que a los 90 días el panel de afiliados de Mercado
-Libre puede decirte, en pesos, cuál mantener y cuál cerrar. Un canal sin
-etiquetar no es un canal: es ruido que no vas a poder evaluar.
+La regla que ordena todo lo de abajo: **cada enlace que sale de aquí es el link
+oficial del generador de Mercado Libre, tal cual.** Para que a los 90 días el
+panel de afiliados te diga en pesos qué canal mantener, genera un link por
+canal con su etiqueta (ver [`vitrina.md`](vitrina.md#separar-las-ventas-por-red-etiquetas)):
+un canal sin etiqueta propia se mezcla con el resto.
 
 ---
 
@@ -15,27 +16,28 @@ etiquetar no es un canal: es ruido que no vas a poder evaluar.
 
 | Pieza | Qué hace | Dónde |
 | :--- | :--- | :--- |
-| `feed.json` | Feed público con precio, Sello K-P y **veredicto de precio**. Lo consume todo lo de fuera. | `<sitio>/data/feed.json` |
-| `/r/<canal>/<id>` | Enlace corto que estampa el canal y redirige a ML. Sobrevive a que la oferta salga del feed. | backend Express |
-| Workflow de n8n | Publica en Telegram cada 3 h, filtrado a Tecnología. | `n8n/telegram-tecnologia.json` |
-| `/panel/hoy` | Publicaciones ya armadas para copiar y pegar donde no hay API. | el propio sitio |
-| `npm run detectar-nichos` | Qué categoría aguanta un canal propio. | terminal |
+| `vitrina.json` | Tus productos, cada uno con su link oficial (y los de cada canal). La fuente de todo. | `src/data/vitrina.json` |
+| `/panel/agregar` | Agrega productos desde la ficha de ML con un marcador del navegador. | el propio sitio |
+| `/panel/hoy` | Publicaciones ya escritas para cada red, con el link del canal y la imagen del tamaño correcto. | el propio sitio |
+| `/hoy` | Tu «link en bio» numerado para Instagram y TikTok. | el propio sitio |
+| `feed.json` | Feed público (esquema 2) con el link oficial y el número de cada producto. Lo consume n8n. | `<sitio>/data/feed.json` |
+| Workflow de n8n | Publica en Telegram cada 3 h. | `n8n/telegram-tecnologia.json` |
 
 ### Códigos de canal
 
-Viven en [`src/utils/canales.js`](../src/utils/canales.js). Son dos letras y
-viajan dentro del `matt_word`:
+Viven en [`src/utils/canales.js`](../src/utils/canales.js). Son las claves de
+`enlaces` en la vitrina y eligen la plantilla del panel:
 
 | Código | Superficie | Cómo se publica |
 | :--- | :--- | :--- |
 | `wb` | El sitio | Automático (el build) |
-| `tg` | Telegram | Automático (n8n) |
-| `wa` | Canal de WhatsApp | A mano, desde `/panel/hoy` |
-| `vv` | Video vertical | A mano |
-| `pn` | Pinterest | A mano por ahora |
+| `wa` | WhatsApp (canal, grupos y estados) | A mano, desde `/panel/hoy` |
+| `tg` | Telegram | Automático (n8n) o a mano |
+| `fb` | Facebook (página o grupo) | A mano |
+| `ig` | Instagram | A mano; el link va en el perfil: `/hoy?c=ig` |
+| `tt` | TikTok | A mano; el link va en el perfil: `/hoy?c=tt` |
+| `pn` | Pinterest | A mano |
 | `cr` | Correo / boletín | A mano |
-| `rs` | Sindicación | Automático |
-| `cm` | Comunidades y grupos | A mano, y con cuidado — ver abajo |
 
 ---
 
@@ -151,8 +153,8 @@ Luego, dos cosas:
 1. **Nodo `Configuracion`** — es el único que hay que editar:
    - `sitio` → tu dominio (sin barra final)
    - `canal_telegram` → `@tu_canal`
-   - `categoria` → `Tecnología` (cámbialo cuando el detector diga otra cosa)
-   - `score_minimo` → `85`
+   - `categoria` → vacío publica todas; pon `Tecnología` (u otra) para un canal de nicho
+   - `score_minimo` → `0` (la vitrina ya es tu selección; súbelo si quieres filtrar más)
    - `max_por_corrida` → `3`. Con 8 corridas al día son hasta 24 publicaciones;
      súbelo solo si el canal se te queda callado.
 2. **Nodo `Publicar en Telegram`** — crea ahí la credencial *Telegram API* y
@@ -165,14 +167,13 @@ publicaciones en el canal y podrás borrarlas. Recién entonces actívalo.
 
 ### Qué hace el workflow, en una frase
 
-Lee `feed.json`, se queda con Tecnología con Sello K-P ≥ 85, **descarta las que
-han estado más baratas hace poco**, quita las que ya publicó, ordena por Sello
-K-P, toma 3 y las manda con foto y enlace `/r/tg/<id>?s=tecnologia`.
+Lee `feed.json`, **descarta lo que no tenga link oficial**, las relámpago ya
+terminadas y las que han estado más baratas hace poco, quita las que ya
+publicó, toma 3 en el orden de `/hoy` y las manda con la tarjeta 4:5 y el link
+oficial (el de la etiqueta de Telegram si lo generaste).
 
-Ese descarte es el punto entero. El nodo lleva un comentario que dice por qué:
-publicar un descuento contra un precio inflado es lo que hacen los otros veinte
-canales de ofertas, y no hacerlo es la única razón por la que alguien seguiría
-el tuyo.
+Si ya tenías importada la versión anterior, **vuelve a importarla**: la vieja
+espera el esquema 1 y se detiene con un error en vez de publicar links viejos.
 
 ### Cosas que conviene saber
 
@@ -187,14 +188,20 @@ el tuyo.
 
 ---
 
-## WhatsApp, grupos y todo lo demás: `/panel/hoy`
+## WhatsApp, Instagram, TikTok y todo lo demás: `/panel/hoy`
 
-No hay API pública para canales de WhatsApp, y en grupos y comunidades publicar
-a mano es lo único que respeta sus reglas. Para eso está `/panel/hoy`.
+No hay API pública para canales de WhatsApp ni para publicar en Instagram o
+TikTok, y en grupos y comunidades publicar a mano es lo único que respeta sus
+reglas. Para eso está `/panel/hoy`.
 
-Eliges el canal arriba y cada tarjeta te da la publicación completa —título,
-precio, Sello K-P, veredicto de precio y aviso de afiliado— con el enlace ya
-etiquetado. Dos toques desde el teléfono.
+Eliges la red arriba y cada producto te da la publicación completa en el
+formato de esa red —título, precio, señales, tu nota y aviso de afiliado— con
+el link oficial del canal, la imagen del tamaño correcto (4:5 o 9:16) y, para
+Instagram y TikTok, una idea de video de 15 segundos. Arriba está el **paquete
+relámpago**: un solo mensaje con lo mejor del día.
+
+Instagram y TikTok no dejan links en el texto: el texto apunta a `/hoy` con el
+número del producto («link en mi perfil, el #3»).
 
 Abajo aparece **«No publicar hoy»** con las ofertas cuyo descuento es contra un
 precio inflado, y el porqué. Esa lista es tan importante como la otra.
@@ -252,14 +259,6 @@ acumula es que la gente reconozca de quién vienen.
 
 ### A los 90 días
 
-Abre el panel de afiliados de ML y mira los sufijos `_tg`, `_wa`, `_pn`, `_cr`,
-`_cm`. Cierra el que no aparezca y mete ese tiempo en el que sí. Para eso se
-etiquetó todo desde el principio.
-
-Y para las cuentas propias, la consulta está en el backend:
-
-```sql
-SELECT canal, COUNT(*) AS clics FROM clics
-WHERE fecha >= datetime('now','-30 days')
-GROUP BY canal ORDER BY clics DESC;
-```
+Abre el panel de afiliados de ML y compara las etiquetas de cada canal. Cierra
+el que no venda y mete ese tiempo en el que sí. Para eso se etiquetó todo
+desde el principio.

@@ -9,8 +9,6 @@
 # LO QUE SE HORNEA EN EL BUILD (y por eso llega como build arg):
 #   · SITE_URL         → rel="canonical", og:url, og:image y el sitemap. Si
 #                        falta, TODAS las páginas salen apuntando a localhost.
-#   · ML_MATT_TOOL/WORD→ los parámetros de afiliado de cada enlace y de los
-#                        redirects /recomienda/*. Es el camino del dinero.
 #   · PUBLIC_RELAMPAGO_URL, IS_HOT_SALE → se incrustan en el bundle.
 # Los secretos de runtime (RESEND_API_KEY, SUBSCRIBE_SECRET, EXPORT_TOKEN…) NO
 # se hornean: viven en el servicio `api` vía env_file.
@@ -27,21 +25,15 @@ FROM node:22.12.0-alpine AS build
 WORKDIR /app
 
 ARG SITE_URL
-ARG ML_MATT_TOOL
-ARG ML_MATT_WORD
 ARG PUBLIC_RELAMPAGO_URL=/data/relampago.json
 ARG IS_HOT_SALE=false
-ARG SKIP_EXTRACCION=false
 # Analítica: si alguna falta, el componente no emite ni una etiqueta.
 ARG PUBLIC_UMAMI_URL
 ARG PUBLIC_UMAMI_ID
 ARG PUBLIC_UMAMI_SCRIPT=kp.js
 ENV SITE_URL=$SITE_URL \
-    ML_MATT_TOOL=$ML_MATT_TOOL \
-    ML_MATT_WORD=$ML_MATT_WORD \
     PUBLIC_RELAMPAGO_URL=$PUBLIC_RELAMPAGO_URL \
     IS_HOT_SALE=$IS_HOT_SALE \
-    SKIP_EXTRACCION=$SKIP_EXTRACCION \
     PUBLIC_UMAMI_URL=$PUBLIC_UMAMI_URL \
     PUBLIC_UMAMI_ID=$PUBLIC_UMAMI_ID \
     PUBLIC_UMAMI_SCRIPT=$PUBLIC_UMAMI_SCRIPT \
@@ -56,11 +48,9 @@ RUN test -n "$SITE_URL" || \
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# `npm run build` = redirects (_redirects + docker/redirects.caddy)
-#                 + relampago.json (endsAt +24 h)
-#                 + astro build (el hook re-escanea secciones desde ML).
-# Si ML no responde, secciones.js descarta el feed por edad y degrada a
-# ofertas.json: el build NO falla y los precios siguen siendo los del bot de 3 h.
+# `npm run build` = relampago.json + feed.json + tarjetas + astro build, todo
+# desde src/data/vitrina.json (tus productos con link oficial). No necesita
+# red hacia Mercado Libre: lo único que se descarga son las fotos.
 RUN npm run build
 
 # ── Etapa 3: servidor Caddy ─────────────────────────────────────────────────
@@ -69,8 +59,6 @@ FROM caddy:2-alpine
 COPY --from=build /app/dist /srv
 # Config del reverse proxy + cabeceras de seguridad + página 404 real
 COPY docker/Caddyfile /etc/caddy/Caddyfile
-# Redirects de afiliado generados en el build (/recomienda/<id> → ML con tu código)
-COPY --from=build /app/docker/redirects.caddy /etc/caddy/redirects.caddy
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

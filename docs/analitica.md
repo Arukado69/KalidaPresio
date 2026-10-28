@@ -116,19 +116,20 @@ hacia Mercado Libre.
 
 ### `clic-oferta`
 
-Se dispara con cualquier clic en un enlace hacia `mercadolibre.com.mx` o hacia
-`/recomienda/*`, venga de donde venga: tarjetas, bento, showpiece, carrusel
-relámpago, curados, colecciones o la página 404. Un solo listener delegado en
-`document`, así que sobrevive a las View Transitions y no hay que instrumentar
-cada componente.
+Se dispara con cualquier clic en un enlace hacia un link oficial de afiliado
+(`meli.la/…`, `mercadolibre.com/sec/…`), hacia `mercadolibre.com.mx` o hacia
+las redirecciones viejas (`/recomienda/*`, `/r/*`), venga de donde venga:
+tarjetas, bento, showpiece, carrusel relámpago, elegidos, colecciones, `/hoy`
+o la página 404. Un solo listener delegado en `document`, así que sobrevive a
+las View Transitions y no hay que instrumentar cada componente.
 
 | Propiedad | De dónde sale |
 |---|---|
-| `seccion` | Sufijo de `matt_word`, ya sin el código de canal |
-| `canal` | Las 2 primeras letras del sufijo, o el segmento de `/r/<canal>/…` |
+| `seccion` | `data-kp-seccion` del enlace (o de un contenedor) |
+| `canal` | `data-kp-canal` (lo pone `/hoy?c=ig`), o el segmento de `/r/<canal>/…`; si no, `wb` |
 | `id` | `data-ml-id` de la tarjeta, o el `MLM…` de la URL |
 | `precio` · `score` · `descuento` · `categoria` | `data-*` que ya usaban el filtro y el ordenador |
-| `destino` | `directo`, `recomienda` (cloaking) o `corto` (enlace por canal) |
+| `destino` | `meli.la`, `sec`, `directo`, o `recomienda`/`corto` (redirecciones viejas) |
 
 ### `boletin-alta` y `contacto-enviado`
 
@@ -140,46 +141,33 @@ de herramienta, solo se toca ese archivo.
 
 ## Cómo leerlo (esto es lo importante)
 
-**`seccion` y `canal` no son etiquetas inventadas: son el mismo identificador
-que ves en tu panel de afiliados de Mercado Libre.** `aLinkAfiliado` compone
+Umami y el panel de afiliados de Mercado Libre miden **mitades distintas** del
+embudo, y ninguna toca el link:
 
 ```
-matt_word = <base>_<canal><seccion>
-                    │      └─ 'relampago', 'elegidos', 'hero'…
-                    └─ 2 letras: wb (sitio), tg, wa, vv, pn, cr, rs, cm
+Umami          →  cuánta gente hizo clic, desde qué sección y qué canal
+Panel de ML    →  cuánto se compró, por etiqueta
 ```
 
-ML lo registra en las comisiones y el sitio lo lee del mismo enlace para el
-evento. Los códigos viven en `src/utils/canales.js` y llegan al navegador por
-el `<meta name="kp-canales">` que emite `Analitica.astro` — no copiados a mano
-dentro del script, que es como las dos etiquetas se separarían sin que nadie se
-diera cuenta.
+Antes la sección viajaba pegada al `matt_word` del link (`…_wbrelampago`). Ese
+sufijo era una etiqueta que no existía en el panel y modificaba el link
+generado, que es justo lo que hacía que Mercado Libre no atribuyera la compra.
+Se eliminó: ahora la sección va en `data-kp-seccion`, un atributo del HTML.
 
-Eso permite cruzar las dos mitades del embudo en las DOS dimensiones:
+Para cruzar las dos mitades **por canal**, genera un link por canal con su
+etiqueta en el panel de afiliados y pégalo en `enlaces` de la vitrina (ver
+[`vitrina.md`](vitrina.md#separar-las-ventas-por-red-etiquetas)). Así:
 
 ```
-Umami          →  cuánta gente hizo clic en «imbatibles» desde Telegram
-Panel de ML    →  cuánto se compró desde «imbatibles» desde Telegram
+Umami (canal ig, sección hoy)   ↔   Panel de ML (etiqueta «instagram»)
 ```
-
-Un enlace anterior a los canales (sufijo sin código, p. ej. `…_relampago`) se
-sigue leyendo bien: si las dos primeras letras no son un código conocido, todo
-el sufijo es la sección y el canal se da por el sitio.
 
 ### Los clics que Umami nunca va a ver
 
-Un clic desde Telegram o desde un canal de WhatsApp **no pasa por el sitio**, así
-que Umami no se entera. Para esos existe `/r/<canal>/<id>`: lo resuelve el
-backend, que registra el clic en su propia tabla (`clics`) y redirige a ML con
-el `matt_word` del canal. Sin IP ni user-agent — para decidir un canal basta con
-contar.
-
-```sql
--- Qué canal mueve, últimos 30 días
-SELECT canal, COUNT(*) AS clics FROM clics
-WHERE fecha >= datetime('now','-30 days')
-GROUP BY canal ORDER BY clics DESC;
-```
+Un clic desde Telegram, un canal de WhatsApp o un estado **no pasa por el
+sitio**, así que Umami no se entera. Esos los cuenta el propio panel de
+afiliados de Mercado Libre por etiqueta. El sitio ya no los redirige por su
+dominio: publicar el link oficial tal cual es lo que hace que la compra cuente.
 
 Y de ahí salen diagnósticos que antes eran imposibles:
 
@@ -187,15 +175,15 @@ Y de ahí salen diagnósticos que antes eran imposibles:
 |---|---|---|
 | Pocas visitas, buen % de clic | El producto funciona, nadie lo encuentra | SEO y distribución |
 | Muchas visitas, pocos clics | Llegan mal cualificados o el CTA no convence | Copy, colecciones perennes |
-| Muchos clics, pocas comisiones | Precio desactualizado al llegar a ML, o categoría de comisión baja | Frescura del feed, mezcla de categorías |
-| `seccion: sin-etiqueta` | Hay un CTA sin instrumentar | Pásale `campana` a `aLinkAfiliado` |
+| Muchos clics, pocas comisiones | Precio desactualizado al llegar a ML, categoría de comisión baja, o compras de cuentas vinculadas a ti | Revisar precios en la vitrina, mezcla de categorías, ver [`vitrina.md`](vitrina.md#compré-por-mi-link-y-no-me-apareció-la-comisión) |
+| `seccion: sin-etiqueta` | Hay un CTA sin `data-kp-seccion` | Ponle el atributo al enlace (o pásale `campana`/`seccion` al componente) |
 
 Ese último es una **sonda**: si aparece en el panel, algún enlace se escapó.
 Hoy debería estar en cero.
 
 ### Las tres preguntas para empezar
 
-1. **¿Qué sección genera clics por visita?** Si «imbatibles» trae 10× más
+1. **¿Qué sección genera clics por visita?** Si «catalogo» trae 10× más
    clics que el bento, el bento sobra o está mal colocado.
 2. **¿Qué páginas traen visitantes que hacen clic?** Ordena las colecciones por
    clics, no por visitas. Ahí se decide cuál convertir en comparativa perenne.

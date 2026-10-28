@@ -1,24 +1,16 @@
 ---
 /**
- * /ofertas/<seccion> — Una página por sección de Mercado Libre.
+ * /ofertas/<seccion> — Una página por sección de la vitrina.
  *
- * POR QUÉ EXISTEN: el extractor traía 91 productos frescos de liquidación y
- * menos-500 que el sitio no renderizaba en ningún sitio. `ALL_LIQUIDACION` y
- * `ALL_MENOS_500` se exportaban y nadie los importaba. Catálogo pagado con
- * peticiones a ML y tirado a la basura en cada build.
- *
- * POR QUÉ PÁGINAS Y NO MÁS BLOQUES EN LA PORTADA: la portada ya pesa más de
- * medio mega de HTML con una sola rejilla; sumarle 91 tarjetas la haría
- * impracticable en móvil. Además, páginas separadas dan tres cosas que un
- * bloque más no da: contenido propio que Google puede indexar, una etiqueta
- * `matt_word` distinta por sección para saber cuál convierte, y un filtro y
- * orden que no compiten con los de la portada (el Layout cablea
+ * POR QUÉ PÁGINAS Y NO MÁS BLOQUES EN LA PORTADA: páginas separadas dan
+ * contenido propio que Google puede indexar, una etiqueta de sección distinta
+ * en la analítica (data-kp-seccion) para saber cuál genera clics, y un filtro
+ * y orden que no compiten con los de la portada (el Layout cablea
  * `[data-grid-filtrable]` en singular, una rejilla por página).
  *
- * Relámpago no tiene página: son ofertas por tiempo limitado y ML dejó de
- * publicar su fecha de fin, así que una página estática las presentaría como
- * vigentes sin poder garantizarlo. Para eso está el carrusel, que se refresca
- * en el navegador.
+ * Relámpago no tiene página: tiene hora de fin, y una página estática la
+ * seguiría mostrando hasta el próximo build. Para eso está el carrusel, que la
+ * retira en el navegador al vencer.
  */
 import Layout from '../../layouts/Layout.astro';
 import SeccionGrid from '../../components/SeccionGrid.astro';

@@ -1,14 +1,22 @@
 # KalidaPresio
 
-Sitio de ofertas calidad-precio de Mercado Libre México. Astro estático, sin
-base de datos en el frontend: un bot refresca el catálogo cada 3 horas, el sitio
-se reconstruye y Caddy lo sirve detrás de Nginx Proxy Manager.
+Ofertas calidad-precio de Mercado Libre México, elegidas a mano y publicadas
+con **links oficiales de afiliado**. Astro estático, sin base de datos en el
+frontend: los productos viven en [`src/data/vitrina.json`](src/data/vitrina.json),
+cada cambio a ese archivo reconstruye el sitio y Caddy lo sirve detrás de Nginx
+Proxy Manager.
 
 El **Sello K-P** puntúa cada oferta de 0 a 100 combinando calificación real de
-compradores (65 %), descuento real verificado contra el precio previo (20 %, con
-tope en 40 %) y volumen de ventas (15 %, en escala logarítmica de 100 a 100 mil unidades). Las secciones de
-precio permanente bajo («Imbatibles») usan un recalibrado 65/10/25 porque ahí ML
-no manda `previous_price` y penalizar la falta de descuento sería injusto.
+compradores (65 %), descuento real contra el precio anterior (20 %, con tope en
+40 %) y volumen de ventas (15 %, en escala logarítmica de 100 a 100 mil
+unidades).
+
+> **Octubre 2026 — cambio de modelo.** El sitio armaba los links de afiliado a
+> mano (`?matt_tool=…&matt_word=…_<canal><sección>`) y una compra real no
+> generó comisión. Además, Mercado Libre bloquea a los servidores desde el 8 de
+> octubre y el catálogo automático dejó de actualizarse. Ahora todo sale de la
+> vitrina, con el link que tú generas en tu panel de afiliados, publicado tal
+> cual. Guía completa: **[`docs/vitrina.md`](docs/vitrina.md)**.
 
 ---
 
@@ -20,113 +28,90 @@ cp .env.example .env      # SITE_URL es obligatoria para construir
 npm run dev               # http://localhost:4321
 ```
 
+## El día a día
+
+| Qué | Dónde |
+| :--- | :--- |
+| Agregar o actualizar un producto | `/panel/agregar` (con el marcador del navegador) |
+| Publicar en WhatsApp, Telegram, Facebook, Instagram, TikTok… | `/panel/hoy` |
+| Tu «link en bio» numerado | `/hoy` (`/hoy?c=ig`, `/hoy?c=tt`) |
+| Telegram automático | `n8n/telegram-tecnologia.json` |
+
 ## Comandos
 
 | Comando | Qué hace |
 | :--- | :--- |
 | `npm run dev` | Servidor de desarrollo en `localhost:4321` |
-| `npm run build` | Redirects de afiliado + relámpago + `astro build` → `dist/` |
-| `npm run build:completo` | Re-escanea ofertas desde ML y luego construye |
+| `npm run build` | Relámpago + feed.json + tarjetas + `astro build` → `dist/` |
 | `npm test` | Tests de la lógica de negocio (Vitest) |
-| `npm run obtener-ofertas` | Refresca `src/data/ofertas.json` desde ML |
-| `npm run obtener-secciones` | Refresca `src/data/secciones-feed.json` (por sección) |
-| `npm run enriquecer-curados` | Rellena título e imagen de `curados.json` vía API de catálogo |
-| `npm run generar-og` | Regenera `public/og-default.png` (solo si cambia la identidad) |
-| `npm run detectar-nichos` | ¿Qué categoría aguanta un canal propio? (añade `-- --json`) |
 | `npm run generar-feed` | Regenera `public/data/feed.json` (el que consume n8n) |
-| `npm run verificar-frescura` | ¿El feed sigue actual? Sale con error si no (lo usa la alarma) |
-| `npm run registrar-historico` | Guarda la foto de precios de hoy en el histórico |
+| `npm run generar-tarjetas` | Regenera las imágenes 4:5 y 9:16 de `public/promos/` |
+| `npm run generar-og` | Regenera `public/og-default.png` (solo si cambia la identidad) |
 | `npm run preview` | Sirve `dist/` localmente |
 
+Herramientas del modelo anterior, solo para uso manual desde tu computadora
+(Mercado Libre bloquea a los servidores): `npm run obtener-ofertas`,
+`obtener-secciones`, `registrar-historico`, `detectar-nichos`,
+`verificar-frescura`. Ninguna arma links de afiliado.
+
 `SITE_URL` **no es opcional**: alimenta `rel="canonical"`, `og:url`, `og:image`
-y el sitemap. El build de Docker falla a propósito si falta, porque sin ella el
-sitio se publica declarando sus canónicas en `localhost` y Google lo descarta.
+y el sitemap. El build de Docker falla a propósito si falta.
 
 ## Cómo fluyen los datos
 
 ```
-GitHub Action (cada 3 h)              Build                         Producción
-────────────────────────              ─────                         ──────────
-importarOfertas.js                    generadorRedirects.js         Caddy
-  scrape /ofertas de ML                 → docker/redirects.caddy      /recomienda/* → ML
-  score K-P + filtros                   → public/_redirects           /r/*          → Express
-  → src/data/ofertas.json  ──┐          → public/data/enlaces.json    /api/*        → Express
-                             │        generarRelampago.js             resto         → dist/
-     (commit + push)         │          → public/data/relampago.json
-                             │        astro build
-                             └──────►   hook: extraer-secciones.mjs
-                                          → src/data/secciones-feed.json (sellado)
-                                        secciones.js
-                                          TTL 12 h; si está viejo o falta,
-                                          degrada a ofertas.json
+/panel/agregar                 GitHub                      Build (CI y VPS)
+──────────────                 ──────                      ────────────────
+marcador en la ficha de ML     commit a                    generarRelampago.js → public/data/relampago.json
+  + tu link oficial       ──►  src/data/vitrina.json  ──►  generarFeedPublico.js → public/data/feed.json (esquema 2)
+  → vitrina.json completo      (deploy.yml)                generarTarjetasPromo.js → public/promos/<id>.jpg y -historia.jpg
+                                                           astro build → dist/  (Caddy lo sirve)
 ```
 
-**La regla que importa:** ningún dato derivado se versiona. La excepción es
-`src/data/historico-precios.json`, que **sí** se versiona porque no es un
-derivado sino observación acumulada: si se borra no hay forma de reconstruir a
-qué precio estaba un producto la semana pasada. Se poda solo a 90 días.
+**La regla que importa:** ningún enlace se construye ni se modifica. La
+validación de [`src/utils/vitrina.js`](src/utils/vitrina.js) solo acepta los
+links cortos del generador (`meli.la/…`, `mercadolibre.com/sec/…`); lo demás
+se aparta con su motivo y el panel te dice qué arreglar. El CI falla si
+aparece un `matt_tool=` en las páginas públicas.
 
-El resto:
-`secciones-feed.json`, `_redirects`, `redirects.caddy`, `relampago.json` y
-`enlaces.json` están
-en `.gitignore` y se regeneran en cada build. Versionarlos fue lo que dejó la
-portada dos meses sirviendo precios de junio: el extractor dejó de funcionar y
-el JSON viejo siguió en el repo, listo para desplegarse, sin que nada avisara.
+Los datos derivados (`relampago.json`, `feed.json`, `public/promos/`) están en
+`.gitignore` y se regeneran en cada build. `historico-precios.json` sí se
+versiona: es observación acumulada, no un derivado.
 
 ## Estructura
 
 ```
 src/
   components/   Tarjetas, sello K-P, carrusel relámpago, boletín…
-  data/         ofertas.json (versionado) · colecciones.js · secciones.js
+  data/         vitrina.json (tus productos) · ofertas.js · secciones.js · colecciones.js
   layouts/      Layout.astro — head, SEO, footer y toda la orquestación de JS
-  pages/        index, colecciones/[coleccion], blog, sobre-mi, contacto,
-                privacidad, 404, robots.txt
-  scripts/      Pipeline de datos (build-time y manual)
-  utils/        Lógica pura y testeada: score, afiliado, canales, categorías…
-backend/        API Express + SQLite: contacto, boletín y enlaces cortos (/r/)
-docker/         Caddyfile (+ redirects.caddy generado) · analitica/ (stack de Umami)
-docs/           deploy.md · analitica.md
+  pages/        index, hoy, colecciones/[coleccion], ofertas/[seccion], panel/agregar,
+                panel/hoy, sobre-mi, contacto, privacidad, 404, robots.txt
+  scripts/      Build (relámpago, feed, tarjetas) y herramientas manuales
+  utils/        Lógica pura y testeada: vitrina, publicacion, marcador, canales, score…
+backend/        API Express + SQLite: contacto, boletín y los /r/ viejos
+docker/         Caddyfile · analitica/ (Umami) · n8n/
+docs/           vitrina.md · reparto.md · analitica.md · deploy.md
 ```
 
 ## Medición
 
-Umami autoalojado, sin cookies y en el mismo VPS. Lo que se mide de verdad es el
-**clic saliente** hacia Mercado Libre, etiquetado con el **canal** y la
-**sección** de los que salió — y esa etiqueta es el mismo sufijo de `matt_word`
-que registra el panel de afiliados de ML, así que las dos mitades del embudo se
-cruzan.
+Umami autoalojado, sin cookies y en el mismo VPS. Lo que se mide es el **clic
+saliente** hacia Mercado Libre (`meli.la`, `mercadolibre.com/sec`,
+`mercadolibre.com.mx`), con la **sección** de la que salió (`data-kp-seccion`)
+y, en `/hoy`, el **canal** de quien llegó (`?c=ig`). Nada de eso toca el link.
 
-```
-matt_word = ci20241127172754_tgrelampago
-                             │ └─ sección
-                             └─ canal: wb (sitio), tg, wa, vv, pn, cr, rs, cm
-```
-
-Los códigos viven en [`src/utils/canales.js`](src/utils/canales.js). Para
-repartir fuera del sitio se comparte **`/r/<canal>/<id>`** (opcionalmente
-`?s=<seccion>`): lo resuelve el backend contra una tabla **acumulativa**, así
-que un enlace publicado en Telegram hace tres semanas sigue funcionando aunque
-la oferta ya no esté en el feed de hoy — que es justo lo que `/recomienda/*`,
-regenerado en cada build, no puede prometer.
-
-Guía completa en **[`docs/analitica.md`](docs/analitica.md)**.
+Las **ventas** por canal las da el panel de afiliados de Mercado Libre, siempre
+que generes un link por canal con su etiqueta (ver
+[`docs/vitrina.md`](docs/vitrina.md#separar-las-ventas-por-red-etiquetas)).
+Guía de Umami en **[`docs/analitica.md`](docs/analitica.md)**.
 
 ## Reparto
 
-El sitio es una superficie; el resto se publica fuera. `public/data/feed.json`
-(que genera el build, con el **veredicto de precio** contra el histórico) es lo
-que consumen todas: el workflow de Telegram en
-[`n8n/telegram-tecnologia.json`](n8n/telegram-tecnologia.json) publica solo, y
-`/panel/hoy` arma las publicaciones para copiar donde no hay API (canal de
-WhatsApp, comunidades). Ninguna anuncia una oferta que haya estado más barata
-hace poco — ese descarte es la marca.
-
-Cómo montarlo y dónde conviene (y no conviene) repartir, en
-**[`docs/reparto.md`](docs/reparto.md)**.
-
-Sin `PUBLIC_UMAMI_URL` y `PUBLIC_UMAMI_ID` el sitio no emite ni una etiqueta de
-rastreo.
+El sitio es una superficie; el resto se publica fuera: `/panel/hoy` arma cada
+publicación en el formato de cada red, `/hoy` es el link de perfil para
+Instagram y TikTok, y n8n publica en Telegram solo. Dónde conviene (y no
+conviene) repartir, en **[`docs/reparto.md`](docs/reparto.md)**.
 
 ## Despliegue
 
@@ -141,8 +126,7 @@ docker compose --env-file .env.production up -d --build
 
 KalidaPresio participa en el Programa de Afiliados de Mercado Libre México: si
 compras a través de los enlaces podemos recibir una comisión sin costo adicional
-para ti. Esa comisión **no altera** el orden ni la selección: el Sello K-P se
-calcula solo con señales objetivas del feed. Los precios publicados son una foto
-del momento en que se detectaron — la compra ocurre en Mercado Libre, a su
-precio. Ver [`/sobre-mi`](src/pages/sobre-mi.astro) y
-[`/privacidad`](src/pages/privacidad.astro).
+para ti. Esa comisión **no altera** el orden: el Sello K-P se calcula solo con
+señales objetivas. Los precios publicados son los del momento en que se
+revisaron — la compra ocurre en Mercado Libre, a su precio. Ver
+[`/sobre-mi`](src/pages/sobre-mi.astro) y [`/privacidad`](src/pages/privacidad.astro).
