@@ -26,6 +26,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registrarPrecio, podar } from '../utils/historico.js';
+import { clavesObservacion } from '../utils/vitrina.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FEED = path.resolve(__dirname, '../data/ofertas.json');
@@ -53,10 +54,16 @@ const ofertas = Array.isArray(crudo) ? crudo : (crudo?.items ?? []);
 const observado = leerJson(OBSERVACIONES, null);
 const precios = observado?.precios ?? {};
 
-/** @type {Array<[string, number]>} pares [id, precio] de ambas fuentes */
+/**
+ * Pares [clave, precio] de ambas fuentes. Cada oferta se registra por artículo
+ * Y por catálogo (/p/MLM…), que es la clave con la que la vitrina la busca.
+ * observaciones.json ya viene con las dos (observarPrecios.js).
+ * @type {Array<[string, number]>}
+ */
 const lecturas = [
   ...Object.entries(precios).map(([id, p]) => [id, Number(p)]),
-  ...ofertas.map((o) => [o.id, Number(o.precio_actual)]),
+  ...ofertas.flatMap((o) => clavesObservacion(o.id, o.url_producto ?? o.link_afiliado)
+    .map((clave) => [clave, Number(o.precio_actual)])),
 ].filter(([id, p]) => id && Number.isFinite(p) && p > 0);
 
 if (lecturas.length === 0) {

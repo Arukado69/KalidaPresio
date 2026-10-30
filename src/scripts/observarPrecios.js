@@ -22,6 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { descargarPagina, extraerAppProps } from '../utils/scrapeOfertas.js';
 import { leerTarjeta } from '../utils/mlPayload.js';
+import { clavesObservacion } from '../utils/vitrina.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SALIDA = path.resolve(__dirname, '../data/observaciones.json');
@@ -53,7 +54,10 @@ async function main() {
         if (!t?.id || !Number.isFinite(t.precio_actual) || t.precio_actual <= 0) continue;
         // Si el mismo id sale en dos páginas, nos quedamos con el menor: la
         // entrada del día guarda min/max y el mínimo es el dato que importa.
-        precios[t.id] = Math.min(precios[t.id] ?? Infinity, t.precio_actual);
+        // Se guarda por artículo Y por catálogo: la vitrina busca por catálogo.
+        for (const clave of clavesObservacion(t.id, t.url_producto)) {
+          precios[clave] = Math.min(precios[clave] ?? Infinity, t.precio_actual);
+        }
         nuevos++;
       }
       paginasOk++;

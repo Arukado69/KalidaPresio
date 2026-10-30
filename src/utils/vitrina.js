@@ -23,6 +23,7 @@
  *     "revisado":     "2026-10-26T14:00:00-06:00", ← cuándo viste ese precio
  *     "imagen":       "https://http2.mlstatic.com/…",
  *     "url_producto": "https://www.mercadolibre.com.mx/…/p/MLM53177027",
+ *     "id_articulo":  "MLM1932698151",             ← lo llena el marcador
  *     "rating": 4.8, "vendidos": 250000, "envio_gratis": true,
  *     "relampago": true, "termina": "2026-10-26T23:00:00-06:00",
  *     "destacado": true,                          ← sale en «Elegidos»
@@ -104,6 +105,54 @@ export function claveProducto(url) {
   if (catalogo) return catalogo[1].toUpperCase() + catalogo[2];
   const articulo = sinQuery.match(/(ML[A-Z])-?(\d{6,})/i);
   return articulo ? articulo[1].toUpperCase() + articulo[2] : null;
+}
+
+/** «MLM-1932698151», « mlm1932698151 » → «MLM1932698151». null si no es un id de ML. */
+function normalizarIdMl(v) {
+  if (typeof v !== 'string') return null;
+  const s = v.trim().toUpperCase().replace(/^(ML[A-Z])-/, '$1');
+  return /^ML[A-Z]\d{6,}$/.test(s) ? s : null;
+}
+
+/**
+ * Id de ARTÍCULO (la publicación de un vendedor) que trae una URL, o null.
+ *
+ * En una ficha de catálogo (`/p/MLM…`) el artículo que gana la ficha viaja en
+ * los parámetros: `wid=MLM…` o `pdp_filters=item_id:MLM…`. En una URL de
+ * artículo (`/MLM-123…`) es el propio id de la ruta. Una ficha de catálogo sin
+ * esos parámetros NO lo trae: devolver el de catálogo aquí sería mezclar las
+ * dos claves que esta función existe para separar.
+ *
+ * @param {any} url
+ * @returns {string|null}
+ */
+export function idArticulo(url) {
+  if (typeof url !== 'string') return null;
+  let s = url;
+  try {
+    s = decodeURIComponent(url);
+  } catch { /* se lee tal cual */ }
+  // `[?&#=,]` antes de item_id: que `parent_item_id=` no cuente como el suyo.
+  const param = s.match(/(?:[?&#]wid=|[?&#=,]item_id[:=])(ML[A-Z])-?(\d{6,})/i);
+  if (param) return param[1].toUpperCase() + param[2];
+  const ruta = s.split(/[?#]/)[0];
+  if (/\/p\/ML[A-Z]\d/i.test(ruta)) return null;
+  const articulo = ruta.match(/(ML[A-Z])-?(\d{6,})/i);
+  return articulo ? articulo[1].toUpperCase() + articulo[2] : null;
+}
+
+/**
+ * Con qué claves se guarda una observación del listado de ofertas: el id de la
+ * tarjeta (artículo) y, si la tarjeta es de una ficha de catálogo, también el
+ * de catálogo. El de catálogo es el que usa la vitrina, y el que NO cambia
+ * cuando cambia el vendedor que gana la ficha.
+ *
+ * @param {any} id — id de la tarjeta
+ * @param {any} url — URL del producto
+ * @returns {string[]}
+ */
+export function clavesObservacion(id, url) {
+  return [...new Set([normalizarIdMl(id), claveProducto(url)].filter(Boolean))];
 }
 
 /**
@@ -203,10 +252,23 @@ export function normalizarProducto(entrada, ahora = Date.now()) {
   const urlProducto = urlProductoLimpia(e.url_producto);
   const vendedorConfiable = e.vendedor_confiable === true;
   const destacado = e.destacado === true ? 'Elegido' : texto(e.destacado);
+  const id = claveProducto(urlProducto) ?? idDesdeLink(e.link);
+
+  // El histórico de precios se llenó con ids de ARTÍCULO (lo que trae cada
+  // tarjeta del listado) y la vitrina identifica por CATÁLOGO (/p/MLM…). Sin
+  // buscar con las dos, ningún producto encontraba su historia y el veredicto
+  // salía siempre «sin datos»: ni «No publicar hoy» ni el descuento falso.
+  const declarado = normalizarIdMl(e.id_articulo);
+  if (texto(e.id_articulo) && !declarado) {
+    avisos.push(`«id_articulo» no es un id de Mercado Libre (MLM…): ${e.id_articulo}`);
+  }
+  const articulo = declarado ?? idArticulo(e.url_producto);
 
   return {
     producto: {
-      id: claveProducto(urlProducto) ?? idDesdeLink(e.link),
+      id,
+      id_articulo: articulo,
+      claves_historico: [...new Set([id, articulo].filter(Boolean))],
       titulo,
       precio_actual: precio,
       precio_previo: precioPrevio,

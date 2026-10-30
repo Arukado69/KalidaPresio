@@ -10,6 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   resumirHistorico,
+  entradasPara,
   veredictoPrecio,
   registrarPrecio,
   podar,
@@ -51,6 +52,45 @@ describe('resumirHistorico', () => {
     for (const malo of [null, undefined, [], 'no', {}]) {
       expect(resumirHistorico(malo)).toEqual({ dias: 0, minimo: null, maximo: null, desde: null, hasta: null });
     }
+  });
+});
+
+describe('entradasPara — un producto, varias claves', () => {
+  const productos = {
+    MLM1932698151: [['2026-10-08', 869, 958], ['2026-10-07', 869, 869]],   // artículo
+    MLM53177027: [['2026-10-08', 850, 850], ['2026-10-06', 870, 870]],     // catálogo
+  };
+
+  it('junta el historial del artículo y el del catálogo', () => {
+    const e = entradasPara(productos, ['MLM53177027', 'MLM1932698151']);
+    expect(e.map((x) => x[0])).toEqual(['2026-10-08', '2026-10-07', '2026-10-06']);
+  });
+
+  it('un mismo día en dos claves es UN día: se funde en mínimo y máximo', () => {
+    const e = entradasPara(productos, ['MLM53177027', 'MLM1932698151']);
+    expect(e[0]).toEqual(['2026-10-08', 850, 958]);
+    expect(resumirHistorico(e).dias).toBe(3);
+  });
+
+  it('acepta una sola clave como texto, y las que no existen no estorban', () => {
+    expect(entradasPara(productos, 'MLM1932698151')).toHaveLength(2);
+    expect(entradasPara(productos, ['kp-1AbCdE', 'MLM1932698151'])).toHaveLength(2);
+    expect(entradasPara(productos, ['MLM000000000'])).toEqual([]);
+  });
+
+  it('no truena con basura ni lee del prototipo', () => {
+    expect(entradasPara(null, ['MLM1932698151'])).toEqual([]);
+    expect(entradasPara(productos, null)).toEqual([]);
+    expect(entradasPara(productos, ['constructor', '__proto__', 42])).toEqual([]);
+    expect(entradasPara({ A: [null, 'x', ['2026-10-08', 1, 1]] }, 'A')).toEqual([['2026-10-08', 1, 1]]);
+  });
+
+  it('con las dos claves, un producto de la vitrina YA no sale «sin datos»', () => {
+    const soloArticulo = { MLM1932698151: serie(10, 869, '2026-10-08') };
+    const antes = veredictoPrecio(869, resumirHistorico(entradasPara(soloArticulo, 'MLM53177027')));
+    const ahora = veredictoPrecio(869, resumirHistorico(entradasPara(soloArticulo, ['MLM53177027', 'MLM1932698151'])));
+    expect(antes.nivel).toBe('sin-datos');
+    expect(ahora.nivel).toBe('minimo');
   });
 });
 
@@ -187,9 +227,30 @@ describe('podar — el archivo no puede crecer para siempre', () => {
   });
 
   it('olvida productos que llevan tiempo fuera del catálogo', () => {
+    // Treinta días seguidos mirando, y `viejo` no apareció en ninguno.
     const r = podar(
-      { vivo: [['2026-08-20', 1, 1]], viejo: [['2026-07-01', 1, 1]] },
+      { vivo: serie(30, 1, '2026-08-20'), viejo: [['2026-07-01', 1, 1]] },
       { dias: 90, diasOlvido: 30, hoy },
+    );
+    expect(Object.keys(r)).toEqual(['vivo']);
+  });
+
+  it('un apagón del observador NO borra el historial: el olvido cuenta días observados', () => {
+    // Lo que pasó en octubre de 2026: 47 días mirando, ML bloquea a los
+    // servidores y la siguiente corrida llega semanas después. Con días de
+    // calendario, esa corrida olvidaba a todos los que no volvió a ver.
+    const antes = { A: serie(47, 869, '2026-10-08'), B: serie(10, 99, '2026-10-08') };
+    const r = podar(
+      { ...antes, C: [['2026-11-20', 50, 50]] },
+      { dias: 90, diasOlvido: 30, hoy: new Date('2026-11-20T12:00:00Z') },
+    );
+    expect(Object.keys(r).sort()).toEqual(['A', 'B', 'C']);
+  });
+
+  it('pasado el apagón, el olvido vuelve a funcionar cuando se acumulan días observados', () => {
+    const r = podar(
+      { viejo: [['2026-10-08', 1, 1]], vivo: serie(30, 1, '2026-12-01') },
+      { dias: 90, diasOlvido: 30, hoy: new Date('2026-12-01T12:00:00Z') },
     );
     expect(Object.keys(r)).toEqual(['vivo']);
   });

@@ -23,7 +23,7 @@
 import historicoCrudo from '../../data/historico-precios.json';
 import { VITRINA } from '../../data/ofertas.js';
 import { ordenParaPublicar } from '../../utils/vitrina.js';
-import { resumirHistorico, veredictoPrecio, NIVELES_NO_DISTRIBUIBLES } from '../../utils/historico.js';
+import { entradasPara, resumirHistorico, veredictoPrecio, NIVELES_NO_DISTRIBUIBLES } from '../../utils/historico.js';
 import { FORMATOS, HORARIOS_SUGERIDOS } from '../../utils/publicacion.js';
 
 const SITIO = String(Astro.site ?? 'https://kalidapresio.albis-labs.xyz').replace(/\/+$/, '');
@@ -31,7 +31,7 @@ const productosHist = historicoCrudo?.productos ?? {};
 
 // El MISMO orden y numeración que /hoy y feed.json.
 const ordenados = ordenParaPublicar(VITRINA).map((p, i) => {
-  const v = veredictoPrecio(p.precio_actual, resumirHistorico(productosHist[p.id]), { descuento: p.descuento });
+  const v = veredictoPrecio(p.precio_actual, resumirHistorico(entradasPara(productosHist, p.claves_historico ?? p.id)), { descuento: p.descuento });
   return { ...p, numero: i + 1, nivel: v.nivel, veredicto: v.texto };
 });
 

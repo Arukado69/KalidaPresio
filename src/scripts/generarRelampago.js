@@ -27,7 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { categorizar } from '../utils/categorias.js';
-import { resumirHistorico, veredictoPrecio, NIVEL_DESCUENTO_FALSO } from '../utils/historico.js';
+import { entradasPara, resumirHistorico, veredictoPrecio, NIVEL_DESCUENTO_FALSO } from '../utils/historico.js';
 import { ordenParaPublicar } from '../utils/vitrina.js';
 import { leerVitrina } from './vitrinaDisco.js';
 
@@ -53,7 +53,7 @@ try {
   } catch { /* archivo ausente o ilegible: se sigue con {} */ }
 
   const esDescuentoFalso = (o) => {
-    const v = veredictoPrecio(o.precio_actual, resumirHistorico(productosHist[o.id]), { descuento: o.descuento });
+    const v = veredictoPrecio(o.precio_actual, resumirHistorico(entradasPara(productosHist, o.claves_historico ?? o.id)), { descuento: o.descuento });
     return v.nivel === NIVEL_DESCUENTO_FALSO;
   };
 

@@ -71,7 +71,7 @@ const vistoEl = oferta.revisado
 // cuánto lleva seguido; nunca insinúa un rango que no existe. Y avisa también
 // cuando ha estado más barato — decir que NO es buen momento es lo que hace
 // creíble el resto.
-const precio = veredictoDe(oferta.id, oferta.precio_actual, oferta.descuento);
+const precio = veredictoDe(oferta.claves_historico ?? oferta.id, oferta.precio_actual, oferta.descuento);
 
 const score100 = Math.round(score ?? oferta.score_kalidad_presio ?? 0);
 

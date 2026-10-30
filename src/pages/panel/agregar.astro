@@ -179,6 +179,10 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
         <label class="campo ancho">URL del producto en Mercado Libre
           <input name="url_producto" type="url" placeholder="https://www.mercadolibre.com.mx/…/p/MLM…" />
         </label>
+        <label class="campo ancho">ID del artículo en ML (lo llena el marcador)
+          <input name="id_articulo" type="text" placeholder="MLM1932698151" autocomplete="off" spellcheck="false" />
+          <span class="ayuda">Sirve para encontrar su histórico de precios. Si queda vacío, no pasa nada.</span>
+        </label>
         <label class="campo ancho">Foto (URL de la imagen)
           <input name="imagen" type="url" placeholder="https://http2.mlstatic.com/…" />
         </label>
@@ -253,7 +257,7 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
   <script type="application/json" id="kp-datos" set:html={datos}></script>
 
   <script>
-    import { normalizarProducto, esLinkOficial, claveProducto, urlProductoLimpia, DIAS_VIGENCIA_PRECIO } from '../../utils/vitrina.js';
+    import { normalizarProducto, esLinkOficial, claveProducto, urlProductoLimpia, idArticulo, DIAS_VIGENCIA_PRECIO } from '../../utils/vitrina.js';
     import { leerEnvioMarcador } from '../../utils/marcador.js';
 
     const DATOS = JSON.parse(document.getElementById('kp-datos')?.textContent || '{}');
@@ -363,7 +367,7 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
     }
     function llenar(p: any) {
       form.reset();
-      for (const n of ['link', 'titulo', 'precio', 'precio_antes', 'url_producto', 'imagen', 'rating', 'vendidos', 'nota']) {
+      for (const n of ['link', 'titulo', 'precio', 'precio_antes', 'url_producto', 'id_articulo', 'imagen', 'rating', 'vendidos', 'nota']) {
         if (p[n] !== undefined && p[n] !== null) campo(n).value = String(p[n]);
       }
       campo('envio_gratis').checked = p.envio_gratis === true;
@@ -388,6 +392,8 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
         revisado: new Date().toISOString(),
         imagen: t(campo('imagen').value),
         url_producto: urlProductoLimpia(campo('url_producto').value) ?? t(campo('url_producto').value),
+        // Se lee de la URL ANTES de limpiarla: el artículo viaja en wid=/item_id.
+        id_articulo: t(campo('id_articulo').value)?.toUpperCase() ?? idArticulo(campo('url_producto').value) ?? undefined,
         rating: n(campo('rating').value),
         vendidos: n(campo('vendidos').value),
         envio_gratis: campo('envio_gratis').checked || undefined,

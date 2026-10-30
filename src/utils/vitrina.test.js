@@ -11,6 +11,8 @@ import {
   esLinkOficial,
   claveProducto,
   urlProductoLimpia,
+  idArticulo,
+  clavesObservacion,
   normalizarProducto,
   cargarVitrina,
   enlacePara,
@@ -80,6 +82,62 @@ describe('claveProducto y urlProductoLimpia', () => {
       .toBe('https://www.mercadolibre.com.mx/x/p/MLM53177027');
     expect(urlProductoLimpia('https://evil.com/p/MLM53177027')).toBeNull();
     expect(urlProductoLimpia('no es url')).toBeNull();
+  });
+});
+
+// El histórico de precios se llenó con ids de ARTÍCULO y la vitrina identifica
+// por CATÁLOGO. Hasta octubre de 2026 nadie cruzaba las dos claves: ningún
+// producto de la vitrina encontraba su historia y el veredicto salía siempre
+// «sin datos», en silencio.
+describe('el cruce de ids: artículo y catálogo', () => {
+  it('idArticulo lee el artículo que viaja en una ficha de catálogo', () => {
+    expect(idArticulo('https://www.mercadolibre.com.mx/x/p/MLM53177027#polycard_client=search&wid=MLM1932698151&sid=s'))
+      .toBe('MLM1932698151');
+    expect(idArticulo('https://www.mercadolibre.com.mx/x/p/MLM53177027?pdp_filters=item_id%3AMLM1932698151'))
+      .toBe('MLM1932698151');
+    expect(idArticulo('https://www.mercadolibre.com.mx/x/p/MLM53177027?item_id=MLM-1932698151'))
+      .toBe('MLM1932698151');
+    expect(idArticulo('https://articulo.mercadolibre.com.mx/MLM-1932698151-hidro-_JM')).toBe('MLM1932698151');
+  });
+
+  it('idArticulo NO confunde el catálogo con un artículo, ni lee el de otro parámetro', () => {
+    expect(idArticulo('https://www.mercadolibre.com.mx/x/p/MLM53177027')).toBeNull();
+    expect(idArticulo('https://www.mercadolibre.com.mx/x/p/MLM53177027?parent_item_id=MLM1932698151')).toBeNull();
+    expect(idArticulo('https://meli.la/1AbCdE')).toBeNull();
+    expect(idArticulo('%E0%A4%A')).toBeNull();
+    expect(idArticulo(null)).toBeNull();
+  });
+
+  it('clavesObservacion guarda una tarjeta de catálogo con las dos claves, sin repetir', () => {
+    expect(clavesObservacion('MLM1932698151', 'https://www.mercadolibre.com.mx/x/p/MLM53177027'))
+      .toEqual(['MLM1932698151', 'MLM53177027']);
+    expect(clavesObservacion('MLM1932698151', 'https://articulo.mercadolibre.com.mx/MLM-1932698151-hidro-_JM'))
+      .toEqual(['MLM1932698151']);
+    expect(clavesObservacion('no-es-id', 'https://www.mercadolibre.com.mx/x/p/MLM53177027')).toEqual(['MLM53177027']);
+    expect(clavesObservacion(null, null)).toEqual([]);
+  });
+
+  it('el producto lleva sus dos claves para buscar el histórico', () => {
+    const r = normalizarProducto(base({ id_articulo: ' mlm-1932698151 ' }), AHORA);
+    expect(r.producto.id).toBe('MLM53177027');
+    expect(r.producto.id_articulo).toBe('MLM1932698151');
+    expect(r.producto.claves_historico).toEqual(['MLM53177027', 'MLM1932698151']);
+    expect(r.avisos).toEqual([]);
+  });
+
+  it('sin id_articulo, lo saca de la URL tal como se pegó (antes de limpiarla)', () => {
+    const r = normalizarProducto(base({
+      url_producto: 'https://www.mercadolibre.com.mx/hidrolavadora/p/MLM53177027#wid=MLM1932698151',
+    }), AHORA);
+    expect(r.producto.url_producto).toBe('https://www.mercadolibre.com.mx/hidrolavadora/p/MLM53177027');
+    expect(r.producto.claves_historico).toEqual(['MLM53177027', 'MLM1932698151']);
+  });
+
+  it('un id_articulo que no es de ML se avisa y no se usa; el producto se publica igual', () => {
+    const r = normalizarProducto(base({ id_articulo: 'ABC123' }), AHORA);
+    expect(r.producto.claves_historico).toEqual(['MLM53177027']);
+    expect(r.producto.id_articulo).toBeNull();
+    expect(r.avisos.join(' ')).toMatch(/id_articulo/);
   });
 });
 
