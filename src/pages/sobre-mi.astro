@@ -81,8 +81,8 @@ import SelloKP from '../components/SelloKP.astro';
           <h3 class="criterio-titulo">2. La calificación manda (65%)</h3>
           <p class="criterio-desc">
             La opinión real de los compradores es el factor dominante del sello: vale el 65% del puntaje.
-            Un producto sin calificación ni siquiera entra. Premiamos lo que la gente ya
-            comprobó, no las promesas del listado.
+            Un producto sin calificación sale con el sello bajo, a la vista de todos. Premiamos lo que
+            la gente ya comprobó, no las promesas del listado.
           </p>
         </article>
 
@@ -127,18 +127,18 @@ import SelloKP from '../components/SelloKP.astro';
       <div class="tiers-grid">
         <div class="tier-card">
           <SelloKP score={88} size={92} />
-          <h3 class="tier-titulo">75 – 100 · Excelente</h3>
-          <p class="tier-desc">Relación calidad-precio sobresaliente. Suele ser nuestra recomendación.</p>
+          <h3 class="tier-titulo">80 – 100 · Excelente</h3>
+          <p class="tier-desc">Relación calidad-precio sobresaliente (de 90 en adelante, «Excepcional»). Suele ser nuestra recomendación.</p>
         </div>
         <div class="tier-card">
           <SelloKP score={72} size={92} />
-          <h3 class="tier-titulo">70 – 74 · Buena</h3>
-          <p class="tier-desc">Cumple y entra a la lista, pero revisa los detalles antes de decidir.</p>
+          <h3 class="tier-titulo">70 – 79 · Buena</h3>
+          <p class="tier-desc">Cumple, pero revisa los detalles antes de decidir.</p>
         </div>
         <div class="tier-card">
           <SelloKP score={58} size={92} />
-          <h3 class="tier-titulo">Menos de 70 · Descartada</h3>
-          <p class="tier-desc">No la publicamos: no alcanza el mínimo de calidad-precio que exigimos.</p>
+          <h3 class="tier-titulo">Menos de 70 · Con reservas</h3>
+          <p class="tier-desc">El sello no la respalda: si la ves aquí, revisa bien los detalles antes de comprar.</p>
         </div>
       </div>
 

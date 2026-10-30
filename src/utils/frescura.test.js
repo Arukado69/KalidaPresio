@@ -77,7 +77,7 @@ describe('fraseFrescura', () => {
 
   it('con dato fresco no mete miedo de más', () => {
     const f = describirFrescura(haceHoras(2), AHORA);
-    expect(fraseFrescura(f)).toBe('Precios detectados hace 2 horas');
+    expect(fraseFrescura(f)).toBe('Precios revisados hace 2 horas');
     expect(fraseFrescura(f)).not.toContain('pueden haber cambiado');
   });
 

@@ -89,7 +89,10 @@ export function describirFrescura(iso, ahora = Date.now()) {
  * @returns {string}
  */
 export function fraseFrescura(f) {
-  if (f.nivel === 'desconocido') return 'Precios sin fecha de detección — verifícalos en Mercado Libre.';
-  if (f.nivel === 'viejo') return `Precios detectados ${f.texto} — pueden haber cambiado.`;
-  return `Precios detectados ${f.texto}`;
+  // «Revisados», no «detectados»: desde octubre de 2026 cada precio lo mira
+  // una persona en la ficha de Mercado Libre (el campo `revisado` de la
+  // vitrina), no un bot que raspa el listado.
+  if (f.nivel === 'desconocido') return 'Precios sin fecha de revisión — verifícalos en Mercado Libre.';
+  if (f.nivel === 'viejo') return `Precios revisados ${f.texto} — pueden haber cambiado.`;
+  return `Precios revisados ${f.texto}`;
 }

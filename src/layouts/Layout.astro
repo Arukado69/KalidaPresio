@@ -131,10 +131,10 @@ const datosSitio = {
         <!-- Divulgación honesta: los precios son una foto, no un contrato.
              La compra ocurre en ML a su precio; por eso pedimos verificar. -->
         <p class="footer-disclaimer">
-          KalidaPresio rastrea precios, calificaciones y ventas reales de Mercado Libre México
-          para ayudarte a decidir mejor. Los precios son una referencia del momento
-          en que se detectaron — <strong>verifica siempre el precio final en Mercado
-          Libre antes de comprar</strong>. <SelloFrescura generadoEl={GENERADO_EL} variante="pie" />.
+          En KalidaPresio elegimos a mano ofertas de Mercado Libre México y anotamos el día
+          en que vimos cada precio. Los precios son una referencia de ese momento —
+          <strong>verifica siempre el precio final en Mercado Libre antes de comprar</strong>.
+          {GENERADO_EL && <><SelloFrescura generadoEl={GENERADO_EL} variante="pie" />.</>}
         </p>
         <p class="footer-copy">&copy; {new Date().getFullYear()} KalidaPresio. Todos los derechos reservados.</p>
       </div>
@@ -243,7 +243,8 @@ const datosSitio = {
             .from(hero.querySelectorAll('.hero-line'), { yPercent: 115, duration: 0.95, stagger: 0.14 }, '-=0.35')
             .from(hero.querySelector('.hero-subtitulo'), { y: 18, opacity: 0, duration: 0.7 }, '-=0.55')
             .from(hero.querySelectorAll('.hero-pill'), { y: 14, opacity: 0, duration: 0.5, stagger: 0.08 }, '-=0.5')
-            .from(hero.querySelector('.hero-stats'), { y: 16, opacity: 0, duration: 0.6 }, '-=0.35');
+            // Con la vitrina vacía, en lugar de las cifras va la frase .hero-vacio.
+            .from(hero.querySelector('.hero-stats, .hero-vacio'), { y: 16, opacity: 0, duration: 0.6 }, '-=0.35');
 
           const show = document.querySelector('.hero-show');
           if (show) {
