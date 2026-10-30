@@ -175,6 +175,46 @@ export function urlProductoLimpia(url) {
   return `https://${u.hostname.toLowerCase()}${u.pathname}`;
 }
 
+/** Texto → «texto-en-minusculas-sin-acentos». */
+function aSlug(texto) {
+  return String(texto ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * La dirección de la página del producto: /p/<slug>.
+ *
+ * ESTABLE a propósito: sale de las palabras de la URL del producto en Mercado
+ * Libre (la ficha de catálogo o de artículo) y de su id, no del título que
+ * escribiste. Corregir una errata del título no rompe los enlaces que ya se
+ * compartieron ni lo que Google ya indexó. Sin URL de producto, del título.
+ *
+ * @param {{id: string, url_producto?: string|null, titulo?: string}} p
+ * @returns {string}
+ */
+export function slugProducto({ id, url_producto, titulo }) {
+  let ruta = '';
+  try {
+    ruta = new URL(url_producto).pathname;
+  } catch { /* sin URL: se usa el título */ }
+  // /samsung-galaxy-a16-…/p/MLM44113911  ·  /MLM-1932698151-hidrolavadora-…-_JM
+  const palabras = ruta.match(/^\/([^/]+)\/p\/ML[A-Z]\d+/i)?.[1]
+    ?? ruta.match(/^\/ML[A-Z]-?\d+-(.+?)(?:-_JM)?\/?$/i)?.[1]
+    ?? titulo;
+  let base = aSlug(palabras);
+  if (base.length > 50) {
+    // En un guion, no a media palabra.
+    const corte = base.slice(0, 51).lastIndexOf('-');
+    base = base.slice(0, corte > 20 ? corte : 50).replace(/-+$/, '');
+  }
+  const sufijo = aSlug(id);
+  return base ? `${base}-${sufijo}` : sufijo;
+}
+
 /** Id para una entrada sin URL de producto: sale del código del link corto. */
 function idDesdeLink(link) {
   const codigo = new URL(link.trim()).pathname.split('/').filter(Boolean).pop();
@@ -200,11 +240,16 @@ function texto(v) {
  * todo el sitio (TarjetaOferta, colecciones, feed.json…), o explica por qué no
  * se puede publicar.
  *
+ * `exigirVigencia: false` es para la página permanente del producto: arma el
+ * producto aunque su precio tenga más de 7 días o su relámpago haya
+ * terminado. Esa página lo dice; la portada, el feed y /hoy no lo publican.
+ *
  * @param {object} entrada
  * @param {number} [ahora]
+ * @param {{exigirVigencia?: boolean}} [opciones]
  * @returns {{producto: object, avisos: string[]} | {motivo: string}}
  */
-export function normalizarProducto(entrada, ahora = Date.now()) {
+export function normalizarProducto(entrada, ahora = Date.now(), { exigirVigencia = true } = {}) {
   const e = entrada && typeof entrada === 'object' ? entrada : {};
 
   if (!e.link) return { motivo: 'falta el link oficial' };
@@ -220,7 +265,7 @@ export function normalizarProducto(entrada, ahora = Date.now()) {
 
   const revisadoMs = Date.parse(e.revisado ?? '');
   if (Number.isNaN(revisadoMs)) return { motivo: 'falta «revisado» (la fecha en que viste el precio)' };
-  if (ahora - revisadoMs > DIAS_VIGENCIA_PRECIO * DIA) {
+  if (exigirVigencia && ahora - revisadoMs > DIAS_VIGENCIA_PRECIO * DIA) {
     return { motivo: `el precio lleva más de ${DIAS_VIGENCIA_PRECIO} días sin revisarse` };
   }
 
@@ -231,7 +276,7 @@ export function normalizarProducto(entrada, ahora = Date.now()) {
     const t = Date.parse(e.termina ?? '');
     termina = Number.isNaN(t) ? null : new Date(t).toISOString();
     caduca = termina ?? new Date(revisadoMs + HORAS_RELAMPAGO_SIN_FIN * HORA).toISOString();
-    if (Date.parse(caduca) <= ahora) return { motivo: 'la oferta relámpago ya terminó' };
+    if (exigirVigencia && Date.parse(caduca) <= ahora) return { motivo: 'la oferta relámpago ya terminó' };
   }
 
   const avisos = [];
@@ -267,6 +312,7 @@ export function normalizarProducto(entrada, ahora = Date.now()) {
   return {
     producto: {
       id,
+      slug: slugProducto({ id, url_producto: urlProducto, titulo }),
       id_articulo: articulo,
       claves_historico: [...new Set([id, articulo].filter(Boolean))],
       titulo,

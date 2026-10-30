@@ -12,6 +12,9 @@ export interface Props {
   title: string;
   description: string;
   ogImage?: string;
+  /** Medidas reales de ogImage. La tarjeta de un producto es 4:5 (1080×1350). */
+  ogImageAncho?: number;
+  ogImageAlto?: number;
   ogType?: string;
 }
 
@@ -19,6 +22,8 @@ const {
   title,
   description,
   ogImage = '/og-default.png',
+  ogImageAncho = 1200,
+  ogImageAlto = 630,
   ogType = 'website',
 } = Astro.props;
 
@@ -87,8 +92,8 @@ const datosSitio = {
     <meta property="og:title" content={metaTitle} />
     <meta property="og:description" content={metaDescription} />
     <meta property="og:image" content={ogImageAbsoluta} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+    <meta property="og:image:width" content={String(ogImageAncho)} />
+    <meta property="og:image:height" content={String(ogImageAlto)} />
     <meta property="og:url" content={urlCanonica} />
     <meta property="og:type" content={ogType} />
     <meta property="og:site_name" content="KalidaPresio" />
@@ -134,7 +139,7 @@ const datosSitio = {
           En KalidaPresio elegimos a mano ofertas de Mercado Libre México y anotamos el día
           en que vimos cada precio. Los precios son una referencia de ese momento —
           <strong>verifica siempre el precio final en Mercado Libre antes de comprar</strong>.
-          {GENERADO_EL && <><SelloFrescura generadoEl={GENERADO_EL} variante="pie" />.</>}
+          {GENERADO_EL && <SelloFrescura generadoEl={GENERADO_EL} variante="pie" punto />}
         </p>
         <p class="footer-copy">&copy; {new Date().getFullYear()} KalidaPresio. Todos los derechos reservados.</p>
       </div>

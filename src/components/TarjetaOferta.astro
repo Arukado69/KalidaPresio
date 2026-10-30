@@ -176,7 +176,11 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
       </div>
     )}
 
-    <h3 class="oferta-titulo">{oferta.titulo}</h3>
+    <!-- El título lleva a la página del producto (historial y detalles); el
+         botón sigue yendo directo a Mercado Libre con el link oficial. -->
+    <h3 class="oferta-titulo">
+      {oferta.slug ? <a class="oferta-titulo-link" href={`/p/${oferta.slug}`}>{oferta.titulo}</a> : oferta.titulo}
+    </h3>
 
     {variant === 'deal' && veredictoTxt && (
       <p class="oferta-veredicto">{veredictoTxt}</p>
@@ -493,6 +497,10 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
     flex-direction: column;
     flex-grow: 1;
   }
+
+  .oferta-titulo-link { color: inherit; text-decoration: none; }
+  .oferta-titulo-link:hover,
+  .oferta-titulo-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 
   .oferta-titulo {
     font-size: 1rem;

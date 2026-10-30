@@ -33,6 +33,7 @@ npm run dev               # http://localhost:4321
 | Qué | Dónde |
 | :--- | :--- |
 | Agregar o actualizar un producto | `/panel/agregar` (con el marcador del navegador) |
+| La página de un producto (precio, historial, Sello K-P) | `/p/<slug>`: se crea sola y no desaparece al retirarlo (ver [`docs/vitrina.md`](docs/vitrina.md#la-página-de-cada-producto-p)) |
 | Publicar en WhatsApp, Telegram, Facebook, Instagram, TikTok… | `/panel/hoy` |
 | Tu «link en bio» numerado | `/hoy` (`/hoy?c=ig`, `/hoy?c=tt`) |
 | Telegram automático | `n8n/telegram-tecnologia.json` |

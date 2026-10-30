@@ -19,10 +19,17 @@ export interface Props {
   generadoEl?: string | null;
   /** `linea` (bajo un título de sección) · `pie` (dentro del párrafo del pie). */
   variante?: 'linea' | 'pie';
+  /**
+   * Cierra la frase con punto DENTRO del sello. Puesto afuera, el salto de
+   * línea que el componente deja después de su <span> quedaba antes del punto
+   * («hace 1 hora .»). Va fuera del texto que se recalcula cada minuto.
+   */
+  punto?: boolean;
 }
 
-const { generadoEl = null, variante = 'linea' } = Astro.props;
+const { generadoEl = null, variante = 'linea', punto = false } = Astro.props;
 const f = describirFrescura(generadoEl);
+const cierre = punto && !fraseFrescura(f).endsWith('.') ? '.' : '';
 ---
 
 <span
@@ -35,8 +42,8 @@ const f = describirFrescura(generadoEl);
     <time datetime={f.iso} title={f.absoluto} data-frescura-texto>{fraseFrescura(f)}</time>
   ) : (
     <span data-frescura-texto>{fraseFrescura(f)}</span>
-  )}
-</span>
+  )}{cierre}</span>
+
 
 <script>
   // Recalcula el texto relativo en el navegador: el HTML es estático y su
