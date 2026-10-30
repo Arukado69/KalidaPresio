@@ -103,14 +103,20 @@ jobs:
           gh issue close "$NUMERO" \
             --comment "✅ Todo en orden: el sitio publica y ningún precio se esconde en las próximas $HORAS_AVISO h."
 
+      # El aviso es el ISSUE, no el color del job. Antes, una alarma dejaba el
+      # job en rojo, y GitHub manda «All jobs have failed» por correo en CADA
+      # corrida: después de cada deploy y una vez al día, repitiendo lo que el
+      # issue ya dijo. Una alarma que llega en dos copias se aprende a ignorar.
+      # Rojo queda solo para lo que el issue no puede contar: que la revisión
+      # misma se rompió.
       - name: Reflejar el estado real
         if: always()
         env:
           ESTADO: ${{ steps.revisar.outputs.estado }}
         run: |
           case "$ESTADO" in
-            alarma) echo "::error::El sitio no está publicando bien. Revisa el issue con la etiqueta $ETIQUETA."; exit 1 ;;
-            aviso)  echo "::warning::Hay precios por esconderse. Revisa el issue con la etiqueta $ETIQUETA." ;;
+            alarma) echo "::warning::El sitio no está publicando bien. Lo dice el issue con la etiqueta $ETIQUETA." ;;
+            aviso)  echo "::warning::Hay precios por esconderse. Lo dice el issue con la etiqueta $ETIQUETA." ;;
             ok)     echo "✅ Vitrina en orden." ;;
             *)      echo "::error::La revisión no terminó: el script se rompió antes de decidir."; exit 1 ;;
           esac
