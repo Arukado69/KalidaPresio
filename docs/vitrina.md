@@ -48,13 +48,32 @@ cada uno cobra.
 
 ### Subir los cambios
 
-Lo que guardas queda en tu navegador hasta que lo subes:
+Lo que guardas queda en tu navegador hasta que lo subes. En la barra de abajo,
+**«Publicar ahora»**: el panel hace el commit en GitHub por ti, GitHub corre
+los tests, construye el sitio y lo publica en el VPS. En unos minutos está en
+línea.
 
-1. En la barra de abajo, **«1. Copiar vitrina.json»**.
-2. **«2. Abrir en GitHub y pegar»**: se abre el archivo en el editor de
-   GitHub. Selecciona todo, pega y toca **«Commit changes»**.
-3. GitHub corre los tests, construye el sitio y lo publica en el VPS. En
-   unos minutos está en línea.
+La primera vez te pide un **token de GitHub** (se crea una sola vez, también
+desde el celular):
+
+1. Abre <https://github.com/settings/personal-access-tokens/new> (token
+   «fine-grained»).
+2. **Repository access:** «Only select repositories» → solo `KalidaPresio`.
+3. **Permissions → Repository permissions → Contents:** «Read and write».
+   Nada más.
+4. **Expiration:** 90 días. Genera el token, cópialo y pégalo en el panel.
+
+El token se guarda **solo en ese navegador**; el sitio no lo ve ni lo guarda.
+Solo puede escribir archivos de este repositorio (sin permiso de Workflows no
+toca `.github/`), y el panel solo escribe `src/data/vitrina.json`. Si caduca o
+lo pierdes, bórralo en GitHub y crea otro; en el panel está «Olvidar el token
+de este navegador».
+
+Si la vitrina cambió en GitHub por otro lado desde la última vez que la viste
+en el panel, «Publicar ahora» te pregunta antes de reemplazarla.
+
+**Sin token**, lo de siempre: «Copiar vitrina.json» → «Abrir en GitHub y
+pegar» → selecciona todo, pega y toca **«Commit changes»**.
 
 > Si un producto no se puede publicar (link que no es oficial, falta precio,
 > relámpago terminada…), el panel te dice exactamente qué le falta, y el
@@ -62,9 +81,19 @@ Lo que guardas queda en tu navegador hasta que lo subes:
 
 ### Desde el celular
 
-El marcador es para la computadora, pero el formulario de `/panel/agregar`
-funciona en el teléfono: pega el link oficial (la app de Mercado Libre te lo da
-al compartir como afiliado), el título y el precio, y guarda.
+El marcador es para la computadora. En el teléfono, usa **«Ideas para
+empezar»** al final de `/panel/agregar`:
+
+1. Toca **«Agregar esta»**: se llena el formulario (título, foto, calificación,
+   vendidos y el id de artículo para el histórico) y se abre la ficha en
+   Mercado Libre.
+2. En la app de Mercado Libre, comparte como afiliado y copia tu link.
+3. Vuelve al panel, pega el link y **escribe el precio que ves hoy**: el de la
+   idea es de otro día y sale solo como pista.
+4. **«Guardar en la lista»** y, cuando termines, **«Publicar ahora»**.
+
+También puedes llenar el formulario a mano con cualquier producto: link
+oficial, título y precio bastan.
 
 ---
 

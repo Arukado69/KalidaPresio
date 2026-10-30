@@ -22,13 +22,17 @@ import ofertasCrudas from '../../data/ofertas.json';
 import { claveProducto, urlProductoLimpia } from '../../utils/vitrina.js';
 import { enlaceMarcador } from '../../utils/marcador.js';
 import { CANALES } from '../../utils/canales.js';
+import { repoDesdeUrlEditor } from '../../utils/publicarGithub.js';
 
 const SITIO = String(Astro.site ?? 'https://kalidapresio.albis-labs.xyz').replace(/\/+$/, '');
 const EDITAR_EN_GITHUB = import.meta.env.PUBLIC_EDITAR_VITRINA_URL
   || 'https://github.com/Arukado69/KalidaPresio/edit/main/src/data/vitrina.json';
+const { repo: REPO, rama: RAMA } = repoDesdeUrlEditor(EDITAR_EN_GITHUB);
 
 // Sugerencias: lo mejor del último escaneo que funcionó (ofertas.json). Sus
-// precios son viejos; sirven solo para saber QUÉ abrir en Mercado Libre.
+// precios son viejos: sirven para saber QUÉ abrir en Mercado Libre y para
+// llenar lo que cambia poco (título, foto, calificación, id de artículo). El
+// precio se escribe siempre a mano, el que se ve hoy.
 const enVitrina = new Set(
   (vitrinaCruda.productos ?? []).map((p) => claveProducto(p?.url_producto)).filter(Boolean),
 );
@@ -38,6 +42,12 @@ const sugerencias = listaOfertas
     titulo: o.titulo,
     imagen: o.imagen,
     url: urlProductoLimpia(o.url_producto ?? o.link_afiliado),
+    // El id de la tarjeta es el de ARTÍCULO: con él, el producto encuentra su histórico.
+    id_articulo: o.id ?? null,
+    rating: o.rating ?? null,
+    vendidos: o.vendidos ?? null,
+    envio_gratis: o.envio_gratis === true,
+    precio_visto: o.precio_actual ?? null,
     score: o.score_kalidad_presio ?? 0,
   }))
   .filter((o) => o.url && !enVitrina.has(claveProducto(o.url)))
@@ -52,7 +62,16 @@ const canalesExtra = Object.entries(CANALES).filter(([c]) => c !== 'wb');
 
 // Lo que el script del navegador necesita. `<` escapado: un título con
 // «</script>» no puede cerrar la etiqueta antes de tiempo.
-const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_GITHUB }).replace(/</g, '\\u003c');
+const datos = JSON.stringify({
+  archivo: vitrinaCruda,
+  editarEnGithub: EDITAR_EN_GITHUB,
+  repo: REPO,
+  rama: RAMA,
+  // Para saber si lo último que publicaste desde aquí ya está en esta página.
+  construidoEl: new Date().toISOString(),
+  ideas: sugerencias,
+  escaneoDel,
+}).replace(/</g, '\\u003c');
 ---
 
 <!doctype html>
@@ -130,6 +149,8 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
     .sug { background: var(--panel); border: 1px solid var(--linea); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; font-size: .82rem; }
     .sug img { width: 100%; height: 110px; object-fit: contain; background: #fff; border-radius: 6px; }
     .sug a { color: var(--acento); font-weight: 600; }
+    .nota-ok { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; background: rgba(87, 198, 142, .12); border: 1px solid var(--bien); color: var(--tinta); font-size: .9rem; }
+    .btn:disabled { opacity: .6; cursor: progress; }
     @media (max-width: 560px) { .campos { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -140,6 +161,7 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
       <p class="sub">Todo lo que publica KalidaPresio sale de aquí, y cada producto lleva <b>tu link oficial</b> de afiliado.</p>
       <div class="nav"><a href="/panel/hoy">→ Publicar en redes</a><a href="/hoy" target="_blank">→ Ver /hoy</a></div>
       <div class="contadores" data-contadores></div>
+      <p class="nota-ok" data-nota role="status" hidden></p>
     </header>
 
     <details class="guia" data-guia>
@@ -158,6 +180,22 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
         <li><b>Revisa y guarda.</b> Cuando termines de agregar, sube los cambios con el botón de abajo.</li>
       </ol>
       <p class="ayuda">Para separar las ventas por red: en tu panel de afiliados crea una etiqueta por canal (whatsapp, telegram, instagram…), genera el link con esa etiqueta y pégalo en «Links por canal».</p>
+    </details>
+
+    <details class="guia">
+      <summary>Publicar sin copiar y pegar (una sola vez: tu token de GitHub)</summary>
+      <ol>
+        <li>Abre <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">GitHub → nuevo token «fine-grained»</a>. Se puede desde el celular.</li>
+        <li><b>Repository access:</b> «Only select repositories» y elige solo <b>{REPO}</b>.</li>
+        <li><b>Permissions → Repository permissions → Contents:</b> «Read and write». Nada más.</li>
+        <li><b>Expiration:</b> 90 días está bien. Genera el token y cópialo.</li>
+        <li>Aquí, toca <b>«Publicar ahora»</b> y pégalo cuando te lo pida. Se guarda solo en este navegador.</li>
+      </ol>
+      <p class="ayuda">
+        Ese token solo puede escribir archivos de este repositorio, y el panel solo escribe <code>src/data/vitrina.json</code>.
+        Si lo pierdes o alguien más lo ve, bórralo en GitHub y crea otro.
+        <button class="btn" type="button" data-olvidar-token>Olvidar el token de este navegador</button>
+      </p>
     </details>
 
     <h2 data-titulo-form>Producto</h2>
@@ -229,15 +267,17 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
       <>
         <h2>Ideas para empezar</h2>
         <p class="sub" style="margin-bottom:12px">
-          Lo mejor del último escaneo automático{escaneoDel ? ` (${escaneoDel})` : ''}. Los precios de entonces ya no valen:
-          ábrelo en Mercado Libre, genera tu link y usa el marcador.
+          Lo mejor del último escaneo automático{escaneoDel ? ` (${escaneoDel})` : ''}. Toca <b>«Agregar esta»</b>: se llena el
+          formulario y se abre la ficha en Mercado Libre. Ahí genera tu link, cópialo, vuelve aquí, pégalo y escribe el
+          precio que ves hoy (el de entonces ya no vale).
         </p>
         <div class="sugs">
-          {sugerencias.map((s) => (
+          {sugerencias.map((s, i) => (
             <div class="sug">
               {s.imagen && <img src={s.imagen} alt="" loading="lazy" />}
               <span>{s.titulo}</span>
-              <a href={s.url} target="_blank" rel="noopener noreferrer">Abrir en Mercado Libre →</a>
+              <button class="btn btn-principal" type="button" data-idea={i}>Agregar esta</button>
+              <a href={s.url} target="_blank" rel="noopener noreferrer">Solo abrir en Mercado Libre →</a>
             </div>
           ))}
         </div>
@@ -248,8 +288,9 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
   <div class="subir" data-subir hidden>
     <div class="subir-in">
       <p data-subir-texto></p>
-      <button class="btn btn-principal" type="button" data-copiar-archivo>1. Copiar vitrina.json</button>
-      <a class="btn" data-abrir-github target="_blank" rel="noopener noreferrer">2. Abrir en GitHub y pegar</a>
+      <button class="btn btn-principal" type="button" data-publicar>Publicar ahora</button>
+      <button class="btn" type="button" data-copiar-archivo>Copiar vitrina.json</button>
+      <a class="btn" data-abrir-github target="_blank" rel="noopener noreferrer">Abrir en GitHub y pegar</a>
       <button class="btn btn-peligro" type="button" data-descartar>Descartar cambios</button>
     </div>
   </div>
@@ -259,15 +300,32 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
   <script>
     import { normalizarProducto, esLinkOficial, claveProducto, urlProductoLimpia, idArticulo, DIAS_VIGENCIA_PRECIO } from '../../utils/vitrina.js';
     import { leerEnvioMarcador } from '../../utils/marcador.js';
+    import { publicarVitrina } from '../../utils/publicarGithub.js';
 
     const DATOS = JSON.parse(document.getElementById('kp-datos')?.textContent || '{}');
     const ARCHIVO = DATOS.archivo || { productos: [] };
     const CLAVE = 'kp-vitrina-borrador';
+    const CLAVE_PUBLICADA = 'kp-vitrina-publicada';
+    const CLAVE_TOKEN = 'kp-github-token';
     const $ = (s: string) => document.querySelector(s) as HTMLElement | null;
 
     const form = $('[data-form]') as HTMLFormElement;
     const campo = (n: string) => form.elements.namedItem(n) as HTMLInputElement;
     let editando: number | null = null;
+
+    // ── La base: lo que ya está en GitHub ──────────────────────────────────
+    // Recién publicado desde aquí, GitHub ya tiene lo nuevo pero esta página
+    // se construyó con lo anterior. Hasta que el sitio se reconstruya, la base
+    // es lo último que publicaste; si no, todo saldría «sin subir».
+    function cargarBase(): any {
+      try {
+        const p = JSON.parse(localStorage.getItem(CLAVE_PUBLICADA) || 'null');
+        if (p?.archivo && Number(p.cuando) > Date.parse(DATOS.construidoEl || '')) return p.archivo;
+        localStorage.removeItem(CLAVE_PUBLICADA);
+      } catch { /* sin almacenamiento: la base es la de la página */ }
+      return ARCHIVO;
+    }
+    let BASE = cargarBase();
 
     // ── Borrador local ─────────────────────────────────────────────────────
     function cargar(): any[] {
@@ -275,10 +333,10 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
         const b = JSON.parse(localStorage.getItem(CLAVE) || 'null');
         if (Array.isArray(b)) return b;
       } catch { /* sin almacenamiento: se trabaja en memoria */ }
-      return structuredClone(ARCHIVO.productos || []);
+      return structuredClone(BASE.productos || []);
     }
     let productos = cargar();
-    const iguales = () => JSON.stringify(productos) === JSON.stringify(ARCHIVO.productos || []);
+    const iguales = () => JSON.stringify(productos) === JSON.stringify(BASE.productos || []);
     function guardarBorrador() {
       try {
         if (iguales()) localStorage.removeItem(CLAVE);
@@ -314,7 +372,64 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
     // ── Pintar ──────────────────────────────────────────────────────────────
     const pesos = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
     const esc = (s: any) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
-    const enArchivo = new Set((ARCHIVO.productos || []).map((p: any) => JSON.stringify(p)));
+    const yaSubidos = () => new Set((BASE.productos || []).map((p: any) => JSON.stringify(p)));
+    let enArchivo = yaSubidos();
+
+    function avisar(texto: string) {
+      const nota = $('[data-nota]')!;
+      nota.textContent = texto;
+      nota.hidden = false;
+      nota.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // ── Publicar sin copiar y pegar ────────────────────────────────────────
+    // El token vive solo en este navegador. Ver «Publicar sin copiar y pegar»
+    // en la página y src/utils/publicarGithub.js.
+    const leerToken = () => { try { return localStorage.getItem(CLAVE_TOKEN) || ''; } catch { return ''; } };
+    const olvidarToken = () => { try { localStorage.removeItem(CLAVE_TOKEN); } catch { /* nada que olvidar */ } };
+    function pedirToken(): string {
+      const t = (prompt('Pega tu token de GitHub (fine-grained, solo de este repositorio, con Contents de lectura y escritura). Se guarda solo en este navegador. Si no tienes uno, abre «Publicar sin copiar y pegar» arriba.') || '').trim();
+      if (t) { try { localStorage.setItem(CLAVE_TOKEN, t); } catch { /* sin almacenamiento: sirve solo esta vez */ } }
+      return t;
+    }
+    async function publicarAhora(btn: HTMLButtonElement) {
+      const token = leerToken() || pedirToken();
+      if (!token) return;
+      const contenido = archivoCompleto();
+      const publicables = productos.filter((p) => !('motivo' in normalizarProducto(p, Date.now()))).length;
+      const opciones = {
+        token, contenido, base: BASE, repo: DATOS.repo, rama: DATOS.rama,
+        mensaje: `vitrina: ${publicables} producto(s) publicable(s), desde el panel`,
+      };
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Publicando…';
+      try {
+        let r: any = await publicarVitrina(opciones);
+        if (!r.ok && r.motivo === 'conflicto') {
+          if (!confirm('La vitrina en GitHub cambió desde la última vez que la viste aquí (¿la editaste desde otro lado?). ¿Reemplazarla con la de este panel?')) return;
+          r = await publicarVitrina({ ...opciones, forzar: true });
+        }
+        if (r.ok) {
+          BASE = JSON.parse(contenido);
+          try { localStorage.setItem(CLAVE_PUBLICADA, JSON.stringify({ archivo: BASE, cuando: Date.now() })); } catch { /* la base vive mientras la pestaña esté abierta */ }
+          enArchivo = yaSubidos();
+          guardarBorrador();
+          pintar();
+          avisar(r.sinCambios
+            ? 'GitHub ya tenía esta misma vitrina: no hacía falta publicar nada.'
+            : `✓ Publicado: ${publicables} producto(s) publicable(s). El sitio se reconstruye solo; en unos minutos lo verás en línea.`);
+        } else if (r.motivo === 'token') {
+          olvidarToken();
+          alert(`GitHub no aceptó el token (${r.detalle}). Revisa que sea de este repositorio y tenga Contents de lectura y escritura; al volver a tocar «Publicar ahora» te pedirá uno nuevo.`);
+        } else {
+          alert(`No se pudo publicar: ${r.detalle}. Tus cambios siguen guardados en este navegador; inténtalo otra vez o usa «Copiar vitrina.json» + «Abrir en GitHub y pegar».`);
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    }
 
     function pintar() {
       const ahora = Date.now();
@@ -353,7 +468,7 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
         + (cambios ? `<span class="contador"><b>cambios sin subir</b></span>` : '');
       const barra = $('[data-subir]')!;
       barra.hidden = !cambios;
-      $('[data-subir-texto]')!.textContent = 'Cambios sin subir. Cópialos, pégalos en GitHub reemplazando todo y guarda («Commit changes»): el sitio se actualiza en unos minutos.';
+      $('[data-subir-texto]')!.textContent = 'Cambios sin subir. «Publicar ahora» los sube a GitHub con tu token; si no tienes uno, cópialos y pégalos en GitHub reemplazando todo. El sitio se actualiza en unos minutos.';
       (document.querySelector('[data-guia]') as HTMLDetailsElement).open = ok === 0;
     }
 
@@ -365,8 +480,13 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
       const p = (n: number) => String(n).padStart(2, '0');
       return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
     }
+    /** Las pistas de una idea (el precio de entonces) no deben quedarse en otro producto. */
+    function limpiarPistas() {
+      campo('precio').placeholder = '';
+    }
     function llenar(p: any) {
       form.reset();
+      limpiarPistas();
       for (const n of ['link', 'titulo', 'precio', 'precio_antes', 'url_producto', 'id_articulo', 'imagen', 'rating', 'vendidos', 'nota']) {
         if (p[n] !== undefined && p[n] !== null) campo(n).value = String(p[n]);
       }
@@ -459,7 +579,7 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
       pintar();
       $('[data-lista]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
-    $('[data-limpiar]')!.addEventListener('click', () => { form.reset(); editar(null); validarLink(); alternarTermina(); });
+    $('[data-limpiar]')!.addEventListener('click', () => { form.reset(); limpiarPistas(); editar(null); validarLink(); alternarTermina(); });
 
     document.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
@@ -491,13 +611,38 @@ const datos = JSON.stringify({ archivo: vitrinaCruda, editarEnGithub: EDITAR_EN_
         }
         return;
       }
+      const idea = t.closest('[data-idea]');
+      if (idea) {
+        const s = (DATOS.ideas || [])[Number(idea.getAttribute('data-idea'))];
+        if (!s) return;
+        // Se llena lo que cambia poco. El precio NO: el de la idea es de otro
+        // día, y publicarlo como «visto hoy» sería mentir. Va como pista.
+        llenar({
+          titulo: s.titulo, imagen: s.imagen, url_producto: s.url, id_articulo: s.id_articulo,
+          rating: s.rating, vendidos: s.vendidos, envio_gratis: s.envio_gratis,
+        });
+        editar(null);
+        if (s.precio_visto) {
+          campo('precio').placeholder = `era ${pesos(s.precio_visto)}${DATOS.escaneoDel ? ` el ${DATOS.escaneoDel}` : ''}: ¿y hoy?`;
+        }
+        window.open(s.url, '_blank', 'noopener');
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      const pub = t.closest('[data-publicar]') as HTMLButtonElement | null;
+      if (pub) { if (!pub.disabled) publicarAhora(pub); return; }
+      if (t.closest('[data-olvidar-token]')) {
+        olvidarToken();
+        marcar(t.closest('[data-olvidar-token]') as HTMLElement, '✓ Olvidado');
+        return;
+      }
       if (t.closest('[data-copiar-archivo]')) { copiar(t.closest('[data-copiar-archivo]') as HTMLElement, archivoCompleto()); return; }
       if (t.closest('[data-copiar-marcador]')) {
         copiar(t.closest('[data-copiar-marcador]') as HTMLElement, (document.querySelector('.marcador') as HTMLAnchorElement).getAttribute('href') || '');
         return;
       }
       if (t.closest('[data-descartar]') && confirm('¿Descartar todos los cambios que no has subido?')) {
-        productos = structuredClone(ARCHIVO.productos || []);
+        productos = structuredClone(BASE.productos || []);
         guardarBorrador();
         form.reset();
         editar(null);
