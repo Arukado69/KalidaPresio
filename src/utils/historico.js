@@ -28,9 +28,9 @@
 export const DIAS_MINIMOS = 3;
 
 /** A partir de aquí el precio actual se considera «en su mínimo». */
-const MARGEN_MINIMO = 0.02;  // 2 %: absorbe centavos y redondeos de ML
+export const MARGEN_MINIMO = 0.02;  // 2 %: absorbe centavos y redondeos de ML
 /** Umbral para «cerca del mínimo». */
-const MARGEN_BAJO = 0.10;
+export const MARGEN_BAJO = 0.10;
 
 /**
  * Días de observación exigidos para AFIRMAR que un descuento es falso.
@@ -64,10 +64,10 @@ export const NIVEL_DESCUENTO_FALSO = 'descuento-falso';
 export const NIVELES_NO_DISTRIBUIBLES = Object.freeze(['alto', NIVEL_DESCUENTO_FALSO]);
 
 /** Cuánto puede oscilar el precio y seguir considerándose «plano». */
-const MARGEN_PLANO = 0.02;
+export const MARGEN_PLANO = 0.02;
 
 /** Fracción de la ventana que debe estar observada para hablar de ella. */
-const DENSIDAD_MINIMA = 0.7;
+export const DENSIDAD_MINIMA = 0.7;
 
 const fmt = (n) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);

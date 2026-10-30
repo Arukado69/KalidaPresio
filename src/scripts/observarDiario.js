@@ -15,17 +15,20 @@
  * En orden, y se detiene en el primer error:
  *   1. (con --subir) git pull: el histórico parte de la última versión.
  *   2. observarPrecios + registrarHistorico.
- *   3. (con --subir) commit y push de historico-precios.json: solo ese
- *      archivo, solo si cambió y solo desde la rama principal.
+ *   3. (con --subir) commit y push de historico-precios.json y de
+ *      catalogo-observado.json (las fichas de /buen-fin): solo esos dos
+ *      archivos, solo si cambiaron y solo desde la rama principal.
  *
  * Uso:
  *   npm run observar-diario              → observa y registra; no sube nada
  *   npm run observar-diario -- --subir   → además lo sube (para el programador de tareas)
  */
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 
 const RAMA = process.env.RAMA_OBSERVADOR || 'main';
-const ARCHIVO = 'src/data/historico-precios.json';
+/** Lo único que sube: el histórico y las fichas que usa /buen-fin. */
+const ARCHIVOS = ['src/data/historico-precios.json', 'src/data/catalogo-observado.json'];
 const subir = process.argv.includes('--subir');
 
 /** Corre un comando a la vista. Sin shell: el mensaje del commit lleva espacios. */
@@ -58,10 +61,16 @@ correr(process.execPath, ['src/scripts/registrarHistorico.js']);
 
 if (!subir) {
   console.log(`\n✅ [observador] Listo. Para subirlo: npm run observar-diario -- --subir`);
-} else if (!leer('git', ['status', '--porcelain', '--', ARCHIVO])) {
-  console.log('\n✅ [observador] Sin cambios de precio que subir hoy.');
 } else {
-  correr('git', ['commit', '-m', 'chore: observación diaria de precios', '--', ARCHIVO]);
-  correr('git', ['push', 'origin', RAMA]);
-  console.log('\n✅ [observador] Histórico subido: el sitio lo usa desde su próximo build.');
+  // Solo los que existen: el catálogo no aparece hasta la primera observación con fichas.
+  const archivos = ARCHIVOS.filter((a) => existsSync(a));
+  if (!leer('git', ['status', '--porcelain', '--', ...archivos])) {
+    console.log('\n✅ [observador] Sin cambios de precio que subir hoy.');
+  } else {
+    // `add` primero: el catálogo es nuevo la primera vez y `commit -- ruta` no ve archivos sin seguimiento.
+    correr('git', ['add', '--', ...archivos]);
+    correr('git', ['commit', '-m', 'chore: observación diaria de precios', '--', ...archivos]);
+    correr('git', ['push', 'origin', RAMA]);
+    console.log('\n✅ [observador] Histórico subido: el sitio lo usa desde su próximo build.');
+  }
 }

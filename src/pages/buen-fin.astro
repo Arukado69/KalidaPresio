@@ -1,0 +1,318 @@
+---
+/**
+ * /buen-fin — El Detector de descuentos falsos del Buen Fin.
+ *
+ * ── POR QUÉ EXISTE ─────────────────────────────────────────────────────────
+ * La promesa de KalidaPresio es «te digo cuándo el descuento es mentira», y
+ * el Buen Fin es cuando más se pone a prueba: precios que suben antes para
+ * «rebajarse» después. Esta página publica el veredicto de cada producto en
+ * oferta con el historial que observamos (src/utils/detector.js).
+ *
+ * ── LA REGLA ───────────────────────────────────────────────────────────────
+ * Solo se afirma lo observado, con las mismas puertas del histórico. Sin
+ * precios recientes no hay veredictos, y la página lo dice en vez de
+ * rellenar. Los números de «Cómo lo decidimos» salen de las constantes
+ * reales: si cambia un umbral, cambia el texto.
+ *
+ * Es contenido de temporada pero la URL es permanente: después del Buen Fin
+ * sigue sirviendo como detector, y el próximo año ya tiene historia en Google.
+ */
+import Layout from '../layouts/Layout.astro';
+import { BUEN_FIN } from '../data/buenFin.js';
+import { DETECTOR, OBSERVACION, HOY } from '../data/detector.js';
+import { DIAS_EN_OFERTA } from '../utils/detector.js';
+import {
+  DIAS_DESCUENTO_FALSO,
+  DESCUENTO_SOSPECHOSO,
+  DIAS_MINIMOS,
+  DENSIDAD_MINIMA,
+  MARGEN_PLANO,
+  MARGEN_BAJO,
+} from '../utils/historico.js';
+
+/** Fechas 'YYYY-MM-DD' sin que la zona horaria las mueva de día. */
+const fecha = (iso, opciones = { day: 'numeric', month: 'long' }) =>
+  new Intl.DateTimeFormat('es-MX', { timeZone: 'UTC', ...opciones }).format(new Date(`${iso}T12:00:00Z`));
+const pesos = (n) =>
+  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
+const pct = (x) => `${Math.round(x * 100)} %`;
+
+// «viernes 13» y «martes 17 de noviembre»: armado a mano porque Intl pone
+// una coma después del día de la semana («martes, 17 de noviembre»).
+const conDia = (iso) => `${fecha(iso, { weekday: 'long' })} ${fecha(iso, { day: 'numeric' })}`;
+const inicio = conDia(BUEN_FIN.inicio);
+const fin = `${conDia(BUEN_FIN.fin)} de ${fecha(BUEN_FIN.fin, { month: 'long' })}`;
+
+const diasSinObservar = OBSERVACION.hasta
+  ? Math.round((Date.parse(`${HOY}T00:00:00Z`) - Date.parse(`${OBSERVACION.hasta}T00:00:00Z`)) / 86_400_000)
+  : null;
+const fresca = diasSinObservar !== null && diasSinObservar <= DIAS_EN_OFERTA;
+const conVeredicto = DETECTOR.falsos.length + DETECTOR.inflados.length + DETECTOR.reales.length;
+
+const MAX = 24;
+const grupos = [
+  {
+    id: 'falsos',
+    clase: 'g-falso',
+    titulo: 'Descuento falso',
+    desc: `Anuncian un descuento de ${DESCUENTO_SOSPECHOSO} % o más, y su precio no se ha movido en al menos ${DIAS_DESCUENTO_FALSO} días de observación.`,
+    items: DETECTOR.falsos,
+  },
+  {
+    id: 'inflados',
+    clase: 'g-inflado',
+    titulo: 'Ha estado más barato',
+    desc: 'El precio tachado puede ser cierto, pero lo vimos más barato hace poco: hoy no es el mejor momento.',
+    items: DETECTOR.inflados,
+  },
+  {
+    id: 'reales',
+    clase: 'g-real',
+    titulo: 'Precio realmente bajo',
+    desc: 'Está en su precio más bajo de lo que llevamos observando, o muy cerca de él.',
+    items: DETECTOR.reales,
+  },
+].filter((g) => g.items.length > 0);
+---
+
+<Layout
+  title={`Descuentos falsos del Buen Fin ${BUEN_FIN.edicion} — KalidaPresio`}
+  description={`Del ${BUEN_FIN.inicio.slice(8)} al ${BUEN_FIN.fin.slice(8)} de noviembre: qué descuentos de Mercado Libre son reales y cuáles no, según los precios que observamos cada día. Con fecha y sin adivinar.`}
+>
+  <article class="bf">
+    <header class="bf-head">
+      <p class="bf-eyebrow">Buen Fin {BUEN_FIN.edicion} · del {inicio} al {fin}</p>
+      <h1 class="bf-titulo">Detector de descuentos falsos</h1>
+      <p class="bf-sub">
+        En el Buen Fin hay rebajas de verdad y precios que suben antes para «bajar» después.
+        Observamos los precios de Mercado Libre día con día y te decimos cuál es cuál, con fecha y sin adivinar.
+      </p>
+      <p class="bf-estado" data-nivel={fresca ? 'fresco' : 'viejo'}>
+        {OBSERVACION.dias === 0
+          ? 'Todavía no tenemos precios observados.'
+          : fresca
+            ? `Llevamos ${OBSERVACION.dias} días de observación (desde el ${fecha(OBSERVACION.desde)}). Hoy seguimos ${DETECTOR.enOferta} productos en oferta; ${conVeredicto} ya tienen veredicto.`
+            : `Última observación de precios: ${fecha(OBSERVACION.hasta)}. Aquí solo se publica lo visto en los últimos ${DIAS_EN_OFERTA} días.`}
+      </p>
+    </header>
+
+    {grupos.length > 0 ? (
+      <nav class="bf-indice" aria-label="Veredictos">
+        {grupos.map((g) => <a class={g.clase} href={`#${g.id}`}>{g.titulo} <b>{g.items.length}</b></a>)}
+      </nav>
+    ) : (
+      <section class="bf-vacio">
+        <h2>Todavía no hay veredictos</h2>
+        <p>
+          {fresca
+            ? `Para decir «descuento falso» necesitamos al menos ${DIAS_DESCUENTO_FALSO} días observando el mismo producto, y ${DIAS_MINIMOS} para decir «el más bajo en N días». Los primeros aparecen aquí conforme se cumplan, antes del ${inicio}.`
+            : 'Los veredictos aparecen aquí en cuanto haya precios recientes. No vamos a rellenar con precios viejos: un veredicto sobre un precio que ya nadie vio sería adivinar.'}
+        </p>
+      </section>
+    )}
+
+    {grupos.map((g) => (
+      <section class={`bf-grupo ${g.clase}`} id={g.id}>
+        <h2 class="bf-grupo-titulo">{g.titulo} <span>{g.items.length}</span></h2>
+        <p class="bf-grupo-desc">{g.desc}</p>
+        <ul class="bf-lista">
+          {g.items.slice(0, MAX).map((x) => (
+            <li class="bf-item">
+              {x.imagen
+                ? <img src={x.imagen} alt="" width="72" height="72" loading="lazy" />
+                : <span class="bf-sinfoto" aria-hidden="true"></span>}
+              <div class="bf-info">
+                <h3 class="bf-nombre">{x.titulo}</h3>
+                <p class="bf-precios">
+                  <strong>{pesos(x.precio)}</strong>
+                  {x.precio_antes && <s>{pesos(x.precio_antes)}</s>}
+                  {x.descuento > 0 && <span class="bf-anuncia">anuncia −{x.descuento} %</span>}
+                </p>
+                <p class="bf-veredicto">{x.texto}</p>
+                <p class="bf-meta">
+                  Visto el {fecha(x.visto)} ·
+                  <a
+                    href={x.enlace}
+                    target="_blank"
+                    rel={x.afiliado ? 'sponsored noopener noreferrer' : 'nofollow noopener noreferrer'}
+                    data-kp-seccion="buenfin"
+                  >compruébalo en Mercado Libre{x.afiliado ? ' (enlace de afiliado)' : ''}</a>
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {g.items.length > MAX && <p class="bf-mas">Y {g.items.length - MAX} más con el mismo veredicto.</p>}
+      </section>
+    ))}
+
+    <section class="bf-texto" id="como-lo-decidimos">
+      <h2>Cómo lo decidimos</h2>
+      <ul>
+        <li>Cada día miramos el precio de los productos en oferta de Mercado Libre y guardamos el más bajo y el más alto del día.</li>
+        <li>
+          <b>Descuento falso:</b> anuncia {DESCUENTO_SOSPECHOSO} % o más de descuento y, en al menos
+          {DIAS_DESCUENTO_FALSO} días de calendario (con el {pct(DENSIDAD_MINIMA)} de esos días observados),
+          su precio no se movió más de {pct(MARGEN_PLANO)}. Si hoy bajó de verdad, no lo acusamos.
+        </li>
+        <li>
+          <b>Ha estado más barato:</b> hoy está más de {pct(MARGEN_BAJO)} por encima del precio más bajo
+          que le vimos.
+        </li>
+        <li>
+          <b>Precio realmente bajo:</b> está en su mínimo observado o a menos de {pct(MARGEN_BAJO)} de él,
+          con al menos {DIAS_MINIMOS} días de observación.
+        </li>
+        <li>
+          Ante la duda, no decimos nada: un producto con poca historia no aparece. Y solo publicamos
+          precios vistos en los últimos {DIAS_EN_OFERTA} días; compruébalos en Mercado Libre antes de comprar.
+        </li>
+      </ul>
+    </section>
+
+    <section class="bf-texto" id="como-detectarlo">
+      <h2>Cómo detectarlo tú</h2>
+      <ol>
+        <li><b>Desconfía del precio tachado.</b> Es el que el vendedor dice que tenía, no necesariamente el que cobraba.</li>
+        <li><b>Mira el precio antes del Buen Fin.</b> Toma una captura unos días antes, o revisa esta página, y compara.</li>
+        <li><b>Compara el costo total.</b> Suma el envío y revisa si a meses sin intereses pagas lo mismo que de contado.</li>
+        <li><b>Revisa al vendedor.</b> Su reputación y la política de devolución, antes de pagar.</li>
+        <li><b>Guarda la evidencia.</b> Si te anuncian un precio y te cobran otro, con capturas puedes quejarte ante la PROFECO.</li>
+      </ol>
+    </section>
+
+    <p class="bf-nota">
+      Los enlaces de esta página llevan a la ficha del producto, sin comisión, salvo los de «Precio realmente
+      bajo» que también recomendamos: esos son enlaces de afiliado y lo dicen. Nunca cobramos por lo que
+      señalamos como descuento falso.
+    </p>
+  </article>
+</Layout>
+
+<style>
+  .bf { padding-top: var(--spacing-md); max-width: 820px; margin: 0 auto; }
+
+  .bf-head { text-align: center; margin-bottom: var(--spacing-lg); }
+  .bf-eyebrow {
+    display: inline-block;
+    margin: 0 0 var(--spacing-sm);
+    padding: 0.3rem 0.9rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid rgba(246, 209, 79, 0.32);
+    color: var(--color-accent);
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .bf-titulo {
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    color: #fff;
+    margin: 0 0 0.5rem;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  .bf-sub {
+    color: var(--color-text);
+    font-size: var(--fs-base);
+    line-height: 1.7;
+    max-width: 60ch;
+    margin: 0 auto;
+  }
+  .bf-estado {
+    margin: var(--spacing-sm) auto 0;
+    max-width: 60ch;
+    color: var(--color-text-muted);
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+  }
+  .bf-estado[data-nivel='fresco']::before { content: '● '; color: var(--color-primary); }
+  .bf-estado[data-nivel='viejo']::before { content: '● '; color: var(--color-warm); }
+
+  .bf-indice { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-bottom: var(--spacing-lg); }
+  .bf-indice a {
+    padding: 0.4rem 0.9rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-violet-border);
+    color: var(--color-text);
+    text-decoration: none;
+    font-size: var(--fs-sm);
+  }
+  .bf-indice b { margin-left: 0.3rem; font-variant-numeric: tabular-nums; }
+
+  .bf-vacio,
+  .bf-grupo,
+  .bf-texto {
+    background: var(--glass-bg);
+    border: 1px solid var(--color-violet-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+  }
+  .bf-vacio h2,
+  .bf-texto h2,
+  .bf-grupo-titulo {
+    font-family: var(--font-display);
+    font-size: var(--fs-md);
+    color: #fff;
+    margin: 0 0 0.5rem;
+  }
+  .bf-vacio p,
+  .bf-grupo-desc { color: var(--color-text-muted); font-size: var(--fs-sm); line-height: 1.65; margin: 0; }
+
+  /* El color dice el veredicto: rojo acusa, ámbar advierte, verde afirma. */
+  .g-falso { border-left: 4px solid var(--color-error); }
+  .g-inflado { border-left: 4px solid var(--color-warm); }
+  .g-real { border-left: 4px solid var(--color-primary); }
+  .bf-indice .g-falso { border-color: rgba(255, 93, 118, 0.45); }
+  .bf-indice .g-inflado { border-color: var(--color-warm-border); }
+  .bf-indice .g-real { border-color: rgba(31, 210, 142, 0.4); }
+  .bf-grupo-titulo span { color: var(--color-text-muted); font-size: 0.8em; font-weight: 600; }
+
+  .bf-lista { list-style: none; margin: var(--spacing-sm) 0 0; padding: 0; display: grid; gap: 0.75rem; }
+  .bf-item {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 0.9rem;
+    padding: 0.75rem;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .bf-item img,
+  .bf-sinfoto { width: 72px; height: 72px; object-fit: contain; background: #fff; border-radius: var(--radius-xs); }
+  .bf-sinfoto { background: var(--color-surface-raised); }
+  .bf-info { min-width: 0; }
+  .bf-nombre { font-size: var(--fs-sm); line-height: 1.4; margin: 0 0 0.3rem; color: var(--color-text); font-weight: 600; }
+  .bf-precios { margin: 0 0 0.3rem; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; font-size: var(--fs-sm); }
+  .bf-precios strong { font-family: var(--font-display); font-size: 1.1rem; color: #fff; }
+  .bf-precios s { color: var(--color-text-muted); }
+  .bf-anuncia { color: var(--color-text-muted); font-size: var(--fs-xs); }
+  .bf-veredicto { margin: 0 0 0.3rem; font-size: var(--fs-sm); font-weight: 600; }
+  .g-falso .bf-veredicto { color: var(--color-error); }
+  .g-inflado .bf-veredicto { color: var(--color-warm); }
+  .g-real .bf-veredicto { color: var(--color-primary); }
+  .bf-meta { margin: 0; color: var(--color-text-muted); font-size: var(--fs-xs); }
+  .bf-meta a { color: var(--color-text); }
+  .bf-mas { margin: var(--spacing-sm) 0 0; color: var(--color-text-muted); font-size: var(--fs-sm); }
+
+  .bf-texto ul,
+  .bf-texto ol { margin: 0; padding-left: 1.2rem; color: var(--color-text); font-size: var(--fs-sm); line-height: 1.7; }
+  .bf-texto li { margin-bottom: 0.5rem; }
+  .bf-texto b { color: #fff; }
+
+  .bf-nota {
+    max-width: 62ch;
+    margin: var(--spacing-lg) auto 0;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: var(--fs-xs);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 480px) {
+    .bf-vacio, .bf-grupo, .bf-texto { padding: var(--spacing-sm); }
+    .bf-item { grid-template-columns: 56px 1fr; }
+    .bf-item img, .bf-sinfoto { width: 56px; height: 56px; }
+  }
+</style>

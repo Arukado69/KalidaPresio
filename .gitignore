@@ -31,6 +31,8 @@ observador.log
 # forma de reconstruir a qué precio estaba un producto la semana pasada.
 # Se poda solo (90 días de historia, 30 días observados sin aparecer y fuera),
 # así que no crece sin techo. Si algún día "estorba", pódalo; no lo ignores.
+# src/data/catalogo-observado.json tampoco: son las fichas (título, URL,
+# descuento anunciado) que usa /buen-fin, y solo guarda los últimos 7 días.
 
 # ── Configuración PERSONAL de Claude Code ───────────────────────────────────
 # settings.local.json es de cada computadora: guarda los permisos que

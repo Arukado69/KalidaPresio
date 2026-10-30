@@ -27,11 +27,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registrarPrecio, podar, elegirFuentes } from '../utils/historico.js';
 import { clavesObservacion } from '../utils/vitrina.js';
+import { fusionarCatalogo } from '../utils/detector.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FEED = path.resolve(__dirname, '../data/ofertas.json');
 const OBSERVACIONES = path.resolve(__dirname, '../data/observaciones.json');
 const HISTORICO = path.resolve(__dirname, '../data/historico-precios.json');
+const CATALOGO = path.resolve(__dirname, '../data/catalogo-observado.json');
 
 const DIAS_HISTORIA = 90;
 const DIAS_OLVIDO = 30;
@@ -121,3 +123,17 @@ const kb = (Buffer.byteLength(ahora) / 1024).toFixed(1);
 console.log(`📈 [histórico] ${fecha}: ${lecturas.length} lecturas sobre ${Object.keys(productos).length} productos.`);
 console.log(`   ${total} productos seguidos (${nuevos} nuevos, ${olvidados} olvidados) · ${conHistoria} ya con 3+ días.`);
 console.log(cambio ? `   Archivo actualizado (${kb} KB).` : '   Sin cambios de precio hoy; no se reescribe.');
+
+// ── Las fichas, para el Detector del Buen Fin ──────────────────────────────
+// Solo si observaciones.json entró en esta corrida: una ficha vieja con la
+// fecha de hoy le pondría veredicto a un precio que ya nadie vio. Se versiona
+// como el histórico (es observación, no derivado), pero solo guarda lo visto
+// en los últimos días: es lo único que la página necesita.
+if (usadas.includes('observaciones.json') && observado?.fichas) {
+  const catalogoPrevio = leerJson(CATALOGO, { productos: {} });
+  const catalogo = fusionarCatalogo(catalogoPrevio.productos, observado.fichas, fecha);
+  if (JSON.stringify(catalogo) !== JSON.stringify(catalogoPrevio.productos ?? {})) {
+    writeFileSync(CATALOGO, JSON.stringify({ actualizadoEl: momento.toISOString(), productos: catalogo }, null, 0) + '\n', 'utf-8');
+  }
+  console.log(`🗂  [catálogo] ${Object.keys(catalogo).length} fichas de los últimos días (para /buen-fin).`);
+}

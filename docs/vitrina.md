@@ -164,7 +164,9 @@ El veredicto de «descuento falso» necesita **14 días** de precios observados
 Libre bloquea a GitHub y al VPS, así que el observador corre en **tu
 computadora**: lee las 5 primeras páginas de `/ofertas` (con pausas, como una
 persona) y guarda los precios en `historico-precios.json`, por artículo y por
-catálogo.
+catálogo, y la ficha de cada producto (título, URL, foto y descuento anunciado)
+en `catalogo-observado.json`. Con las dos cosas se arma el **Detector del Buen
+Fin** (`/buen-fin`).
 
 Para probarlo una vez, sin subir nada:
 
@@ -193,8 +195,25 @@ cada día y suba el histórico:
    ```
 
 Con `--subir`, el observador hace `git pull`, observa, registra y sube **solo**
-`historico-precios.json`, **solo** si cambió y **solo** desde `main`. Lo que
-pasó cada día queda en `observador.log`.
+`historico-precios.json` y `catalogo-observado.json`, **solo** si cambiaron y
+**solo** desde `main`. Lo que pasó cada día queda en `observador.log`.
+
+### El Detector del Buen Fin (`/buen-fin`)
+
+Publica el veredicto de cada producto que el observador vio en oferta en los
+últimos 3 días, en tres grupos: **descuento falso**, **ha estado más barato** y
+**precio realmente bajo**. Usa exactamente las mismas reglas que el histórico
+(14 días para acusar, 20 % de descuento mínimo, etc.), y la página las explica
+con los números reales.
+
+- Sin observaciones recientes no inventa nada: dice cuál fue la última y que los
+  veredictos aparecen cuando haya precios frescos.
+- Los enlaces llevan a la ficha del producto **sin comisión**. Solo un producto
+  con «precio realmente bajo» que además esté en tu vitrina usa tu link
+  oficial. Nunca se cobra por lo que se señala como descuento falso.
+- Las fechas del Buen Fin viven en `src/data/buenFin.js`; cámbialas cada año.
+  El enlace «Buen Fin» del menú aparece un mes antes y se quita solo al día
+  siguiente del cierre.
 
 ---
 

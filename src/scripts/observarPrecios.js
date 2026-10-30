@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { descargarPagina, extraerAppProps } from '../utils/scrapeOfertas.js';
 import { leerTarjeta } from '../utils/mlPayload.js';
 import { clavesObservacion } from '../utils/vitrina.js';
+import { fichaDeTarjeta } from '../utils/detector.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SALIDA = path.resolve(__dirname, '../data/observaciones.json');
@@ -44,6 +45,13 @@ async function main() {
   const precios = {};
   /** Artículos distintos vistos: lo que mide la sonda (las claves de catálogo no cuentan dos veces). */
   const articulos = new Set();
+  /**
+   * La ficha de cada artículo (título, URL, foto, descuento anunciado): el
+   * histórico solo guarda números y el Detector del Buen Fin necesita saber a
+   * qué producto ponerle el veredicto. Ver src/utils/detector.js.
+   * @type {Record<string, object>}
+   */
+  const fichas = {};
   let paginasOk = 0;
 
   for (let p = 1; p <= PAGINAS; p++) {
@@ -61,6 +69,9 @@ async function main() {
           precios[clave] = Math.min(precios[clave] ?? Infinity, t.precio_actual);
         }
         articulos.add(t.id);
+        // Si sale en dos páginas, la ficha del precio menor (el que se registró).
+        const ficha = fichaDeTarjeta(t);
+        if (ficha && !(fichas[t.id]?.precio <= ficha.precio)) fichas[t.id] = ficha;
         nuevos++;
       }
       paginasOk++;
@@ -73,7 +84,7 @@ async function main() {
   }
 
   const total = articulos.size;
-  const sobre = { generadoEl: new Date().toISOString(), paginas: paginasOk, total, precios };
+  const sobre = { generadoEl: new Date().toISOString(), paginas: paginasOk, total, precios, fichas };
   await writeFile(SALIDA, JSON.stringify(sobre, null, 2), 'utf-8');
   console.log(`💾  observaciones.json: ${total} artículos (${Object.keys(precios).length} claves con catálogo) de ${paginasOk}/${PAGINAS} páginas.`);
 
