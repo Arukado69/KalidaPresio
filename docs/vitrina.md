@@ -113,6 +113,32 @@ oficial, título y precio bastan.
 | `nota` | Por qué lo recomiendas. Sale en el sitio, en `/hoy` y en las publicaciones. Es lo que ningún otro canal de ofertas puede escribir. |
 | `enlaces` | Links oficiales por canal (ver abajo). |
 
+Además de `productos`, el archivo puede tener **`retirados`**: lo que quitaste
+de la vitrina y ya tenía link oficial. No se publica en la portada, el feed ni
+`/hoy`, pero **su página sigue en línea** (ver abajo). Cada uno lleva la fecha
+en `retirado`.
+
+---
+
+## La página de cada producto (`/p/…`)
+
+Cada producto con link oficial tiene su página propia, por ejemplo
+`/p/hidrolavadora-electrica-portatil-1600-psi-mlm53177027`: foto, precio, Sello
+K-P, tu nota, el veredicto «¿es buen momento?» y la **gráfica de su precio** con
+lo que observamos (la línea se corta donde no se miró). Es la que puede salir en
+Google cuando alguien busca «<producto> precio» o «<producto> vale la pena».
+
+- **La URL no cambia** aunque corrijas el título: sale de la ficha de Mercado
+  Libre y del id del producto.
+- **No desaparece**: si el precio lleva más de 7 días sin revisarse o la
+  relámpago terminó, la página lo dice arriba y no lo presenta como oferta. Si
+  retiras el producto, la página se queda con su historial.
+- En el panel, **«Quitar»** retira un producto que ya tenía link (aparece en
+  «Retirados», con «Ver su página», «Volver a la vitrina» y «Borrar del todo»).
+  Un borrador sin link sí se borra directo: nunca tuvo página.
+- El título de cada tarjeta del sitio lleva a esta página; el botón sigue yendo
+  directo a Mercado Libre con tu link oficial.
+
 ---
 
 ## Separar las ventas por red (etiquetas)

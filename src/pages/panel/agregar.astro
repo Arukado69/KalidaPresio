@@ -263,6 +263,12 @@ const datos = JSON.stringify({
     <h2>Tu vitrina</h2>
     <div class="lista" data-lista></div>
 
+    <section data-seccion-retirados hidden>
+      <h2>Retirados</h2>
+      <p class="sub" style="margin-bottom:12px">Ya no se publican, pero su página con el historial de precio sigue en línea.</p>
+      <div class="lista" data-retirados></div>
+    </section>
+
     {sugerencias.length > 0 && (
       <>
         <h2>Ideas para empezar</h2>
@@ -328,22 +334,28 @@ const datos = JSON.stringify({
     let BASE = cargarBase();
 
     // ── Borrador local ─────────────────────────────────────────────────────
-    function cargar(): any[] {
+    // Se guarda {productos, retirados}. Un borrador de antes (solo la lista de
+    // productos) se sigue leyendo, con los retirados de la base.
+    function cargar(): { productos: any[]; retirados: any[] } {
       try {
         const b = JSON.parse(localStorage.getItem(CLAVE) || 'null');
-        if (Array.isArray(b)) return b;
+        if (Array.isArray(b)) return { productos: b, retirados: structuredClone(BASE.retirados || []) };
+        if (b && Array.isArray(b.productos)) return { productos: b.productos, retirados: Array.isArray(b.retirados) ? b.retirados : [] };
       } catch { /* sin almacenamiento: se trabaja en memoria */ }
-      return structuredClone(BASE.productos || []);
+      return { productos: structuredClone(BASE.productos || []), retirados: structuredClone(BASE.retirados || []) };
     }
-    let productos = cargar();
-    const iguales = () => JSON.stringify(productos) === JSON.stringify(BASE.productos || []);
+    let { productos, retirados } = cargar();
+    const iguales = () => JSON.stringify(productos) === JSON.stringify(BASE.productos || [])
+      && JSON.stringify(retirados) === JSON.stringify(BASE.retirados || []);
     function guardarBorrador() {
       try {
         if (iguales()) localStorage.removeItem(CLAVE);
-        else localStorage.setItem(CLAVE, JSON.stringify(productos));
+        else localStorage.setItem(CLAVE, JSON.stringify({ productos, retirados }));
       } catch { /* modo privado: el borrador vive mientras la pestaña esté abierta */ }
     }
-    const archivoCompleto = () => JSON.stringify({ _ayuda: ARCHIVO._ayuda, productos }, null, 2) + '\n';
+    const archivoCompleto = () => JSON.stringify(
+      { _ayuda: ARCHIVO._ayuda, productos, ...(retirados.length ? { retirados } : {}) }, null, 2,
+    ) + '\n';
 
     // ── Copiar (con respaldo para http y navegadores viejos) ──────────────
     function marcar(btn: HTMLElement, texto: string) {
@@ -372,7 +384,7 @@ const datos = JSON.stringify({
     // ── Pintar ──────────────────────────────────────────────────────────────
     const pesos = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
     const esc = (s: any) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
-    const yaSubidos = () => new Set((BASE.productos || []).map((p: any) => JSON.stringify(p)));
+    const yaSubidos = () => new Set([...(BASE.productos || []), ...(BASE.retirados || [])].map((p: any) => JSON.stringify(p)));
     let enArchivo = yaSubidos();
 
     function avisar(texto: string) {
@@ -461,10 +473,29 @@ const datos = JSON.stringify({
           + `</div></div></article>`;
       }).join('') : '<p class="vacio">Tu vitrina está vacía. Agrega el primer producto con el marcador o con el formulario de arriba.</p>';
 
+      // Retirados: ya no se publican, pero su página (con el historial) sigue.
+      ($('[data-seccion-retirados]') as HTMLElement).hidden = retirados.length === 0;
+      $('[data-retirados]')!.innerHTML = retirados.map((p, i) => {
+        const r: any = normalizarProducto(p, ahora, { exigirVigencia: false });
+        const slug = r.producto?.slug;
+        const cuando = p.retirado ? new Date(p.retirado).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '';
+        const img = p.imagen ? `<img src="${esc(p.imagen)}" alt="" loading="lazy">` : '<div class="sin-foto"></div>';
+        return `<article class="fila">${img}<div>`
+          + `<p class="f-titulo">${esc(p.titulo || '(sin título)')}</p>`
+          + `<p class="f-meta">Retirado${cuando ? ` el ${esc(cuando)}` : ''} · su página sigue en línea</p>`
+          + (enArchivo.has(JSON.stringify(p)) ? '' : '<div><span class="estado local">sin subir</span></div>')
+          + `<div class="acciones">`
+          + (slug ? `<a class="btn" href="/p/${esc(slug)}" target="_blank" rel="noopener">Ver su página</a>` : '')
+          + `<button class="btn" type="button" data-reactivar="${i}">Volver a la vitrina</button>`
+          + `<button class="btn btn-peligro" type="button" data-borrar="${i}">Borrar del todo</button>`
+          + `</div></div></article>`;
+      }).join('');
+
       const cambios = !iguales();
       $('[data-contadores]')!.innerHTML =
         `<span class="contador"><b>${ok}</b> publicables</span>`
         + (mal ? `<span class="contador"><b>${mal}</b> con algo que arreglar</span>` : '')
+        + (retirados.length ? `<span class="contador"><b>${retirados.length}</b> retirados</span>` : '')
         + (cambios ? `<span class="contador"><b>cambios sin subir</b></span>` : '');
       const barra = $('[data-subir]')!;
       barra.hidden = !cambios;
@@ -571,6 +602,8 @@ const datos = JSON.stringify({
       const otro = editando ?? (clave ? productos.findIndex((p) => claveProducto(p.url_producto) === clave) : -1);
       if (otro !== null && otro >= 0) productos[otro] = entrada;
       else productos.unshift(entrada);
+      // Si estaba retirado, vuelve: no puede estar en las dos listas.
+      if (clave) retirados = retirados.filter((x) => claveProducto(x.url_producto) !== clave);
       guardarBorrador();
       form.reset();
       editar(null);
@@ -602,10 +635,40 @@ const datos = JSON.stringify({
       const q = t.closest('[data-quitar]');
       if (q) {
         const i = Number(q.getAttribute('data-quitar'));
-        if (confirm(`¿Quitar «${productos[i]?.titulo ?? 'este producto'}» de la vitrina?`)) {
+        const p = productos[i];
+        if (!p) return;
+        // Con link oficial ya tuvo página: se retira y la página se queda con su
+        // historial. Un borrador sin link nunca se publicó: se borra y ya.
+        const conPagina = esLinkOficial(p.link);
+        const pregunta = conPagina
+          ? `¿Retirar «${p.titulo ?? 'este producto'}» de la vitrina? Deja de publicarse, pero su página con el historial de precio sigue en línea (para Google y para quien ya la compartió). Puedes borrarla del todo en «Retirados».`
+          : `¿Quitar «${p.titulo ?? 'este producto'}» de la vitrina?`;
+        if (confirm(pregunta)) {
           productos.splice(i, 1);
+          if (conPagina) retirados.unshift({ ...p, retirado: new Date().toISOString() });
           // Los índices se corren: cualquier edición abierta se cierra.
           if (editando !== null) { form.reset(); editar(null); }
+          guardarBorrador();
+          pintar();
+        }
+        return;
+      }
+      const vuelve = t.closest('[data-reactivar]');
+      if (vuelve) {
+        const i = Number(vuelve.getAttribute('data-reactivar'));
+        const { retirado, ...p } = retirados[i] ?? {};
+        if (!p.link) return;
+        retirados.splice(i, 1);
+        productos.unshift(p);
+        guardarBorrador();
+        pintar();
+        return;
+      }
+      const borrar = t.closest('[data-borrar]');
+      if (borrar) {
+        const i = Number(borrar.getAttribute('data-borrar'));
+        if (confirm(`¿Borrar del todo «${retirados[i]?.titulo ?? 'este producto'}»? Su página deja de existir: quien tenga el enlace verá «no encontrado».`)) {
+          retirados.splice(i, 1);
           guardarBorrador();
           pintar();
         }
@@ -643,6 +706,7 @@ const datos = JSON.stringify({
       }
       if (t.closest('[data-descartar]') && confirm('¿Descartar todos los cambios que no has subido?')) {
         productos = structuredClone(BASE.productos || []);
+        retirados = structuredClone(BASE.retirados || []);
         guardarBorrador();
         form.reset();
         editar(null);
