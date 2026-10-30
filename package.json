@@ -15,6 +15,7 @@
     "revisar-vitrina": "node src/scripts/revisarVitrina.js",
     "registrar-historico": "node src/scripts/registrarHistorico.js",
     "observar-precios": "node src/scripts/observarPrecios.js",
+    "observar-diario": "node src/scripts/observarDiario.js",
     "generar-feed": "node src/scripts/generarFeedPublico.js",
     "generar-tarjetas": "node src/scripts/generarTarjetasPromo.js",
     "build": "node src/scripts/generarRelampago.js && node src/scripts/generarFeedPublico.js && node src/scripts/generarTarjetasPromo.js && astro build",

@@ -279,6 +279,39 @@ export function registrarPrecio(entradas, fecha, precio) {
 }
 
 /**
+ * Qué fuentes de precios se registran en una corrida, y con qué fecha.
+ *
+ * Todas las lecturas de una corrida se guardan con UNA fecha: la del sello
+ * más reciente. Una fuente con un sello de otro momento NO puede entrar con
+ * esa fecha. ofertas.json se quedó congelado el 8 de octubre de 2026: sumarlo
+ * a la observación de hoy registraba los precios del día 8 como vistos hoy, y
+ * repetido a diario fabrica un precio «plano», que es justo lo que dispara la
+ * acusación de descuento falso.
+ *
+ * Sin ningún sello (formato viejo) se conserva el comportamiento de antes:
+ * todo con la fecha de ahora.
+ *
+ * @param {{nombre: string, sello?: string|null, lecturas: Array<[string, number]>}[]} fuentes
+ * @param {{maxDesfaseHoras?: number, ahora?: number}} [opciones]
+ * @returns {{fecha: string, momento: Date, usadas: string[], omitidas: string[], lecturas: Array<[string, number]>}}
+ */
+export function elegirFuentes(fuentes, { maxDesfaseHoras = 12, ahora = Date.now() } = {}) {
+  const conSello = (fuentes ?? []).map((f) => ({ ...f, t: Date.parse(f?.sello ?? '') }));
+  const fechadas = conSello.filter((f) => Number.isFinite(f.t));
+  const momento = fechadas.length ? Math.max(...fechadas.map((f) => f.t)) : ahora;
+  const usadas = fechadas.length
+    ? fechadas.filter((f) => momento - f.t <= maxDesfaseHoras * 3_600_000)
+    : conSello;
+  return {
+    momento: new Date(momento),
+    fecha: new Date(momento).toISOString().slice(0, 10),
+    usadas: usadas.map((f) => f.nombre),
+    omitidas: conSello.filter((f) => !usadas.includes(f)).map((f) => f.nombre),
+    lecturas: usadas.flatMap((f) => (Array.isArray(f.lecturas) ? f.lecturas : [])),
+  };
+}
+
+/**
  * Descarta lo que ya no aporta: entradas más viejas que `dias` y productos que
  * llevan `diasOlvido` días OBSERVADOS sin aparecer en el feed. Sin esto el
  * archivo crece para siempre y acaba pesando más que el repositorio entero.

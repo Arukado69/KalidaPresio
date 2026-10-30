@@ -14,6 +14,7 @@ import {
   veredictoPrecio,
   registrarPrecio,
   podar,
+  elegirFuentes,
   DIAS_MINIMOS,
   DIAS_DESCUENTO_FALSO,
   DESCUENTO_SOSPECHOSO,
@@ -263,6 +264,43 @@ describe('podar — el archivo no puede crecer para siempre', () => {
   it('no truena con entradas basura', () => {
     expect(() => podar({ A: [null, 'x', ['2026-08-20', 1, 1]] }, { hoy })).not.toThrow();
     expect(podar(null, { hoy })).toEqual({});
+  });
+});
+
+describe('elegirFuentes — una fuente vieja no se registra con la fecha de hoy', () => {
+  const hoy = { nombre: 'observaciones.json', sello: '2026-10-31T15:07:00Z', lecturas: [['MLM1', 100]] };
+  const congelado = { nombre: 'ofertas.json', sello: '2026-10-08T18:05:14Z', lecturas: [['MLM2', 869]] };
+
+  it('el ofertas.json congelado del 8 de octubre NO entra en la observación del 31', () => {
+    const r = elegirFuentes([hoy, congelado]);
+    expect(r.fecha).toBe('2026-10-31');
+    expect(r.usadas).toEqual(['observaciones.json']);
+    expect(r.omitidas).toEqual(['ofertas.json']);
+    expect(r.lecturas).toEqual([['MLM1', 100]]);
+  });
+
+  it('dos fuentes del mismo rato se suman, como cuando el bot corría cada 3 h', () => {
+    const feed = { ...congelado, sello: '2026-10-31T12:00:00Z' };
+    const r = elegirFuentes([hoy, feed]);
+    expect(r.usadas).toEqual(['observaciones.json', 'ofertas.json']);
+    expect(r.lecturas).toHaveLength(2);
+  });
+
+  it('el desfase permitido es de 12 h y se comprueba en el borde', () => {
+    const justo = { ...congelado, sello: '2026-10-31T03:07:00Z' };
+    const pasado = { ...congelado, sello: '2026-10-31T03:06:59Z' };
+    expect(elegirFuentes([hoy, justo]).usadas).toHaveLength(2);
+    expect(elegirFuentes([hoy, pasado]).usadas).toEqual(['observaciones.json']);
+  });
+
+  it('una fuente sin sello no se cuela junto a una fechada', () => {
+    expect(elegirFuentes([hoy, { nombre: 'viejo', lecturas: [['X', 1]] }]).omitidas).toEqual(['viejo']);
+  });
+
+  it('sin ningún sello se conserva lo de antes: todo con la fecha de ahora', () => {
+    const r = elegirFuentes([{ nombre: 'a', lecturas: [['X', 1]] }], { ahora: Date.parse('2026-11-02T10:00:00Z') });
+    expect(r.fecha).toBe('2026-11-02');
+    expect(r.usadas).toEqual(['a']);
   });
 });
 

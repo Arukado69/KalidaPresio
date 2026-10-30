@@ -157,6 +157,47 @@ computadora: `npm run revisar-vitrina`.
 
 ---
 
+## El observador diario (el reloj del Buen Fin)
+
+El veredicto de «descuento falso» necesita **14 días** de precios observados
+(con el 70 % de los días cubiertos), y un día sin mirar no se recupera. Mercado
+Libre bloquea a GitHub y al VPS, así que el observador corre en **tu
+computadora**: lee las 5 primeras páginas de `/ofertas` (con pausas, como una
+persona) y guarda los precios en `historico-precios.json`, por artículo y por
+catálogo.
+
+Para probarlo una vez, sin subir nada:
+
+```bash
+npm run observar-diario
+```
+
+Si dice «Solo 0 artículos observados», Mercado Libre también está bloqueando tu
+conexión, y no se registra nada. Si funciona, prográmalo para que corra solo
+cada día y suba el histórico:
+
+1. Una copia del repositorio **solo para el observador** (así no se mezcla con
+   lo que estés editando), en la rama `main`:
+
+   ```bash
+   git clone https://github.com/Arukado69/KalidaPresio.git C:\kalidapresio-observador
+   ```
+
+   Luego, dentro de esa carpeta, `npm ci`.
+
+2. En Windows, una tarea diaria (cámbiale la hora si quieres; la PC tiene que
+   estar prendida):
+
+   ```bash
+   schtasks /Create /SC DAILY /ST 09:07 /TN "KalidaPresio observador" /TR "cmd /c cd /d C:\kalidapresio-observador && npm run observar-diario -- --subir >> observador.log 2>&1"
+   ```
+
+Con `--subir`, el observador hace `git pull`, observa, registra y sube **solo**
+`historico-precios.json`, **solo** si cambió y **solo** desde `main`. Lo que
+pasó cada día queda en `observador.log`.
+
+---
+
 ## Publicar
 
 - **`/panel/hoy`** — eliges la red y cada producto te da el texto ya escrito en
