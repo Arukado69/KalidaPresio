@@ -27,8 +27,14 @@ src/data/observaciones.json
 # Los archivos de arriba son DERIVADOS: cada build los regenera. El histórico
 # de precios es lo contrario — si se borra, se pierde para siempre: no hay
 # forma de reconstruir a qué precio estaba un producto la semana pasada.
-# Se poda solo (90 días de historia, 30 sin aparecer y fuera), así que no
-# crece sin techo. Si algún día "estorba", pódalo; no lo ignores.
+# Se poda solo (90 días de historia, 30 días observados sin aparecer y fuera),
+# así que no crece sin techo. Si algún día "estorba", pódalo; no lo ignores.
+
+# ── Configuración PERSONAL de Claude Code ───────────────────────────────────
+# settings.local.json es de cada computadora: guarda los permisos que
+# aprobaste en la TUYA, con tus rutas y tu correo dentro de los comandos. En un
+# repo público no se versiona. Lo compartido del proyecto va en .claude/skills.
+.claude/settings.local.json
 
 # Output de compilación
 dist/
