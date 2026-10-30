@@ -11,7 +11,7 @@ import { generarVeredicto, tierKP } from '../utils/veredicto.js';
 import { scoreEfectivo } from '../utils/scoreSecciones.js';
 import { categorizar } from '../utils/categorias.js';
 import { formatearVendidos } from '../utils/mlPayload.js';
-import { OFERTAS as ofertas } from '../data/ofertas.js';
+import { OFERTAS as ofertas, VITRINA } from '../data/ofertas.js';
 // Todo sale de la vitrina (src/data/vitrina.json): los productos que eliges,
 // cada uno con su link oficial. Relámpago NO se importa aquí: es runtime
 // (RelampagoSticky + initRelampagoFetch), porque tiene hora de fin.
@@ -83,7 +83,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
 
 <Layout
   title="KalidaPresio | Las mejores ofertas calidad-precio de Mercado Libre"
-  description="Feed diario de ofertas en Mercado Libre México, ordenadas por nuestro sello calidad-precio. Sin publicidad disfrazada."
+  description="Ofertas de Mercado Libre México elegidas a mano y calificadas con nuestro Sello K-P de calidad-precio. Sin publicidad disfrazada."
 >
   <!-- Hero / Módulo estacional -->
   <section class={`banner-estacional ${isHotSale ? 'modo-oferta' : 'modo-limpio'}`}>
@@ -105,7 +105,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
             <span class="hero-mask"><span class="hero-line hero-acento">de verdad valen la pena.</span></span>
           </h1>
           <p class="hero-subtitulo">
-            Revisamos las ofertas una por una y te mostramos solo las que pasan nuestro
+            Revisamos cada oferta a mano y la calificamos con nuestro
             <strong> Sello K-P</strong>: calidad real de los compradores + descuento real. Sin relleno.
           </p>
 
@@ -115,6 +115,13 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
             <span class="hero-pill"><span class="dot"></span> Elegidas a mano</span>
           </div>
 
+          <!-- Vitrina vacía: se dice tal cual, en vez de presumir un «0 ofertas
+               elegidas» junto a un «100 % calidad-precio». -->
+          {VITRINA.length === 0 ? (
+            <p class="hero-vacio">
+              Estamos eligiendo las ofertas de esta semana. Suscríbete abajo y te avisamos en cuanto estén listas.
+            </p>
+          ) : (
           <div class="hero-stats">
             <div class="hero-stat">
               <span class="stat-numero" data-countup={ofertas.length}>0</span>
@@ -133,6 +140,7 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
               <span class="stat-label">Calidad-precio</span>
             </div>
           </div>
+          )}
         </div>
 
         {showpiece && (
@@ -738,6 +746,16 @@ const vVeredicto = veredicto ? generarVeredicto(veredicto) : '';
     line-height: 1.72;
   }
   .hero-subtitulo strong { color: #fff; font-weight: 700; }
+
+  /* Vitrina vacía: el lugar de las cifras lo ocupa una frase honesta. */
+  .hero-vacio {
+    max-width: 540px;
+    margin: 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-left: 3px solid var(--color-primary);
+    color: var(--color-text);
+    line-height: 1.6;
+  }
 
   .hero-stats {
     display: flex;

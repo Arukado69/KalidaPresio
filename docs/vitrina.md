@@ -48,13 +48,32 @@ cada uno cobra.
 
 ### Subir los cambios
 
-Lo que guardas queda en tu navegador hasta que lo subes:
+Lo que guardas queda en tu navegador hasta que lo subes. En la barra de abajo,
+**«Publicar ahora»**: el panel hace el commit en GitHub por ti, GitHub corre
+los tests, construye el sitio y lo publica en el VPS. En unos minutos está en
+línea.
 
-1. En la barra de abajo, **«1. Copiar vitrina.json»**.
-2. **«2. Abrir en GitHub y pegar»**: se abre el archivo en el editor de
-   GitHub. Selecciona todo, pega y toca **«Commit changes»**.
-3. GitHub corre los tests, construye el sitio y lo publica en el VPS. En
-   unos minutos está en línea.
+La primera vez te pide un **token de GitHub** (se crea una sola vez, también
+desde el celular):
+
+1. Abre <https://github.com/settings/personal-access-tokens/new> (token
+   «fine-grained»).
+2. **Repository access:** «Only select repositories» → solo `KalidaPresio`.
+3. **Permissions → Repository permissions → Contents:** «Read and write».
+   Nada más.
+4. **Expiration:** 90 días. Genera el token, cópialo y pégalo en el panel.
+
+El token se guarda **solo en ese navegador**; el sitio no lo ve ni lo guarda.
+Solo puede escribir archivos de este repositorio (sin permiso de Workflows no
+toca `.github/`), y el panel solo escribe `src/data/vitrina.json`. Si caduca o
+lo pierdes, bórralo en GitHub y crea otro; en el panel está «Olvidar el token
+de este navegador».
+
+Si la vitrina cambió en GitHub por otro lado desde la última vez que la viste
+en el panel, «Publicar ahora» te pregunta antes de reemplazarla.
+
+**Sin token**, lo de siempre: «Copiar vitrina.json» → «Abrir en GitHub y
+pegar» → selecciona todo, pega y toca **«Commit changes»**.
 
 > Si un producto no se puede publicar (link que no es oficial, falta precio,
 > relámpago terminada…), el panel te dice exactamente qué le falta, y el
@@ -62,9 +81,19 @@ Lo que guardas queda en tu navegador hasta que lo subes:
 
 ### Desde el celular
 
-El marcador es para la computadora, pero el formulario de `/panel/agregar`
-funciona en el teléfono: pega el link oficial (la app de Mercado Libre te lo da
-al compartir como afiliado), el título y el precio, y guarda.
+El marcador es para la computadora. En el teléfono, usa **«Ideas para
+empezar»** al final de `/panel/agregar`:
+
+1. Toca **«Agregar esta»**: se llena el formulario (título, foto, calificación,
+   vendidos y el id de artículo para el histórico) y se abre la ficha en
+   Mercado Libre.
+2. En la app de Mercado Libre, comparte como afiliado y copia tu link.
+3. Vuelve al panel, pega el link y **escribe el precio que ves hoy**: el de la
+   idea es de otro día y sale solo como pista.
+4. **«Guardar en la lista»** y, cuando termines, **«Publicar ahora»**.
+
+También puedes llenar el formulario a mano con cualquier producto: link
+oficial, título y precio bastan.
 
 ---
 
@@ -77,6 +106,7 @@ al compartir como afiliado), el título y el precio, y guarda.
 | `revisado` | Cuándo viste ese precio. El panel lo pone al guardar. **A los 7 días sin revisar, el producto se esconde** hasta que lo confirmes. |
 | `precio_antes` | El precio tachado. Con él se calcula el descuento. |
 | `url_producto` | La ficha en Mercado Libre. Sirve para «Abrir en ML» y para que el marcador reconozca el producto si lo vuelves a abrir (actualiza el precio en vez de duplicarlo). |
+| `id_articulo` | El id de la publicación que gana la ficha (`MLM…`). Lo llena el marcador cuando la página lo trae. El histórico de precios se guardó por artículo y la vitrina identifica por catálogo (`/p/MLM…`): con las dos claves, el producto encuentra su historial. Si queda vacío, no pasa nada. |
 | `imagen`, `rating`, `vendidos`, `envio_gratis` | Lo que se ve en la tarjeta y calcula el Sello K-P. |
 | `relampago` + `termina` | Sale en el carrusel relámpago con cuenta regresiva real. Sin `termina`, no se muestra cuenta regresiva y se retira sola 12 h después de `revisado`. |
 | `destacado` | Sale en «Elegidos por nosotros». Puede ser `true` o un texto («Más vendido»). |
@@ -106,6 +136,65 @@ de Instagram. Si un canal no tiene link propio, se usa el general.
 
 Códigos: `wa` WhatsApp · `tg` Telegram · `fb` Facebook · `ig` Instagram ·
 `tt` TikTok · `pn` Pinterest · `cr` Correo.
+
+---
+
+## La alarma (y el build diario)
+
+El sitio se reconstruye **solo, cada día a las 05:41 (CDMX)**, aunque nadie haga
+push: así la regla de los 7 días esconde de verdad los precios que nadie volvió
+a revisar. Al terminar cada deploy corre la **alarma de la vitrina**
+(`.github/workflows/alarma-vitrina.yml`), que mira el archivo y el sitio en vivo:
+
+- 🔴 **Alarma** — el sitio publica menos de 3 productos, el feed en vivo no
+  responde, muestra precios vencidos o lleva más de 30 h sin reconstruirse.
+- 🟡 **Aviso** — productos cuyo precio se esconde en menos de 48 h.
+
+Todo va en **un solo issue** con la etiqueta `alarma-vitrina`: se abre cuando
+hay algo que atender (GitHub te manda un correo), se comenta solo cuando aparece
+algo nuevo y se cierra solo cuando todo está en orden. Para ver lo mismo en tu
+computadora: `npm run revisar-vitrina`.
+
+---
+
+## El observador diario (el reloj del Buen Fin)
+
+El veredicto de «descuento falso» necesita **14 días** de precios observados
+(con el 70 % de los días cubiertos), y un día sin mirar no se recupera. Mercado
+Libre bloquea a GitHub y al VPS, así que el observador corre en **tu
+computadora**: lee las 5 primeras páginas de `/ofertas` (con pausas, como una
+persona) y guarda los precios en `historico-precios.json`, por artículo y por
+catálogo.
+
+Para probarlo una vez, sin subir nada:
+
+```bash
+npm run observar-diario
+```
+
+Si dice «Solo 0 artículos observados», Mercado Libre también está bloqueando tu
+conexión, y no se registra nada. Si funciona, prográmalo para que corra solo
+cada día y suba el histórico:
+
+1. Una copia del repositorio **solo para el observador** (así no se mezcla con
+   lo que estés editando), en la rama `main`:
+
+   ```bash
+   git clone https://github.com/Arukado69/KalidaPresio.git C:\kalidapresio-observador
+   ```
+
+   Luego, dentro de esa carpeta, `npm ci`.
+
+2. En Windows, una tarea diaria (cámbiale la hora si quieres; la PC tiene que
+   estar prendida):
+
+   ```bash
+   schtasks /Create /SC DAILY /ST 09:07 /TN "KalidaPresio observador" /TR "cmd /c cd /d C:\kalidapresio-observador && npm run observar-diario -- --subir >> observador.log 2>&1"
+   ```
+
+Con `--subir`, el observador hace `git pull`, observa, registra y sube **solo**
+`historico-precios.json`, **solo** si cambió y **solo** desde `main`. Lo que
+pasó cada día queda en `observador.log`.
 
 ---
 

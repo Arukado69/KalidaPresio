@@ -95,6 +95,34 @@ export function diasEntre(desdeISO, hastaISO) {
 }
 
 /**
+ * El historial de un producto que vive repartido en varias claves.
+ *
+ * El histórico se guarda por id de artículo (lo que trae cada tarjeta del
+ * listado) y, desde octubre de 2026, también por id de catálogo; la vitrina
+ * conoce las dos (`claves_historico`). Un día que aparece en dos claves es UNA
+ * foto del mismo producto, no dos días: se funde en mínimo y máximo, igual que
+ * registrarPrecio funde dos pasadas del mismo día.
+ *
+ * @param {Record<string, Array<[string, number, number]>>|null|undefined} productos
+ * @param {string|string[]|null|undefined} claves
+ * @returns {Array<[string, number, number]>} más reciente primero
+ */
+export function entradasPara(productos, claves) {
+  const porFecha = new Map();
+  for (const clave of [].concat(claves ?? [])) {
+    // hasOwn: una clave como «constructor» no puede devolver algo del prototipo.
+    const lista = productos && typeof clave === 'string' && Object.hasOwn(productos, clave) ? productos[clave] : null;
+    if (!Array.isArray(lista)) continue;
+    for (const e of lista) {
+      if (!Array.isArray(e) || typeof e[0] !== 'string' || !Number.isFinite(e[1]) || !Number.isFinite(e[2])) continue;
+      const previa = porFecha.get(e[0]);
+      porFecha.set(e[0], previa ? [e[0], Math.min(previa[1], e[1]), Math.max(previa[2], e[2])] : [e[0], e[1], e[2]]);
+    }
+  }
+  return [...porFecha.values()].sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0));
+}
+
+/**
  * Resume las entradas de un producto.
  *
  * `desde` y `hasta` son los extremos observados: con los dos se mide la ventana
@@ -251,24 +279,78 @@ export function registrarPrecio(entradas, fecha, precio) {
 }
 
 /**
+ * Qué fuentes de precios se registran en una corrida, y con qué fecha.
+ *
+ * Todas las lecturas de una corrida se guardan con UNA fecha: la del sello
+ * más reciente. Una fuente con un sello de otro momento NO puede entrar con
+ * esa fecha. ofertas.json se quedó congelado el 8 de octubre de 2026: sumarlo
+ * a la observación de hoy registraba los precios del día 8 como vistos hoy, y
+ * repetido a diario fabrica un precio «plano», que es justo lo que dispara la
+ * acusación de descuento falso.
+ *
+ * Sin ningún sello (formato viejo) se conserva el comportamiento de antes:
+ * todo con la fecha de ahora.
+ *
+ * @param {{nombre: string, sello?: string|null, lecturas: Array<[string, number]>}[]} fuentes
+ * @param {{maxDesfaseHoras?: number, ahora?: number}} [opciones]
+ * @returns {{fecha: string, momento: Date, usadas: string[], omitidas: string[], lecturas: Array<[string, number]>}}
+ */
+export function elegirFuentes(fuentes, { maxDesfaseHoras = 12, ahora = Date.now() } = {}) {
+  const conSello = (fuentes ?? []).map((f) => ({ ...f, t: Date.parse(f?.sello ?? '') }));
+  const fechadas = conSello.filter((f) => Number.isFinite(f.t));
+  const momento = fechadas.length ? Math.max(...fechadas.map((f) => f.t)) : ahora;
+  const usadas = fechadas.length
+    ? fechadas.filter((f) => momento - f.t <= maxDesfaseHoras * 3_600_000)
+    : conSello;
+  return {
+    momento: new Date(momento),
+    fecha: new Date(momento).toISOString().slice(0, 10),
+    usadas: usadas.map((f) => f.nombre),
+    omitidas: conSello.filter((f) => !usadas.includes(f)).map((f) => f.nombre),
+    lecturas: usadas.flatMap((f) => (Array.isArray(f.lecturas) ? f.lecturas : [])),
+  };
+}
+
+/**
  * Descarta lo que ya no aporta: entradas más viejas que `dias` y productos que
- * llevan `diasOlvido` sin aparecer en el feed. Sin esto el archivo crece para
- * siempre y acaba pesando más que el repositorio entero.
+ * llevan `diasOlvido` días OBSERVADOS sin aparecer en el feed. Sin esto el
+ * archivo crece para siempre y acaba pesando más que el repositorio entero.
+ *
+ * El olvido se cuenta en días en que SÍ se miró, no en días de calendario. Con
+ * días de calendario, un apagón del observador (Mercado Libre bloquea a los
+ * servidores desde el 8 de octubre de 2026) hacía que la primera corrida de
+ * vuelta olvidara el historial entero de golpe: nada había aparecido en los
+ * últimos 30 días porque nadie estaba mirando. Con el observador corriendo a
+ * diario, las dos cuentas coinciden.
  *
  * @param {Record<string, Array<[string, number, number]>>} productos
  * @param {{dias?: number, diasOlvido?: number, hoy?: Date}} [opciones]
  */
 export function podar(productos, { dias = 90, diasOlvido = 30, hoy = new Date() } = {}) {
   const corte = new Date(hoy.getTime() - dias * 86_400_000).toISOString().slice(0, 10);
-  const corteOlvido = new Date(hoy.getTime() - diasOlvido * 86_400_000).toISOString().slice(0, 10);
+
+  const vigentes = {};
+  const observados = new Set();
+  for (const [id, entradas] of Object.entries(productos ?? {})) {
+    const vivas = (Array.isArray(entradas) ? entradas : []).filter(
+      (e) => Array.isArray(e) && typeof e[0] === 'string' && e[0] >= corte,
+    );
+    if (vivas.length === 0) continue;
+    vigentes[id] = vivas;
+    for (const e of vivas) observados.add(e[0]);
+  }
+
+  // El día observado número `diasOlvido`, contando desde el más reciente. Con
+  // menos días observados que eso, todavía no hay base para olvidar a nadie.
+  const recientes = [...observados].sort().reverse();
+  const corteOlvido = recientes.length >= diasOlvido ? recientes[diasOlvido - 1] : null;
 
   const salida = {};
-  for (const [id, entradas] of Object.entries(productos ?? {})) {
-    const vivas = (entradas ?? []).filter((e) => Array.isArray(e) && e[0] >= corte);
-    if (vivas.length === 0) continue;
+  for (const [id, vivas] of Object.entries(vigentes)) {
+    const ultima = vivas.reduce((max, e) => (e[0] > max ? e[0] : max), vivas[0][0]);
     // El producto salió del catálogo hace tiempo: su historial ya no se va a
     // enseñar en ningún sitio.
-    if (vivas[0][0] < corteOlvido) continue;
+    if (corteOlvido && ultima < corteOlvido) continue;
     salida[id] = vivas;
   }
   return salida;

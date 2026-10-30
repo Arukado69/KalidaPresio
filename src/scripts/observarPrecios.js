@@ -22,6 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { descargarPagina, extraerAppProps } from '../utils/scrapeOfertas.js';
 import { leerTarjeta } from '../utils/mlPayload.js';
+import { clavesObservacion } from '../utils/vitrina.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SALIDA = path.resolve(__dirname, '../data/observaciones.json');
@@ -41,6 +42,8 @@ async function main() {
 
   /** @type {Record<string, number>} */
   const precios = {};
+  /** Artículos distintos vistos: lo que mide la sonda (las claves de catálogo no cuentan dos veces). */
+  const articulos = new Set();
   let paginasOk = 0;
 
   for (let p = 1; p <= PAGINAS; p++) {
@@ -53,7 +56,11 @@ async function main() {
         if (!t?.id || !Number.isFinite(t.precio_actual) || t.precio_actual <= 0) continue;
         // Si el mismo id sale en dos páginas, nos quedamos con el menor: la
         // entrada del día guarda min/max y el mínimo es el dato que importa.
-        precios[t.id] = Math.min(precios[t.id] ?? Infinity, t.precio_actual);
+        // Se guarda por artículo Y por catálogo: la vitrina busca por catálogo.
+        for (const clave of clavesObservacion(t.id, t.url_producto)) {
+          precios[clave] = Math.min(precios[clave] ?? Infinity, t.precio_actual);
+        }
+        articulos.add(t.id);
         nuevos++;
       }
       paginasOk++;
@@ -65,14 +72,16 @@ async function main() {
     if (p < PAGINAS) await espera(PAUSA_MS);
   }
 
-  const total = Object.keys(precios).length;
+  const total = articulos.size;
   const sobre = { generadoEl: new Date().toISOString(), paginas: paginasOk, total, precios };
   await writeFile(SALIDA, JSON.stringify(sobre, null, 2), 'utf-8');
-  console.log(`💾  observaciones.json: ${total} precios de ${paginasOk}/${PAGINAS} páginas.`);
+  console.log(`💾  observaciones.json: ${total} artículos (${Object.keys(precios).length} claves con catálogo) de ${paginasOk}/${PAGINAS} páginas.`);
 
   // La sonda. Fallar en silencio es lo que dejó el scraper 43 días muerto.
+  // Cuenta ARTÍCULOS: si contara claves, las de catálogo inflarían el número
+  // y dos páginas caídas pasarían por una corrida sana.
   if (total < MINIMO_ESPERADO) {
-    console.error(`❌ Solo ${total} observaciones, esperadas ≥ ${MINIMO_ESPERADO}. ¿Cambió el HTML de ML?`);
+    console.error(`❌ Solo ${total} artículos observados, esperados ≥ ${MINIMO_ESPERADO}. ¿Cambió el HTML de ML, o te está bloqueando?`);
     process.exit(1);
   }
 }

@@ -91,6 +91,21 @@ export function marcador() {
   var canonica = atributo('link[rel="canonical"]', 'href') || location.href;
   d.url_producto = canonica.split('?')[0].split('#')[0];
 
+  // El id de ARTÍCULO (la publicación que gana la ficha). La vitrina identifica
+  // por catálogo (/p/MLM…), pero el histórico de precios se llenó con ids de
+  // artículo: sin este dato el veredicto de precio sale vacío. Solo se lee de
+  // lo que habla del producto principal (la URL y el formulario de compra): un
+  // id equivocado le pegaría el historial de OTRO producto. Ante la duda, nada;
+  // el panel deja escribirlo a mano. Misma regla que idArticulo() en vitrina.js.
+  var direccion = location.href;
+  try { direccion = decodeURIComponent(direccion); } catch (e) { /* se lee tal cual */ }
+  var art = direccion.match(/(?:[?&#]wid=|[?&#=,]item_id[:=])(ML[A-Z])-?(\d{6,})/i);
+  if (!art) {
+    var compra = document.querySelector('form input[name="item_id"]');
+    art = compra ? String(compra.value || '').match(/^\s*(ML[A-Z])-?(\d{6,})\s*$/i) : null;
+  }
+  if (art) d.id_articulo = art[1].toUpperCase() + art[2];
+
   // 2) El link oficial. Si ya abriste «Compartir» en la barra de afiliados, el
   //    link está en la página y se toma de ahí; si no, se te pide.
   var oficial = /https:\/\/(meli\.la\/|(www\.)?mercadolibre\.com(\.mx)?\/sec\/)[A-Za-z0-9_-]{4,}/;

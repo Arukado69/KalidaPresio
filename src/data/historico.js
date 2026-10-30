@@ -9,7 +9,7 @@
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { resumirHistorico, veredictoPrecio } from '../utils/historico.js';
+import { entradasPara, resumirHistorico, veredictoPrecio } from '../utils/historico.js';
 
 function cargar() {
   const candidatos = [
@@ -39,7 +39,8 @@ if (!datos) {
 
 /**
  * Qué se puede decir del precio de este producto, hoy.
- * @param {string} id — id de Mercado Libre
+ * @param {string|string[]} claves — id de Mercado Libre, o todas las claves
+ *   del producto (`claves_historico`: catálogo y artículo)
  * @param {number} precioActual
  * @param {number} [descuento] — descuento anunciado, en % entero. Opcional:
  *   sin él, esta función se comporta exactamente igual que antes (ningún otro
@@ -47,7 +48,7 @@ if (!datos) {
  *   `'descuento-falso'` para este producto.
  * @returns {ReturnType<typeof veredictoPrecio>}
  */
-export function veredictoDe(id, precioActual, descuento) {
-  const entradas = datos?.productos?.[id];
+export function veredictoDe(claves, precioActual, descuento) {
+  const entradas = entradasPara(datos?.productos, claves);
   return veredictoPrecio(precioActual, resumirHistorico(entradas), { descuento });
 }

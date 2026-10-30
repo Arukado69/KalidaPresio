@@ -25,7 +25,8 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { registrarPrecio, podar } from '../utils/historico.js';
+import { registrarPrecio, podar, elegirFuentes } from '../utils/historico.js';
+import { clavesObservacion } from '../utils/vitrina.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FEED = path.resolve(__dirname, '../data/ofertas.json');
@@ -53,24 +54,36 @@ const ofertas = Array.isArray(crudo) ? crudo : (crudo?.items ?? []);
 const observado = leerJson(OBSERVACIONES, null);
 const precios = observado?.precios ?? {};
 
-/** @type {Array<[string, number]>} pares [id, precio] de ambas fuentes */
-const lecturas = [
-  ...Object.entries(precios).map(([id, p]) => [id, Number(p)]),
-  ...ofertas.map((o) => [o.id, Number(o.precio_actual)]),
-].filter(([id, p]) => id && Number.isFinite(p) && p > 0);
-
-if (lecturas.length === 0) {
-  console.error('❌ [histórico] ni ofertas.json ni observaciones.json traen precios. No se registra nada.');
-  process.exit(1);
+// La fecha de la OBSERVACIÓN es la del dato, no la del reloj de quien ejecuta:
+// la del sello más reciente. Y una fuente con un sello de otro momento no
+// entra con esa fecha (ver elegirFuentes: ofertas.json se quedó en el 8 de
+// octubre y habría registrado esos precios como vistos hoy, a diario).
+// Cada oferta se registra por artículo Y por catálogo (/p/MLM…), que es la
+// clave con la que la vitrina la busca; observaciones.json ya trae las dos.
+const { fecha, momento, usadas, omitidas, lecturas: crudas } = elegirFuentes([
+  {
+    nombre: 'observaciones.json',
+    sello: observado?.generadoEl,
+    lecturas: Object.entries(precios).map(([id, p]) => [id, Number(p)]),
+  },
+  {
+    nombre: 'ofertas.json',
+    sello: crudo?.generadoEl,
+    lecturas: ofertas.flatMap((o) => clavesObservacion(o.id, o.url_producto ?? o.link_afiliado)
+      .map((clave) => [clave, Number(o.precio_actual)])),
+  },
+]);
+for (const nombre of omitidas) {
+  console.warn(`⏭  [histórico] ${nombre} es de otro momento: no se registra con fecha ${fecha}.`);
 }
 
-// La fecha de la OBSERVACIÓN es la del dato, no la del reloj de quien ejecuta.
-// Se toma el sello más reciente de las fuentes disponibles.
-const sellos = [crudo?.generadoEl, observado?.generadoEl]
-  .map((s) => Date.parse(s ?? ''))
-  .filter((n) => !Number.isNaN(n));
-const momento = sellos.length ? new Date(Math.max(...sellos)) : new Date();
-const fecha = momento.toISOString().slice(0, 10);
+/** @type {Array<[string, number]>} */
+const lecturas = crudas.filter(([id, p]) => id && Number.isFinite(p) && p > 0);
+
+if (lecturas.length === 0) {
+  console.error(`❌ [histórico] Sin precios de ${fecha} en ${usadas.join(' ni en ') || 'ninguna fuente'}. No se registra nada.`);
+  process.exit(1);
+}
 
 const previo = leerJson(HISTORICO, { productos: {} });
 const productos = { ...(previo.productos ?? {}) };

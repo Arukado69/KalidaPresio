@@ -31,7 +31,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { categorizar } from '../utils/categorias.js';
-import { resumirHistorico, veredictoPrecio, NIVELES_NO_DISTRIBUIBLES } from '../utils/historico.js';
+import { entradasPara, resumirHistorico, veredictoPrecio, NIVELES_NO_DISTRIBUIBLES } from '../utils/historico.js';
 import { ordenParaPublicar } from '../utils/vitrina.js';
 import { leerVitrina } from './vitrinaDisco.js';
 
@@ -63,7 +63,7 @@ const productosHist = leerJson(HISTORICO, { productos: {} }).productos ?? {};
 
 // El MISMO orden que /hoy: el número de cada ítem es su posición ahí.
 const items = ordenParaPublicar(productos).map((o, i) => {
-  const v = veredictoPrecio(o.precio_actual, resumirHistorico(productosHist[o.id]), { descuento: o.descuento });
+  const v = veredictoPrecio(o.precio_actual, resumirHistorico(entradasPara(productosHist, o.claves_historico ?? o.id)), { descuento: o.descuento });
   return {
     id: o.id,
     numero: i + 1,
