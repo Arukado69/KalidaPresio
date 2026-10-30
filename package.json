@@ -12,6 +12,7 @@
     "generar-og": "node src/scripts/generarOgImage.js",
     "detectar-nichos": "node src/scripts/detectarNichos.js",
     "verificar-frescura": "node src/scripts/verificarFrescura.js",
+    "revisar-vitrina": "node src/scripts/revisarVitrina.js",
     "registrar-historico": "node src/scripts/registrarHistorico.js",
     "observar-precios": "node src/scripts/observarPrecios.js",
     "generar-feed": "node src/scripts/generarFeedPublico.js",

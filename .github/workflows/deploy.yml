@@ -9,6 +9,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch: {}
+  # Y una vez al día aunque nadie haga push. La vitrina se evalúa al CONSTRUIR:
+  # sin un build diario, un precio con más de 7 días sin revisar seguía
+  # publicado hasta el siguiente push, y «se esconde solo» era mentira. Al
+  # terminar, la alarma de la vitrina (alarma-vitrina.yml) revisa el resultado.
+  schedule:
+    - cron: '41 11 * * *'   # 05:41 en CDMX
 
 concurrency:
   group: deploy-produccion

@@ -1,0 +1,116 @@
+name: Alarma de la vitrina
+
+# ── POR QUÉ ────────────────────────────────────────────────────────────────
+# El 28 de octubre de 2026 el sitio quedó publicando 0 ofertas y todo salió en
+# verde: los productos de la vitrina no tenían link oficial, el build los
+# apartó con su motivo y el deploy pasó. La alarma vieja (alarma-feed) vigilaba
+# al scraper, que ya no corre. Esta vigila lo que importa ahora: si el sitio EN
+# VIVO está publicando, y qué precios se esconden pronto por falta de revisión.
+#
+# Un solo issue con la etiqueta alarma-vitrina: se abre cuando hay algo que
+# atender (GitHub te avisa por correo), se actualiza en silencio en cada
+# revisión, se comenta solo cuando aparece algo NUEVO y se cierra solo cuando
+# todo está en orden. La decisión vive en src/utils/alarmaVitrina.js, con tests.
+on:
+  # Justo después de cada deploy (el diario y el de cada push): así revisa el
+  # sitio recién construido.
+  workflow_run:
+    workflows: ['Desplegar en Hetzner']
+    types: [completed]
+  # Red de seguridad por si el deploy deja de correr del todo.
+  schedule:
+    - cron: '17 15 * * *'   # 09:17 en CDMX
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: alarma-vitrina
+  cancel-in-progress: false
+
+env:
+  ETIQUETA: alarma-vitrina
+  # Menos productos publicables que esto es un sitio que se ve vacío.
+  MIN_PUBLICABLES: '3'
+  # Con cuánta anticipación se avisa que un precio se esconde (regla de 7 días).
+  HORAS_AVISO: '48'
+
+jobs:
+  revisar:
+    name: ¿Está publicando el sitio?
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Sin npm ci: la revisión solo usa módulos propios, sin dependencias.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Leer el issue abierto (si lo hay)
+        id: previo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          N=$(gh issue list --label "$ETIQUETA" --state open --limit 1 --json number --jq '.[0].number // empty')
+          echo "numero=$N" >> "$GITHUB_OUTPUT"
+          if [ -n "$N" ]; then
+            gh issue view "$N" --json body --jq .body > /tmp/anterior.md
+          else
+            : > /tmp/anterior.md
+          fi
+
+      - name: Revisar la vitrina y el sitio en vivo
+        id: revisar
+        env:
+          SITE_URL: ${{ vars.SITE_URL || 'https://kalidapresio.albis-labs.xyz' }}
+        run: |
+          node src/scripts/revisarVitrina.js --anterior /tmp/anterior.md --cuerpo /tmp/cuerpo.md --comentario /tmp/comentario.md
+          { echo '### Revisión de la vitrina'; echo; cat /tmp/cuerpo.md; } >> "$GITHUB_STEP_SUMMARY"
+
+      # El título va por variable de entorno, nunca pegado en el script: puede
+      # traer texto del feed en vivo.
+      - name: Abrir o actualizar el issue
+        if: steps.revisar.outputs.estado == 'alarma' || steps.revisar.outputs.estado == 'aviso'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITULO: ${{ steps.revisar.outputs.titulo }}
+          NUMERO: ${{ steps.previo.outputs.numero }}
+          NOVEDADES: ${{ steps.revisar.outputs.novedades }}
+        run: |
+          gh label create "$ETIQUETA" --color D93F0B \
+            --description "El sitio no publica bien o hay precios por esconderse" 2>/dev/null || true
+          if [ -z "$NUMERO" ]; then
+            gh issue create --title "$TITULO" --label "$ETIQUETA" --body-file /tmp/cuerpo.md
+          else
+            gh issue edit "$NUMERO" --title "$TITULO" --body-file /tmp/cuerpo.md
+            # Editar no avisa a nadie; comentar sí. Solo se comenta lo NUEVO.
+            if [ "$NOVEDADES" = "true" ]; then
+              gh issue comment "$NUMERO" --body-file /tmp/comentario.md
+            fi
+          fi
+
+      # La alarma se apaga sola. Una que hay que cerrar a mano se queda abierta
+      # para siempre y deja de significar nada.
+      - name: Cerrar el issue si todo está en orden
+        if: steps.revisar.outputs.estado == 'ok' && steps.previo.outputs.numero != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUMERO: ${{ steps.previo.outputs.numero }}
+        run: |
+          gh issue close "$NUMERO" \
+            --comment "✅ Todo en orden: el sitio publica y ningún precio se esconde en las próximas $HORAS_AVISO h."
+
+      - name: Reflejar el estado real
+        if: always()
+        env:
+          ESTADO: ${{ steps.revisar.outputs.estado }}
+        run: |
+          case "$ESTADO" in
+            alarma) echo "::error::El sitio no está publicando bien. Revisa el issue con la etiqueta $ETIQUETA."; exit 1 ;;
+            aviso)  echo "::warning::Hay precios por esconderse. Revisa el issue con la etiqueta $ETIQUETA." ;;
+            ok)     echo "✅ Vitrina en orden." ;;
+            *)      echo "::error::La revisión no terminó: el script se rompió antes de decidir."; exit 1 ;;
+          esac

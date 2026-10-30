@@ -110,6 +110,24 @@ Códigos: `wa` WhatsApp · `tg` Telegram · `fb` Facebook · `ig` Instagram ·
 
 ---
 
+## La alarma (y el build diario)
+
+El sitio se reconstruye **solo, cada día a las 05:41 (CDMX)**, aunque nadie haga
+push: así la regla de los 7 días esconde de verdad los precios que nadie volvió
+a revisar. Al terminar cada deploy corre la **alarma de la vitrina**
+(`.github/workflows/alarma-vitrina.yml`), que mira el archivo y el sitio en vivo:
+
+- 🔴 **Alarma** — el sitio publica menos de 3 productos, el feed en vivo no
+  responde, muestra precios vencidos o lleva más de 30 h sin reconstruirse.
+- 🟡 **Aviso** — productos cuyo precio se esconde en menos de 48 h.
+
+Todo va en **un solo issue** con la etiqueta `alarma-vitrina`: se abre cuando
+hay algo que atender (GitHub te manda un correo), se comenta solo cuando aparece
+algo nuevo y se cierra solo cuando todo está en orden. Para ver lo mismo en tu
+computadora: `npm run revisar-vitrina`.
+
+---
+
 ## Publicar
 
 - **`/panel/hoy`** — eliges la red y cada producto te da el texto ya escrito en
