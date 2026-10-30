@@ -37,6 +37,7 @@ npm run dev               # http://localhost:4321
 | Tu «link en bio» numerado | `/hoy` (`/hoy?c=ig`, `/hoy?c=tt`) |
 | Telegram automático | `n8n/telegram-tecnologia.json` |
 | Saber si el sitio se quedó vacío o qué precios caducan | El issue `alarma-vitrina` (se abre y se cierra solo) |
+| Ver qué descuentos son reales en el Buen Fin | `/buen-fin` (se llena con el observador diario; ver [`docs/vitrina.md`](docs/vitrina.md#el-detector-del-buen-fin-buen-fin)) |
 
 ## Comandos
 

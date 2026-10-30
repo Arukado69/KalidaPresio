@@ -1,5 +1,9 @@
 ---
 import '../styles/global.css';
+import { enTemporada } from '../data/buenFin.js';
+
+// El enlace al Detector solo durante la temporada; el build diario lo quita solo.
+const temporadaBuenFin = enTemporada();
 ---
 <header class="site-header">
   <div class="ftc-compliance">
@@ -44,6 +48,7 @@ import '../styles/global.css';
       <li><a href="/" class="nav-link">Inicio</a></li>
       <li><a href="/colecciones" class="nav-link">Colecciones</a></li>
       <li><a href="/ofertas" class="nav-link">Ofertas</a></li>
+      {temporadaBuenFin && <li><a href="/buen-fin" class="nav-link nav-temporada">Buen Fin</a></li>}
       <li><a href="/sobre-mi" class="nav-link">Quiénes somos</a></li>
       <li><a href="/contacto" class="nav-link">Contacto</a></li>
     </ul>
@@ -198,6 +203,9 @@ import '../styles/global.css';
     transition: var(--transition-fast);
     border: 1px solid transparent;
   }
+
+  /* Temporada: el amarillo de marca la distingue sin gritar. */
+  .nav-temporada { color: var(--color-accent); border-color: rgba(246, 209, 79, 0.28); }
 
   .nav-link:hover,
   .nav-link.active {
