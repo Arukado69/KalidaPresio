@@ -108,8 +108,8 @@ oficial, título y precio bastan.
 | `url_producto` | La ficha en Mercado Libre. Sirve para «Abrir en ML» y para que el marcador reconozca el producto si lo vuelves a abrir (actualiza el precio en vez de duplicarlo). |
 | `id_articulo` | El id de la publicación que gana la ficha (`MLM…`). Lo llena el marcador cuando la página lo trae. El histórico de precios se guardó por artículo y la vitrina identifica por catálogo (`/p/MLM…`): con las dos claves, el producto encuentra su historial. Si queda vacío, no pasa nada. |
 | `imagen`, `rating`, `vendidos`, `envio_gratis` | Lo que se ve en la tarjeta y calcula el Sello K-P. |
-| `relampago` + `termina` | Sale en el carrusel relámpago con cuenta regresiva real. Sin `termina`, no se muestra cuenta regresiva y se retira sola 12 h después de `revisado`. |
-| `destacado` | Sale en «Elegidos por nosotros». Puede ser `true` o un texto («Más vendido»). |
+| `relampago` + `termina` | Sale en la fila relámpago de la portada con cuenta regresiva real. Sin `termina`, no se muestra cuenta regresiva y se retira sola 12 h después de `revisado`. |
+| `destacado` | Lleva un moño en su tarjeta (tu texto, o «Elegido» si pones `true`) y sale antes que el resto en `/hoy`. Puede ser `true` o un texto («Más vendido»). |
 | `nota` | Por qué lo recomiendas. Sale en el sitio, en `/hoy` y en las publicaciones. Es lo que ningún otro canal de ofertas puede escribir. |
 | `enlaces` | Links oficiales por canal (ver abajo). |
 

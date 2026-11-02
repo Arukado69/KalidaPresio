@@ -26,7 +26,7 @@
  *     "id_articulo":  "MLM1932698151",             ← lo llena el marcador
  *     "rating": 4.8, "vendidos": 250000, "envio_gratis": true,
  *     "relampago": true, "termina": "2026-10-26T23:00:00-06:00",
- *     "destacado": true,                          ← sale en «Elegidos»
+ *     "destacado": true,                          ← moño en su tarjeta
  *     "nota": "Lo uso para lavar el coche",
  *     "enlaces": { "wa": "https://meli.la/…", "tg": "https://meli.la/…" }
  *   }

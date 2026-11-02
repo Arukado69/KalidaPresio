@@ -1,0 +1,64 @@
+---
+/**
+ * Explorar — «Por presupuesto y por tema»: las secciones y colecciones con
+ * página propia, como fila de chips con su conteo.
+ *
+ * Reemplaza a ExplorarChips. Enlaza solo páginas que existen hoy (una sección
+ * con menos de 8 productos o una colección con menos de 2 no tienen página),
+ * y no se enlaza a sí misma: `excluir` recibe la ruta actual.
+ */
+import { SECCIONES_CON_PAGINA } from '../data/secciones.js';
+import { COLECCIONES_ACTIVAS } from '../data/colecciones.js';
+
+export interface Props {
+  /** Ruta de la página actual, para no enlazarla. */
+  excluir?: string;
+  titulo?: string;
+  /** Solo un tipo de enlace (p. ej. en /colecciones, solo las secciones). */
+  solo?: 'secciones' | 'colecciones';
+}
+
+const { excluir, titulo = 'Por presupuesto y por tema', solo } = Astro.props;
+
+// Los títulos de las colecciones son largos para un chip.
+const CORTOS: Record<string, string> = {
+  'ofertas-menos-de-500': 'Menos de $500',
+  'gangas-bajo-300': 'Bajo $300',
+  'ofertas-relampago-hoy': 'Mayor descuento',
+  'mas-vendidos-del-mes': 'Más vendidos',
+  'mejores-ofertas-tecnologia': 'Tecnología',
+};
+
+// Colecciones que repiten una sección: si la sección tiene página, el chip
+// de la colección sobra («Por menos de $500» dos veces).
+const REPITE: Record<string, string> = { 'ofertas-menos-de-500': 'menos-500' };
+const secciones = new Set(SECCIONES_CON_PAGINA.map((s) => s.slug));
+
+const enlaces = [
+  ...(solo === 'colecciones' ? [] : SECCIONES_CON_PAGINA.map((s) => ({ href: `/ofertas/${s.slug}`, titulo: s.titulo, n: s.items.length }))),
+  ...(solo === 'secciones' ? [] : COLECCIONES_ACTIVAS
+    .filter((c) => !(REPITE[c.slug] && secciones.has(REPITE[c.slug])))
+    .map((c) => ({ href: `/colecciones/${c.slug}`, titulo: CORTOS[c.slug] ?? c.titulo, n: c.items.length }))),
+].filter((e) => e.href !== excluir);
+---
+
+{enlaces.length > 0 && (
+  <nav class="explorar" aria-label={titulo}>
+    <h2 class="explorar-h">{titulo}</h2>
+    <ul class="explorar-lista">
+      {enlaces.map((e) => (
+        <li><a class="chip" href={e.href}>{e.titulo} <b>{e.n}</b></a></li>
+      ))}
+    </ul>
+  </nav>
+)}
+
+<style>
+  .explorar { margin-top: clamp(2.5rem, 6vw, 4rem); }
+  .explorar-h { font-size: clamp(2rem, 5vw, 3rem); text-transform: uppercase; margin-bottom: 0.9rem; }
+  .explorar-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.6rem; }
+  .explorar-lista .chip { font-size: 0.8rem; padding: 0.55em 0.95em; box-shadow: 2px 2px 0 var(--tinta); }
+  .explorar-lista .chip:hover { background: var(--fosfo); }
+  .explorar-lista b { background: var(--fosfo); padding: 0 0.45em; border-radius: 99px; }
+  .explorar-lista .chip:hover b { background: var(--tinta); color: var(--fosfo); }
+</style>

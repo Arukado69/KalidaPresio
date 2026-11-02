@@ -5,17 +5,17 @@
  * POR QUÉ PÁGINAS Y NO MÁS BLOQUES EN LA PORTADA: páginas separadas dan
  * contenido propio que Google puede indexar, una etiqueta de sección distinta
  * en la analítica (data-kp-seccion) para saber cuál genera clics, y un filtro
- * y orden que no compiten con los de la portada (el Layout cablea
- * `[data-grid-filtrable]` en singular, una rejilla por página).
+ * y orden propios (los trae la Rejilla).
  *
  * Relámpago no tiene página: tiene hora de fin, y una página estática la
- * seguiría mostrando hasta el próximo build. Para eso está el carrusel, que la
- * retira en el navegador al vencer.
+ * seguiría mostrando hasta el próximo build. Para eso está la fila relámpago de
+ * la portada, que la retira en el navegador al vencer.
  */
 import Layout from '../../layouts/Layout.astro';
-import SeccionGrid from '../../components/SeccionGrid.astro';
-import ExplorarChips from '../../components/ExplorarChips.astro';
-import { SECCIONES_CON_PAGINA } from '../../data/secciones.js';
+import Rejilla from '../../components/Rejilla.astro';
+import Explorar from '../../components/Explorar.astro';
+import SelloFrescura from '../../components/SelloFrescura.astro';
+import { SECCIONES_CON_PAGINA, GENERADO_EL } from '../../data/secciones.js';
 
 export function getStaticPaths() {
   return SECCIONES_CON_PAGINA.map((s) => ({
@@ -25,140 +25,43 @@ export function getStaticPaths() {
 }
 
 const { seccion } = Astro.props;
-const otras = SECCIONES_CON_PAGINA.filter((s) => s.slug !== seccion.slug);
 ---
 
 <Layout
   title={`${seccion.titulo} — Ofertas de Mercado Libre | KalidaPresio`}
   description={seccion.descripcion}
 >
-  <article class="sec">
-    <nav class="sec-bc" aria-label="Ruta de navegación">
-      <a href="/">Inicio</a>
-      <span aria-hidden="true">›</span>
+  <article class="sec hoja">
+    <nav class="sec-migas etiqueta" aria-label="Estás en">
+      <a href="/">Inicio</a> <span aria-hidden="true">/</span>
+      <a href="/ofertas">Por sección</a> <span aria-hidden="true">/</span>
       <span aria-current="page">{seccion.titulo}</span>
     </nav>
 
-    <SeccionGrid
-      productos={seccion.items}
-      titulo={seccion.titulo}
-      resumen={seccion.resumen}
-      campana={seccion.campana}
-      encabezado="h1"
-    />
+    <header class="sec-cabeza">
+      <h1 class="sec-titulo">{seccion.titulo}</h1>
+      <p class="sec-cuenta etiqueta">
+        <b>{seccion.items.length} productos</b> · {seccion.resumen} · <SelloFrescura generadoEl={GENERADO_EL} />
+      </p>
+    </header>
 
+    <Rejilla productos={seccion.items} campana={seccion.campana} />
+
+    <!-- La descripción va DESPUÉS de la rejilla: quien llega busca productos,
+         pero es el texto estable que Google indexa de un catálogo que cambia. -->
     <p class="sec-intro">{seccion.descripcion}</p>
 
-    {otras.length > 0 && (
-      <nav class="sec-otras" aria-label="Otras secciones">
-        <h2 class="sec-otras-titulo">Sigue explorando</h2>
-        <ul>
-          {otras.map((o) => (
-            <li>
-              <a href={`/ofertas/${o.slug}`}>
-                <span class="sec-otras-cuenta" aria-hidden="true">{o.items.length}</span>
-                <span>
-                  <strong>{o.titulo}</strong>
-                  <em>{o.items.length} productos · {o.resumen}</em>
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    )}
-
-    <ExplorarChips />
+    <Explorar excluir={`/ofertas/${seccion.slug}`} titulo="Sigue explorando" />
   </article>
 </Layout>
 
 <style>
-  .sec { padding-top: var(--spacing-md); }
-
-  .sec-bc {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    flex-wrap: wrap;
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-    margin-bottom: var(--spacing-sm);
-  }
-  .sec-bc a { color: var(--color-text-muted); text-decoration: none; }
-  .sec-bc a:hover { color: var(--color-primary); }
-  .sec-bc [aria-current] { color: var(--color-primary); font-weight: 600; }
-
-  /* La descripción va DESPUÉS de la rejilla: quien llega busca productos, no
-     un párrafo. Pero tiene que estar, porque es el contenido estable que
-     Google puede indexar de una página cuyo catálogo cambia cada pocas horas. */
-  .sec-intro {
-    max-width: 68ch;
-    margin: var(--spacing-xl) auto 0;
-    color: var(--color-text-muted);
-    font-size: 0.95rem;
-    line-height: 1.7;
-    text-align: center;
-  }
-
-  .sec-otras { margin-top: var(--spacing-2xl); }
-
-  .sec-otras-titulo {
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--color-text-muted);
-    font-weight: 600;
-    margin: 0 0 var(--spacing-sm);
-    text-align: center;
-  }
-
-  .sec-otras ul {
-    list-style: none;
-    margin: 0 auto;
-    padding: 0;
-    max-width: 720px;
-    display: grid;
-    gap: var(--spacing-sm);
-  }
-  @media (min-width: 640px) {
-    .sec-otras ul { grid-template-columns: 1fr 1fr; }
-  }
-
-  .sec-otras a {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    padding: 0.95rem 1.1rem;
-    background: var(--glass-bg);
-    border: 1px solid var(--color-violet-border);
-    border-radius: var(--radius-md);
-    text-decoration: none;
-    color: var(--color-text);
-    transition: border-color var(--dur-fast) var(--ease-soft);
-  }
-  .sec-otras a:hover { border-color: var(--color-primary); }
-
-  .sec-otras-cuenta {
-    flex: 0 0 auto;
-    min-width: 2.2ch;
-    font-family: var(--font-display);
-    font-size: 1.3rem;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--color-primary);
-    font-variant-numeric: tabular-nums;
-  }
-  .sec-otras strong {
-    display: block;
-    font-family: var(--font-display);
-    font-size: 1rem;
-    margin-bottom: 0.1rem;
-  }
-  .sec-otras em {
-    display: block;
-    font-style: normal;
-    font-size: 0.82rem;
-    color: var(--color-text-muted);
-    line-height: 1.45;
-  }
+  .sec { padding-block: clamp(1.2rem, 3vw, 2rem) 0; }
+  .sec-migas { margin-bottom: 1.2rem; }
+  .sec-migas a { color: inherit; }
+  .sec-cabeza { margin-bottom: clamp(1.6rem, 4vw, 2.4rem); }
+  .sec-titulo { font-size: clamp(2.8rem, 8vw, 5.4rem); text-transform: uppercase; margin-bottom: 0.8rem; }
+  .sec-cuenta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+  .sec-cuenta b { background: var(--fosfo); color: var(--tinta); padding: 0.1em 0.4em; }
+  .sec-intro { max-width: 68ch; margin-top: clamp(2.5rem, 6vw, 3.5rem); color: var(--tinta-2); }
 </style>

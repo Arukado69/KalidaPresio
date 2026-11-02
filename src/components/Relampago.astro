@@ -1,0 +1,35 @@
+---
+/**
+ * Relampago — La fila de ofertas relámpago, en vivo.
+ *
+ * Sale escondida: el script del Layout lee /data/relampago.json al abrir la
+ * página, se queda solo con las que siguen vivas y entonces la muestra. Así
+ * un HTML construido ayer nunca anuncia una relámpago que ya terminó. Cada
+ * cartulina se retira sola cuando su cuenta regresiva llega a cero.
+ */
+const url = import.meta.env.PUBLIC_RELAMPAGO_URL || '/data/relampago.json';
+---
+
+<section class="relampago" data-relampago data-rs-url={url} hidden aria-labelledby="rel-titulo">
+  <div class="hoja">
+    <header class="rel-cabeza">
+      <h2 id="rel-titulo" class="rel-h">⚡ Relámpago</h2>
+      <p class="etiqueta">Por tiempo limitado · se retiran solas al terminar</p>
+    </header>
+  </div>
+  <div class="rel-lista" data-relampago-lista></div>
+</section>
+
+<style>
+  .relampago { margin-top: clamp(2.5rem, 6vw, 4rem); }
+  .rel-cabeza { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem 1.2rem; margin-bottom: 0.6rem; }
+  .rel-h { font-size: clamp(2.2rem, 6vw, 3.4rem); text-transform: uppercase; }
+  .rel-lista {
+    display: flex;
+    gap: 1.4rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 1.4rem max(var(--gutter), calc((100vw - var(--ancho)) / 2 + var(--gutter))) 2rem;
+    scrollbar-width: thin;
+  }
+</style>

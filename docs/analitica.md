@@ -119,9 +119,10 @@ hacia Mercado Libre.
 Se dispara con cualquier clic en un enlace hacia un link oficial de afiliado
 (`meli.la/…`, `mercadolibre.com/sec/…`), hacia `mercadolibre.com.mx` o hacia
 las redirecciones viejas (`/recomienda/*`, `/r/*`), venga de donde venga:
-tarjetas, bento, showpiece, carrusel relámpago, elegidos, colecciones, `/hoy`
-o la página 404. Un solo listener delegado en `document`, así que sobrevive a
-las View Transitions y no hay que instrumentar cada componente.
+las tarjetas de la portada y de las secciones, la fila relámpago, la página de
+cada producto, las colecciones, `/hoy`, el detector del Buen Fin o la página
+404. Un solo listener delegado en `document`, así que no hay que instrumentar
+cada componente.
 
 | Propiedad | De dónde sale |
 |---|---|
@@ -184,7 +185,7 @@ Hoy debería estar en cero.
 ### Las tres preguntas para empezar
 
 1. **¿Qué sección genera clics por visita?** Si «catalogo» trae 10× más
-   clics que el bento, el bento sobra o está mal colocado.
+   clics que «relampago», la fila relámpago sobra o está mal colocada.
 2. **¿Qué páginas traen visitantes que hacen clic?** Ordena las colecciones por
    clics, no por visitas. Ahí se decide cuál convertir en comparativa perenne.
 3. **¿Qué `id` se repite?** Un producto que acumula clics merece su propia

@@ -41,7 +41,6 @@ export const COLECCIONES = [
     slug: 'mejores-ofertas-tecnologia',
     titulo: 'Las Mejores Ofertas en Tecnología',
     descripcion: 'Selección curada de las mejores ofertas en tecnología de Mercado Libre México, ordenadas por nuestro algoritmo KalidaPresio que evalúa calidad, descuento y satisfacción real de compradores.',
-    color: 'var(--color-primary)',
     items: ofertasEnriquecidas
       .filter(o => o.categoria_inferida === 'Tecnología')
       .sort((a, b) => b.score100 - a.score100),
@@ -51,7 +50,6 @@ export const COLECCIONES = [
     slug: 'mas-vendidos-del-mes',
     titulo: 'Los Más Vendidos del Mes',
     descripcion: 'Los productos con más unidades vendidas en Mercado Libre México. Volumen de ventas real publicado por la propia plataforma, no posicionamiento pagado.',
-    color: 'var(--color-warm)',
     items: ofertasEnriquecidas
       // Ahora el nombre de la colección es literal: ML publica unidades
       // vendidas, así que "más vendidos" ya no es una inferencia.
@@ -62,8 +60,7 @@ export const COLECCIONES = [
   {
     slug: 'ofertas-relampago-hoy',
     titulo: 'Ofertas con Descuento Máximo',
-    descripcion: 'Las ofertas con mayor porcentaje de descuento disponibles ahora mismo en Mercado Libre México. Precios verificados por KalidaPresio — ¡aprovéchalos antes de que suban!',
-    color: 'var(--color-accent)',
+    descripcion: 'Las ofertas de Mercado Libre México con mayor porcentaje de descuento entre las que elegimos a mano, cada una con la fecha en que vimos su precio. Un descuento grande no basta: también pasan por el Sello K-P.',
     items: ofertasEnriquecidas
       .filter(o => (o.descuento ?? 0) >= 35)
       .sort((a, b) => (b.descuento ?? 0) - (a.descuento ?? 0)),
@@ -74,7 +71,6 @@ export const COLECCIONES = [
     slug: 'ofertas-menos-de-500',
     titulo: 'Ofertas por Menos de $500',
     descripcion: 'Las mejores ofertas calidad-precio por menos de $500 pesos en Mercado Libre México. Compras inteligentes con presupuesto ajustado, ordenadas por nuestro sello K-P.',
-    color: 'var(--color-primary)',
     items: ofertasEnriquecidas
       .filter(o => (o.precio_actual ?? 0) > 0 && o.precio_actual < 500)
       .sort((a, b) => b.score100 - a.score100),
@@ -84,7 +80,6 @@ export const COLECCIONES = [
     slug: 'gangas-bajo-300',
     titulo: 'Gangas por Menos de $300',
     descripcion: 'Productos que valen la pena por menos de $300 pesos en Mercado Libre México. Lo mejor del presupuesto bajo, sin sacrificar calidad — verificado por KalidaPresio.',
-    color: 'var(--color-warm)',
     items: ofertasEnriquecidas
       .filter(o => (o.precio_actual ?? 0) > 0 && o.precio_actual < 300)
       .sort((a, b) => b.score100 - a.score100),

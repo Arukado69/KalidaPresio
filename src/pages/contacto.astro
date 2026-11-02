@@ -1,80 +1,75 @@
 ---
+/**
+ * /contacto — El formulario de contacto, en una hoja para llenar a mano.
+ *
+ * Envía por fetch a /api/contact (backend Express). Los ganchos data-c-* son
+ * los que lee el script de abajo; el honeypot frena a los bots.
+ */
 import Layout from '../layouts/Layout.astro';
 ---
 <Layout
   title="Contacto — KalidaPresio"
-  description="¿Tienes una corrección técnica, quieres proponer un producto para análisis o eres prensa? Contáctanos."
+  description="¿Encontraste un error, quieres proponer un producto para que lo revisemos o eres prensa? Escríbenos."
   ogType="website"
 >
-  <div class="contacto-page">
+  <div class="ct hoja">
+    <header class="ct-cabeza">
+      <p class="etiqueta">Contacto · respondemos en 48 a 72 horas hábiles</p>
+      <h1 class="ct-titulo">Escríbenos</h1>
+      <p class="ct-sub">¿Encontraste un error, un precio que ya cambió o tienes una sugerencia? Lo revisamos.</p>
+    </header>
 
-    <div class="contacto-header">
-      <h1 class="contacto-titulo">Contacto</h1>
-      <p class="contacto-subtitulo">
-        ¿Encontraste un error o tienes una sugerencia? Escríbenos y lo revisamos.
-      </p>
-    </div>
-
-    <div class="contacto-grid">
-
-      <div class="form-contenedor">
-        <!-- Sin action/submit-reload: el envío es por fetch a /api/contact -->
-        <form class="contacto-form" data-contacto novalidate>
-          <div class="campo-grupo">
-            <label for="nombre" class="campo-label">Nombre</label>
-            <input type="text" id="nombre" class="campo-input" placeholder="Tu nombre" required autocomplete="name" data-c-nombre />
-          </div>
-
-          <div class="campo-grupo">
-            <label for="email" class="campo-label">Correo electrónico</label>
-            <input type="email" id="email" class="campo-input" placeholder="tu@correo.com" required autocomplete="email" data-c-email />
-          </div>
-
-          <div class="campo-grupo">
-            <label for="asunto" class="campo-label">Asunto</label>
-            <select id="asunto" class="campo-input campo-select" data-c-asunto>
-              <option value="Corrección técnica">Corrección técnica</option>
-              <option value="Proponer producto para análisis">Proponer producto para análisis</option>
-              <option value="Colaboración / Prensa">Colaboración / Prensa</option>
-              <option value="Otro">Otro</option>
-            </select>
-          </div>
-
-          <div class="campo-grupo">
-            <label for="mensaje" class="campo-label">Mensaje</label>
-            <textarea id="mensaje" class="campo-input campo-textarea" placeholder="Describe tu consulta con el mayor detalle posible..." rows="5" required data-c-mensaje></textarea>
-          </div>
-
-          <!-- Honeypot anti-bots (oculto para humanos) -->
-          <div class="c-hp" aria-hidden="true">
-            <label>No llenar<input type="text" name="company" tabindex="-1" autocomplete="off" data-c-hp /></label>
-          </div>
-
-          <button type="submit" class="form-submit" data-c-submit data-ripple>
-            <span class="c-submit-txt">Enviar Mensaje</span>
-            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <line x1="4" y1="10" x2="16" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-              <polyline points="10,4 16,10 10,16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-
-          <p class="c-status" data-c-status role="status" aria-live="polite" hidden></p>
-          <p class="c-legal">Tratamos tu mensaje conforme a nuestro <a href="/privacidad">aviso de privacidad</a>.</p>
-        </form>
-      </div>
-
-      <aside class="contacto-sidebar">
-        <div class="sidebar-card">
-          <h2 class="sidebar-titulo">Antes de escribir</h2>
-          <ul class="sidebar-lista">
-            <li>Respondemos en un plazo de 48–72 horas hábiles.</li>
-            <li>No aceptamos solicitudes de reseñas pagadas ni menciones a cambio de compensación.</li>
-            <li>Si detectaste un error en especificaciones, incluye la fuente técnica del fabricante.</li>
-            <li>Para propuestas de productos, incluye el enlace directo de Mercado Libre.</li>
-          </ul>
+    <div class="ct-grid">
+      <!-- Sin action ni recarga: el envío es por fetch a /api/contact -->
+      <form class="ct-hoja" data-contacto novalidate>
+        <div class="ct-campo">
+          <label for="nombre">Nombre</label>
+          <input type="text" id="nombre" placeholder="Tu nombre" required autocomplete="name" data-c-nombre />
         </div>
-      </aside>
 
+        <div class="ct-campo">
+          <label for="email">Correo electrónico</label>
+          <input type="email" id="email" placeholder="tu@correo.com" required autocomplete="email" data-c-email />
+        </div>
+
+        <div class="ct-campo">
+          <label for="asunto">Asunto</label>
+          <select id="asunto" data-c-asunto>
+            <option value="Corrección técnica">Corrección técnica</option>
+            <option value="Proponer producto para análisis">Proponer un producto</option>
+            <option value="Colaboración / Prensa">Colaboración o prensa</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+
+        <div class="ct-campo">
+          <label for="mensaje">Mensaje</label>
+          <textarea id="mensaje" placeholder="Cuéntanos con el mayor detalle posible…" rows="6" required data-c-mensaje></textarea>
+        </div>
+
+        <!-- Honeypot anti-bots (oculto para humanos) -->
+        <div class="c-hp" aria-hidden="true">
+          <label>No llenar<input type="text" name="company" tabindex="-1" autocomplete="off" data-c-hp /></label>
+        </div>
+
+        <button type="submit" class="boton boton--tinta ct-enviar" data-c-submit>
+          <span class="c-submit-txt">Enviar mensaje</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+        </button>
+
+        <p class="c-status" data-c-status role="status" aria-live="polite" hidden></p>
+        <p class="c-legal">Tratamos tu mensaje conforme a nuestro <a href="/privacidad">aviso de privacidad</a>.</p>
+      </form>
+
+      <aside class="ct-antes cartulina cartulina--rosa con-cinta" aria-labelledby="ct-antes-h">
+        <h2 id="ct-antes-h" class="ct-antes-h">Antes de escribir</h2>
+        <ul>
+          <li>No aceptamos reseñas pagadas ni menciones a cambio de dinero.</li>
+          <li>Si viste un error en especificaciones, incluye la fuente del fabricante.</li>
+          <li>Para proponer un producto, pega el enlace de Mercado Libre.</li>
+          <li>¿Un precio que ya cambió? Dinos cuál y lo revisamos.</li>
+        </ul>
+      </aside>
     </div>
   </div>
 
@@ -121,21 +116,15 @@ import Layout from '../layouts/Layout.astro';
                 form.reset(); txt.textContent = 'Enviado ✓';
               } else {
                 setStatus('No pudimos enviar tu mensaje. Intenta de nuevo en un momento.', 'error');
-                txt.textContent = 'Enviar Mensaje'; btn.disabled = false;
+                txt.textContent = 'Enviar mensaje'; btn.disabled = false;
               }
             } catch {
               setStatus('Hubo un problema de conexión. Intenta de nuevo.', 'error');
-              txt.textContent = 'Enviar Mensaje'; btn.disabled = false;
+              txt.textContent = 'Enviar mensaje'; btn.disabled = false;
             }
           }
           form.addEventListener('submit', enviar);
         });
-      }
-      // Guard window: el inline script se re-ejecuta en cada View Transition;
-      // registramos el listener una sola vez (bind() es idempotente igualmente).
-      if (!window.__kpContactoInit) {
-        window.__kpContactoInit = true;
-        document.addEventListener('astro:page-load', bind);
       }
       if (document.readyState !== 'loading') bind();
       else document.addEventListener('DOMContentLoaded', bind);
@@ -144,178 +133,60 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <style>
-  /* Honeypot oculto + estados del formulario (Bloque D) */
-  .c-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
-  .c-status { margin: var(--spacing-sm) 0 0; font-size: 0.88rem; line-height: 1.45; }
-  .c-legal {
-    margin: 0.7rem 0 0;
-    font-size: 0.76rem;
-    line-height: 1.5;
-    color: var(--color-text-muted);
-  }
-  .c-legal a { color: var(--color-text-muted); text-decoration: underline; text-underline-offset: 0.2em; }
-  .c-legal a:hover { color: var(--color-primary); }
-  .c-status[data-tipo="ok"] { color: var(--color-primary); }
-  .c-status[data-tipo="error"] { color: var(--color-error); }
+  .ct { padding-block: clamp(1.5rem, 4vw, 2.5rem) 0; }
+  .ct-cabeza { margin-bottom: clamp(2rem, 5vw, 3rem); }
+  .ct-titulo { font-size: clamp(3.2rem, 10vw, 6.6rem); text-transform: uppercase; margin: 0.6rem 0 0.8rem; }
+  .ct-sub { color: var(--tinta-2); max-width: 56ch; }
 
-  .contacto-page {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: var(--spacing-lg) 0;
-  }
+  .ct-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: clamp(2rem, 5vw, 4rem); align-items: start; }
 
-  .contacto-header {
-    margin-bottom: var(--spacing-xl);
-  }
-
-  .contacto-titulo {
-    font-size: clamp(1.8rem, 4vw, 2.5rem);
-    color: #fff;
-    margin-bottom: var(--spacing-sm);
-  }
-
-  .contacto-subtitulo {
-    color: var(--color-text-muted);
-    font-size: 1rem;
-    max-width: 500px;
-  }
-
-  .contacto-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--spacing-lg);
-  }
-
-  @media (min-width: 768px) {
-    .contacto-grid {
-      grid-template-columns: 1fr 320px;
-    }
-  }
-
-  .form-contenedor {
-    background-color: var(--color-surface-raised);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: var(--radius-lg);
-    padding: clamp(1.5rem, 4vw, 2.5rem);
-    box-shadow: var(--shadow-md);
-  }
-
-  .campo-grupo {
-    margin-bottom: var(--spacing-md);
-  }
-
-  .campo-label {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--color-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.5rem;
-  }
-
-  .campo-input {
-    width: 100%;
-    padding: 0.85rem 1rem;
-    background-color: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: var(--radius-sm);
-    color: var(--color-text);
-    font-family: var(--font-main);
-    font-size: 0.95rem;
-    transition: var(--transition-fast);
-    outline: none;
-  }
-
-  .campo-input::placeholder { color: var(--color-text-muted); opacity: 0.6; }
-
-  .campo-input:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(12, 226, 137, 0.15);
-    background-color: rgba(12, 226, 137, 0.03);
-  }
-
-  .campo-select {
-    cursor: pointer;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239b91b8' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 1rem center;
-    background-size: 12px;
-    padding-right: 2.5rem;
-  }
-
-  .campo-select option { background-color: var(--color-surface); }
-
-  .campo-textarea { resize: vertical; min-height: 120px; }
-
-  .form-submit {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-    color: var(--color-bg);
-    font-family: var(--font-main);
-    font-weight: 800;
-    font-size: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 0.9rem 2rem;
-    border: none;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: var(--transition-fast);
-    box-shadow: var(--glow-primary-sm);
-    width: 100%;
-    justify-content: center;
-    margin-top: var(--spacing-sm);
-  }
-
-  .form-submit svg { width: 18px; height: 18px; transition: transform 0.2s ease; }
-  .form-submit:hover { box-shadow: var(--glow-primary-md); transform: translateY(-2px); }
-  .form-submit:hover svg { transform: translateX(4px); }
-  .form-submit:active { transform: scale(0.98); }
-
-  .sidebar-card {
-    background-color: var(--color-surface);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
-    box-shadow: var(--shadow-sm);
-    position: sticky;
-    top: 100px;
-  }
-
-  .sidebar-titulo {
-    font-size: 1rem;
-    color: var(--color-primary);
-    margin-bottom: var(--spacing-sm);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-weight: 700;
-  }
-
-  .sidebar-lista {
-    list-style: none;
-    padding: 0; margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-  }
-
-  .sidebar-lista li {
-    font-size: 0.88rem;
-    color: var(--color-text-muted);
-    line-height: 1.6;
-    padding-left: 1.2rem;
+  /* La hoja: renglones de cuaderno detrás, campos de formulario impreso. */
+  .ct-hoja {
     position: relative;
+    display: grid;
+    gap: 1.3rem;
+    padding: clamp(1.4rem, 4vw, 2.4rem);
+    background-color: var(--cartulina);
+    background-image: linear-gradient(transparent calc(2.2rem - 1px), rgba(29, 64, 184, 0.1) calc(2.2rem - 1px));
+    background-size: 100% 2.2rem;
+    border: 2px solid var(--tinta);
+    box-shadow: 6px 6px 0 var(--tinta);
   }
+  .ct-campo { display: grid; gap: 0.35rem; }
+  .ct-campo label { font: 600 0.72rem/1.4 var(--f-ticket); letter-spacing: 0.08em; text-transform: uppercase; }
+  .ct-campo input,
+  .ct-campo select,
+  .ct-campo textarea {
+    width: 100%;
+    font: 400 1.05rem/1.5 var(--f-texto);
+    color: var(--tinta);
+    background: rgba(255, 252, 244, 0.9);
+    border: 2px solid var(--tinta);
+    border-radius: 2px;
+    padding: 0.7rem 0.85rem;
+  }
+  .ct-campo textarea { resize: vertical; min-height: 9rem; }
+  .ct-campo input:focus,
+  .ct-campo select:focus,
+  .ct-campo textarea:focus { outline: none; background: #fffde0; box-shadow: 4px 4px 0 var(--fosfo); }
+  .ct-enviar { justify-self: start; }
+  .ct-enviar:disabled { opacity: 0.6; cursor: wait; }
 
-  .sidebar-lista li::before {
-    content: '›';
-    position: absolute;
-    left: 0;
-    color: var(--color-primary);
-    font-weight: 700;
+  /* Honeypot oculto + estados del formulario */
+  .c-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .c-status { margin: 0; padding: 0.7rem 0.9rem; font-weight: 700; border: 2px solid currentColor; }
+  .c-status[data-tipo='ok'] { color: var(--sello-verde); }
+  .c-status[data-tipo='error'] { color: var(--sello-rojo); }
+  .c-legal { margin: 0; font-size: 0.82rem; color: var(--tinta-2); }
+  .c-legal a { font-weight: 700; }
+
+  .ct-antes { --giro: 1.6deg; padding: 1.6rem 1.4rem 1.4rem; }
+  .ct-antes-h { font-size: 1.9rem; text-transform: uppercase; margin-bottom: 0.8rem; }
+  .ct-antes ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.6rem; }
+  .ct-antes li::marker { content: "✗  "; font-weight: 700; }
+  .ct-antes li:nth-child(n + 2)::marker { content: "→  "; }
+
+  @media (max-width: 860px) {
+    .ct-grid { grid-template-columns: 1fr; }
   }
 </style>

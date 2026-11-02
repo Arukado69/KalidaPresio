@@ -1,11 +1,20 @@
 ---
+/**
+ * Layout — El papel sobre el que se pega todo.
+ *
+ * Dirección de arte en src/styles/global.css («el tianguis honesto»).
+ *
+ * Lo que este layout ya NO carga, a propósito: GSAP + ScrollTrigger (~46 KB
+ * gzip solo para animar), View Transitions y una docena de efectos de cursor.
+ * Las animaciones que quedan son CSS (las cartulinas «se pegan», los sellos
+ * «golpean») y respetan prefers-reduced-motion. El único JavaScript propio es
+ * funcional: cuentas regresivas, relámpagos en vivo y el enlace activo.
+ */
 import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Newsletter from '../components/Newsletter.astro';
-import { ClientRouter } from 'astro:transitions';
 import Analitica from '../components/Analitica.astro';
 import SelloFrescura from '../components/SelloFrescura.astro';
-// La fecha REAL de deteccion de los precios que se estan sirviendo.
 import { GENERADO_EL } from '../data/secciones.js';
 
 export interface Props {
@@ -69,21 +78,18 @@ const datosSitio = {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f3ede0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
 
-    <!-- Tipografía editorial: Bricolage Grotesque (display) + Inter (cuerpo).
-         swap = sin bloqueo de render, cero impacto en LCP -->
+    <!-- Cuatro voces: rótulo, plumón, texto y ticket (ver global.css).
+         swap = sin bloquear el render; el respaldo del sistema ya se parece. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Martian+Mono:wght@400;600&family=Permanent+Marker&family=Schibsted+Grotesk:wght@400;500;700;800&display=swap"
       rel="stylesheet"
     />
-
-    <!-- Navegación tipo app (View Transitions). Degrada a navegación normal
-         en navegadores sin la API; Astro provee fallback de animación. -->
-    <ClientRouter />
 
     <title>{metaTitle}</title>
     <meta name="description" content={metaDescription} />
@@ -115,967 +121,179 @@ const datosSitio = {
     <script type="application/ld+json" set:html={JSON.stringify(datosSitio)} />
   </head>
   <body>
-    <Header transition:persist />
+    <a class="saltar" href="#contenido">Saltar al contenido</a>
+    <Header />
 
-    <main class="kp-container">
+    <main id="contenido" class="principal">
       <slot />
     </main>
 
-    <!-- Boletín (doble opt-in, sin login) — site-wide antes del footer -->
+    <!-- Boletín (doble opt-in, sin login) — en todo el sitio, antes del pie -->
     <Newsletter />
 
-    <footer class="site-footer">
-      <div class="footer-content">
-        <nav class="footer-nav" aria-label="Navegación de pie de página">
+    <footer class="pie">
+      <div class="hoja pie-in">
+        <div class="pie-marca">
+          <p class="pie-logo rotulo">Kalida<span>Presio</span></p>
+          <p class="pie-lema plumon">Precios a la vista. Sin cuento.</p>
+        </div>
+        <nav class="pie-nav" aria-label="Pie de página">
           <a href="/">Inicio</a>
-          <a href="/ofertas">Ofertas por sección</a>
-          <a href="/sobre-mi">Quiénes somos</a>
+          <a href="/hoy">Ofertas de hoy</a>
+          <a href="/ofertas">Por presupuesto</a>
+          <a href="/buen-fin">Detector del Buen Fin</a>
+          <a href="/sobre-mi">Cómo calificamos</a>
           <a href="/contacto">Contacto</a>
           <a href="/privacidad">Aviso de privacidad</a>
         </nav>
         <!-- Divulgación honesta: los precios son una foto, no un contrato.
              La compra ocurre en ML a su precio; por eso pedimos verificar. -->
-        <p class="footer-disclaimer">
+        <p class="pie-aviso">
           En KalidaPresio elegimos a mano ofertas de Mercado Libre México y anotamos el día
           en que vimos cada precio. Los precios son una referencia de ese momento —
           <strong>verifica siempre el precio final en Mercado Libre antes de comprar</strong>.
           {GENERADO_EL && <SelloFrescura generadoEl={GENERADO_EL} variante="pie" punto />}
         </p>
-        <p class="footer-copy">&copy; {new Date().getFullYear()} KalidaPresio. Todos los derechos reservados.</p>
+        <p class="pie-aviso">
+          Participamos en el Programa de Afiliados de Mercado Libre: si compras por nuestros enlaces
+          recibimos una comisión, sin costo extra para ti. La comisión no cambia qué recomendamos.
+        </p>
+        <p class="pie-copy etiqueta">© {new Date().getFullYear()} KalidaPresio · Hecho en México</p>
       </div>
     </footer>
 
     <script>
-      import { formatearVendidos } from '../utils/mlPayload.js';
+      // ── Lo único que hace falta en el navegador ─────────────────────────────
+      // 1) Cuentas regresivas de relámpago ([data-countdown][data-fin]).
+      // 2) Relámpagos en vivo: el carrusel lee /data/relampago.json al abrir,
+      //    para no anunciar una que ya terminó aunque el HTML sea de ayer.
+      // 3) El enlace del menú de la página actual.
 
-      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const W = window as any;
+      const esc = (s: unknown) =>
+        String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+      const pesos = (n: number) =>
+        new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
 
-      // ════════════════════════════════════════════════════════════════
-      // GSAP DIFERIDO — 132 KB que no todo el mundo necesita.
-      //
-      // Antes se importaba de forma estática arriba de este script: el
-      // navegador descargaba y parseaba GSAP + ScrollTrigger en TODAS las
-      // páginas y sólo DESPUÉS se comprobaba prefers-reduced-motion para
-      // saltarse las animaciones. Quien las tiene desactivadas pagaba el
-      // bundle completo para no usarlo.
-      //
-      // Ahora: con reduced-motion no se descarga nunca; sin él, se carga en
-      // paralelo al primer initPage(). Todos los call sites ya estaban
-      // protegidos con `reduce` o comprueban que gsap exista, así que basta
-      // con esperar la promesa antes de animar.
-      // ════════════════════════════════════════════════════════════════
-      let gsap: any = null;
-      let ScrollTrigger: any = null;
-      let cargando: Promise<void> | null = null;
-
-      function cargarGsap(): Promise<void> {
-        if (reduce) return Promise.resolve();
-        if (gsap) return Promise.resolve();
-        if (!cargando) {
-          cargando = Promise.all([import('gsap'), import('gsap/ScrollTrigger')])
-            .then(([g, st]) => {
-              gsap = g.gsap;
-              ScrollTrigger = st.ScrollTrigger;
-              gsap.registerPlugin(ScrollTrigger);
-              // initHeroSpotlight comprueba window.gsap para decidir si anima.
-              W.gsap = gsap;
-            })
-            .catch((e) => {
-              // Sin GSAP el sitio sigue siendo perfectamente usable: el CSS ya
-              // deja el contenido visible. Solo se pierde el movimiento.
-              console.warn('[KalidaPresio] GSAP no se pudo cargar; se sigue sin animaciones.', e);
-            });
-        }
-        return cargando;
+      function restante(ms: number) {
+        if (ms <= 0) return 'terminó';
+        const s = Math.floor(ms / 1000);
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const seg = s % 60;
+        const dos = (n: number) => String(n).padStart(2, '0');
+        return `${h > 0 ? `${h}:` : ''}${dos(m)}:${dos(seg)}`;
       }
 
-      // ════════════════════════════════════════════════════════════════
-      // ANIMACIONES (GSAP) — entrada del hero, reveals en scroll, parallax.
-      // Con prefers-reduced-motion TODO se salta y el contenido aparece
-      // visible al instante (el CSS de [data-reveal].is-visible lo garantiza).
-      // ════════════════════════════════════════════════════════════════
-      async function initAnims() {
-        // Con reduced-motion se sale ANTES de tocar GSAP: así ni se descarga.
-        if (reduce) {
-          document.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-visible'));
-          return;
-        }
-
-        await cargarGsap();
-        if (!gsap) {
-          // GSAP no cargó (red caída, bloqueador): el contenido debe verse igual.
-          document.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-visible'));
-          return;
-        }
-
-        // Mata triggers Y loops de la página anterior (View Transitions
-        // re-monta el DOM: sin esto, los tweens viejos quedarían latiendo
-        // sobre nodos muertos).
-        ScrollTrigger.getAll().forEach((t: any) => t.kill());
-        (W.__kpLoops || []).forEach((t: any) => t.kill());
-        W.__kpLoops = [];
-
-        // --- Reveals en scroll: lotes con stagger, una sola vez ---
-        const reveals = gsap.utils.toArray('[data-reveal]:not(.is-visible)') as HTMLElement[];
-        if (reveals.length) {
-          ScrollTrigger.batch(reveals, {
-            start: 'top 88%',
-            once: true,
-            onEnter: (batch) =>
-              gsap.to(batch, {
-                opacity: 1,
-                y: 0,
-                scale: 1,
-                duration: 0.9,
-                ease: 'expo.out',
-                stagger: 0.09,
-                overwrite: true,
-                onComplete: () => batch.forEach((el) => (el as HTMLElement).classList.add('is-visible')),
-              }),
-          });
-        }
-
-        // --- Entrada del hero: líneas del título desde su máscara + cascada,
-        //     y el showpiece (Producto del día) entra desde la derecha con
-        //     pop del sello K-P. La media solo TRASLADA (sin opacity): así
-        //     la imagen LCP pinta de inmediato y la métrica no sufre. ---
-        const hero = document.querySelector('.hero-content:not([data-animado])') as HTMLElement | null;
-        if (hero) {
-          hero.setAttribute('data-animado', '');
-          const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
-          tl.from(hero.querySelector('.hero-badge'), { y: 22, opacity: 0, duration: 0.6 })
-            .from(hero.querySelectorAll('.hero-line'), { yPercent: 115, duration: 0.95, stagger: 0.14 }, '-=0.35')
-            .from(hero.querySelector('.hero-subtitulo'), { y: 18, opacity: 0, duration: 0.7 }, '-=0.55')
-            .from(hero.querySelectorAll('.hero-pill'), { y: 14, opacity: 0, duration: 0.5, stagger: 0.08 }, '-=0.5')
-            // Con la vitrina vacía, en lugar de las cifras va la frase .hero-vacio.
-            .from(hero.querySelector('.hero-stats, .hero-vacio'), { y: 16, opacity: 0, duration: 0.6 }, '-=0.35');
-
-          const show = document.querySelector('.hero-show');
-          if (show) {
-            tl.from(show.querySelector('.hs-media'), { x: 48, duration: 0.9 }, 0.25)
-              .from(show.querySelector('.hs-kp'), { scale: 0.4, opacity: 0, duration: 0.55, ease: 'back.out(1.8)' }, '-=0.45')
-              .from(show.querySelectorAll('.hs-datos > *'), { y: 14, opacity: 0, duration: 0.5, stagger: 0.07 }, '-=0.35');
+      function cuentas() {
+        const nodos = Array.from(document.querySelectorAll<HTMLElement>('[data-countdown][data-fin]'));
+        if (!nodos.length) return;
+        const pintar = () => {
+          const ahora = Date.now();
+          for (const n of nodos) {
+            const fin = Date.parse(n.dataset.fin || '');
+            if (Number.isNaN(fin)) continue;
+            n.textContent = restante(fin - ahora);
+            // Una relámpago que terminó se retira de la vista.
+            if (fin <= ahora) n.closest('[data-relampago-item]')?.remove();
           }
-        }
-
-        // ── PERPETUAS (viven todo el tiempo, no solo al entrar) ──────────
-
-        // Idle: el producto del día flota lento (senoidal, yoyo infinito)
-        const hsImg = document.querySelector('.hs-img');
-        if (hsImg) {
-          W.__kpLoops.push(
-            gsap.to(hsImg, { y: -9, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: -1 })
-          );
-        }
-
-        // Parallax de mouse del showpiece: quickTo cacheado por página
-        const hsMedia = document.querySelector('.hs-media') as HTMLElement | null;
-        W.__hsQuick = hsMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches
-          ? {
-              x: gsap.quickTo(hsMedia, 'x', { duration: 0.6, ease: 'power3' }),
-              y: gsap.quickTo(hsMedia, 'y', { duration: 0.6, ease: 'power3' }),
-            }
-          : null;
-
-        // Scroll-linked: capas que "responden" al scroll (scrub), con
-        // restraint — solo bento (5 imágenes) y títulos de sección, no las
-        // 40+ del catálogo (sería ruido visual y costo en móvil).
-        const bhImg = document.querySelector('.bh-img');
-        if (bhImg) {
-          gsap.to(bhImg, {
-            yPercent: -7,
-            ease: 'none',
-            scrollTrigger: { trigger: '.bento-hero', start: 'top bottom', end: 'bottom top', scrub: 0.6 },
-          });
-        }
-        gsap.utils.toArray('.bt-img').forEach((img: any) => {
-          gsap.fromTo(img, { y: 8 }, {
-            y: -8,
-            ease: 'none',
-            scrollTrigger: { trigger: img.closest('.bento-tile'), start: 'top bottom', end: 'bottom top', scrub: 0.8 },
-          });
-        });
-        gsap.utils.toArray('.titulo-seccion').forEach((t: any) => {
-          gsap.fromTo(t, { y: 18 }, {
-            y: -6,
-            ease: 'none',
-            scrollTrigger: { trigger: t, start: 'top bottom', end: 'top 30%', scrub: 0.7 },
-          });
-        });
-      }
-
-      // --- Parallax de mouse (showpiece): un único pointermove delegado ---
-      function bindShowParallax() {
-        if (W.__kpShowPar || reduce) return;
-        W.__kpShowPar = true;
-        document.addEventListener('pointermove', (e) => {
-          const q = W.__hsQuick;
-          if (!q) return;
-          // Solo reacciona con el cursor dentro del hero (no en toda la página)
-          if (!(e.target as HTMLElement).closest?.('.banner-estacional')) { q.x(0); q.y(0); return; }
-          q.x((e.clientX / window.innerWidth - 0.5) * 14);
-          q.y((e.clientY / window.innerHeight - 0.5) * 10);
-        }, { passive: true });
-      }
-
-      // --- Magnetic buttons: el CTA principal sigue ligeramente al cursor ---
-      function bindMagnetic() {
-        if (W.__kpMag || reduce) return;
-        if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-        W.__kpMag = true;
-        let activo: HTMLElement | null = null;
-        const soltar = (el: HTMLElement) =>
-          gsap.to(el, { x: 0, y: 0, duration: 0.5, ease: 'elastic.out(1, 0.45)' });
-        document.addEventListener('pointermove', (e) => {
-          if (!gsap) return; // aún cargando: sin imán, pero el CTA funciona
-          const el = (e.target as HTMLElement).closest?.('[data-magnetic]') as HTMLElement | null;
-          if (activo && activo !== el) { soltar(activo); activo = null; }
-          if (!el) return;
-          activo = el;
-          const r = el.getBoundingClientRect();
-          // Atracción suave hacia el cursor, con tope (nunca "persigue")
-          const dx = (e.clientX - (r.left + r.width / 2)) * 0.22;
-          const dy = (e.clientY - (r.top + r.height / 2)) * 0.22;
-          gsap.to(el, {
-            x: Math.max(-8, Math.min(8, dx)),
-            y: Math.max(-6, Math.min(6, dy)),
-            duration: 0.35,
-            ease: 'power3.out',
-          });
-        }, { passive: true });
-        document.addEventListener('pointerleave', () => { if (activo) { soltar(activo); activo = null; } }, true);
-      }
-
-      // --- Reseña K-P: revela el panel sobre la imagen de cada card.
-      //     Desktop: hover. Móvil/táctil: tap sobre la imagen (delegado).
-      //     El panel es absoluto → CERO layout shift. ---
-      function toggleResena(card: HTMLElement, abrir: boolean) {
-        const panel = card.querySelector('[data-resena]') as HTMLElement | null;
-        if (!panel) return;
-        card.toggleAttribute('data-resena-open', abrir);
-        if (reduce || !gsap) {
-          // Sin animación: aparece/desaparece al instante
-          panel.style.opacity = abrir ? '1' : '0';
-          panel.style.visibility = abrir ? 'visible' : 'hidden';
-          panel.style.transform = 'none';
-          return;
-        }
-        if (abrir) {
-          // fromTo: fija el punto de partida en píxeles (slide+fade desde abajo)
-          gsap.fromTo(panel,
-            { autoAlpha: 0, y: 18 },
-            { autoAlpha: 1, y: 0, duration: 0.45, ease: 'expo.out', overwrite: true });
-        } else {
-          gsap.to(panel, { autoAlpha: 0, y: 18, duration: 0.28, ease: 'power2.in', overwrite: true });
-        }
-      }
-
-      function initResenas() {
-        const conHover = window.matchMedia('(hover: hover)').matches;
-        document.querySelectorAll('.oferta-card:not([data-resena-bound])').forEach((el) => {
-          const card = el as HTMLElement;
-          if (!card.querySelector('[data-resena]')) return;
-          card.setAttribute('data-resena-bound', '');
-          if (conHover && !reduce) {
-            card.addEventListener('mouseenter', () => toggleResena(card, true));
-            card.addEventListener('mouseleave', () => toggleResena(card, false));
-          }
-        });
-      }
-
-      // Equivalente táctil: tap en la IMAGEN alterna el panel (los enlaces,
-      // botones y el sello K-P conservan su gesto propio).
-      function bindResenaTap() {
-        if (W.__kpResTap) return;
-        W.__kpResTap = true;
-        document.addEventListener('click', (e) => {
-          const t = e.target as HTMLElement;
-          if (t.closest('a, button, [data-kp-tip]')) return;
-          const media = t.closest('.oferta-media');
-          const card = media?.closest('.oferta-card') as HTMLElement | null;
-          if (!card || !card.querySelector('[data-resena]')) return;
-          const abierto = card.hasAttribute('data-resena-open');
-          // Cierra cualquier otra reseña abierta antes de abrir esta
-          document.querySelectorAll('.oferta-card[data-resena-open]').forEach((c) => {
-            if (c !== card) toggleResena(c as HTMLElement, false);
-          });
-          toggleResena(card, !abierto);
-        });
-      }
-
-      // --- Pestaña oculta: pausa TODO el movimiento GSAP (batería/CPU) ---
-      function bindVisibility() {
-        if (W.__kpVis) return;
-        W.__kpVis = true;
-        document.addEventListener('visibilitychange', () => {
-          if (!gsap) return; // con reduced-motion no hay timeline que pausar
-          if (document.hidden) gsap.globalTimeline.pause();
-          else gsap.globalTimeline.resume();
-        });
-      }
-
-      // --- Conteo animado de números (hero) ---
-      function initCountUp() {
-        document.querySelectorAll('[data-countup]:not([data-done])').forEach((el) => {
-          const node = el as HTMLElement;
-          node.setAttribute('data-done', '');
-          const target = parseFloat(node.getAttribute('data-countup') || '0') || 0;
-          const suffix = node.getAttribute('data-suffix') || '';
-          if (reduce) { node.textContent = target.toLocaleString('es-MX') + suffix; return; }
-          const io = new IntersectionObserver((entries, obs) => {
-            entries.forEach((e) => {
-              if (!e.isIntersecting) return;
-              obs.unobserve(node);
-              const dur = 1100, t0 = performance.now();
-              const tick = (now: number) => {
-                const p = Math.min((now - t0) / dur, 1);
-                const eased = 1 - Math.pow(1 - p, 3);
-                node.textContent = Math.round(target * eased).toLocaleString('es-MX') + suffix;
-                if (p < 1) requestAnimationFrame(tick);
-              };
-              requestAnimationFrame(tick);
-            });
-          }, { threshold: 0.5 });
-          io.observe(node);
-        });
-      }
-
-      // --- Cuenta regresiva de ofertas relámpago (un único intervalo global) ---
-      function initCountdowns() {
-        if (W.__kpTimer) { clearInterval(W.__kpTimer); W.__kpTimer = null; }
-        const els = Array.from(document.querySelectorAll('[data-countdown]')) as HTMLElement[];
-        if (!els.length) return;
-        const p2 = (n: number) => String(n).padStart(2, '0');
-        const fmt = (ms: number) => {
-          if (ms <= 0) return null;
-          const s = Math.floor(ms / 1000);
-          const d = Math.floor(s / 86400);
-          const h = Math.floor((s % 86400) / 3600);
-          const m = Math.floor((s % 3600) / 60);
-          return d > 0 ? `${d}d ${p2(h)}:${p2(m)}:${p2(s % 60)}` : `${p2(h)}:${p2(m)}:${p2(s % 60)}`;
         };
-        const update = () => {
-          const now = Date.now();
-          els.forEach((el) => {
-            const txt = fmt(new Date(el.getAttribute('data-fin') || '').getTime() - now);
-            if (txt === null) {
-              // La oferta expirada se RETIRA (nunca se queda como "Finalizada");
-              // del ticker la saca initRail en su siguiente rebuild.
-              const card = el.closest('.oferta-card') as HTMLElement | null;
-              if (card) card.style.display = 'none';
-            } else {
-              el.textContent = txt;
-            }
-          });
-        };
-        update();
-        W.__kpTimer = setInterval(update, 1000);
+        pintar();
+        setInterval(pintar, 1000);
       }
 
-      // --- Leyenda del Sello K-P: equivalente táctil del hover ---
-      // Delegado en document: sobrevive a View Transitions y a re-renders del rail.
-      function bindKpTips() {
-        if (W.__kpTips) return;
-        W.__kpTips = true;
-        const cerrar = (excepto?: Element | null) => {
-          document.querySelectorAll('[data-kp-tip].is-open').forEach((el) => {
-            if (el !== excepto) { el.classList.remove('is-open'); el.setAttribute('aria-expanded', 'false'); }
-          });
-        };
-        document.addEventListener('click', (e) => {
-          const tip = (e.target as HTMLElement).closest('[data-kp-tip]');
-          cerrar(tip); // tocar fuera (o en otro sello) cierra el resto
-          if (tip) {
-            const abierto = tip.classList.toggle('is-open');
-            tip.setAttribute('aria-expanded', String(abierto));
-          }
-        });
-        document.addEventListener('keydown', (e) => {
-          if (e.key === 'Escape') { cerrar(); return; }
-          // Enter/Espacio sobre el sello enfocado = mismo toggle que el tap
-          if ((e.key === 'Enter' || e.key === ' ') && (document.activeElement as HTMLElement)?.hasAttribute?.('data-kp-tip')) {
-            e.preventDefault();
-            (document.activeElement as HTMLElement).click();
-          }
-        });
-      }
-
-      // --- Link activo del nav (el header se persiste entre navegaciones) ---
-      function initNavActive() {
-        const path = location.pathname.replace(/\/$/, '') || '/';
-        document.querySelectorAll('.nav-link').forEach((a) => {
-          const href = ((a as HTMLAnchorElement).getAttribute('href') || '').replace(/\/$/, '') || '/';
-          a.classList.toggle('active', href === path);
-        });
-      }
-
-      // ════════════════════════════════════════════════════════════════
-      // RELÁMPAGO — DATOS EN RUNTIME (Bloque B / KP-005).
-      // Descarga el JSON desde data-rs-url (PUBLIC_RELAMPAGO_URL), filtra las
-      // vencidas (endsAt < now), pinta las cards con el MISMO markup del
-      // componente y delega en initRelampago() (countdown + loop + auto-retiro).
-      // Estados: skeleton (SSR) → items | vacío | error. Imbatibles intacto.
-      // ════════════════════════════════════════════════════════════════
-      const KP_LEYENDA = 'Sello Kalidad-Precio: combina la calidad real según los compradores con el descuento real. Mientras más alto, mejor es la compra.';
-      const esc = (s: any) => String(s ?? '').replace(/[&<>"']/g, (c) =>
-        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
-      const fmtMXN = (n: number) =>
-        new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
-
-      // El link de cada card es el oficial de la vitrina y se pinta TAL CUAL:
-      // editarlo (sufijos, parámetros) es lo que hacía que ML no atribuyera la
-      // compra. La sección de la que sale el clic va en data-kp-seccion.
-      //
-      // Cuándo se retira: `endsAt` es la hora de fin REAL (hay cuenta
-      // regresiva); `caduca` es el retiro de seguridad de una relámpago sin
-      // hora conocida (sin cuenta regresiva: no se inventa una).
-      const finDe = (o: any) => o.endsAt || o.caduca || '';
-
-      // Card del rail (vertical). Mapea el schema runtime (camelCase) al markup.
-      // Mismos data-* que llevan las TarjetaOferta del SSG. El listener de
-      // analítica los busca con closest() desde el enlace, así que colgarlos
-      // del <li> basta para las dos plantillas. Sin esto, los clics de
-      // relámpago llegaban a Umami sin precio ni score y el conjunto quedaba
-      // desparejo — que invita a conclusiones falsas más que la falta de datos.
-      const datosCard = (o: any) =>
-        ` data-ml-id="${esc(o.id ?? '')}"`
-        + ` data-precio="${Number(o.precioActual) || 0}"`
-        + ` data-kp="${Math.round(Number(o.scoreKP) || 0)}"`
-        + ` data-descuento="${Math.round(Number(o.descuentoReal) || 0)}"`
-        + (o.categoria ? ` data-cat="${esc(o.categoria)}"` : '');
-
-      function cardRail(o: any) {
-        const d = Math.round(o.descuentoReal || 0);
-        const img = o.imagen
-          ? `<img src="${esc(o.imagen)}" alt="${esc(o.titulo)}" loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">`
-          : '';
-        return `<li class="rs-item" data-fin="${esc(finDe(o))}"${datosCard(o)}><article class="rs-card">`
-          + `<div class="rs-media">${img}<span class="rs-img-fallback"${o.imagen ? ' style="display:none"' : ''} aria-hidden="true">⚡</span>`
-          + (d > 0 ? `<span class="rs-desc">-${d}%</span>` : '')
-          + `<span class="rs-kp" title="${esc(KP_LEYENDA)}"><strong>${Math.round(o.scoreKP || 0)}</strong><em>K-P</em></span></div>`
-          + (o.endsAt ? `<span class="rs-count">⏱ Termina en <strong data-rs-count data-fin="${esc(o.endsAt)}">—</strong></span>` : '')
-          + `<h3 class="rs-titulo">${esc(o.titulo)}</h3>`
-          + `<div class="rs-precios"><span class="rs-precio">${fmtMXN(o.precioActual)}</span>${d > 0 ? `<em class="rs-ahorro">-${d}%</em>` : ''}</div>`
-          + `<a class="rs-cta" href="${esc(o.urlAfiliado)}" data-kp-seccion="relampago" target="_blank" rel="nofollow sponsored noopener noreferrer">Ver oferta →</a>`
-          + `</article></li>`;
-      }
-      // Card de la franja móvil (horizontal compacta).
-      function cardMini(o: any) {
-        const d = Math.round(o.descuentoReal || 0);
-        const img = o.imagen
-          ? `<img src="${esc(o.imagen)}" alt="${esc(o.titulo)}" loading="lazy" class="rs-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">`
-          : '';
-        return `<li class="rs-fila-item" data-fin="${esc(finDe(o))}"${datosCard(o)}><a class="rs-mini" href="${esc(o.urlAfiliado)}" data-kp-seccion="relampago" target="_blank" rel="nofollow sponsored noopener noreferrer">`
-          + `<span class="rs-mini-media">${img}<span class="rs-img-fallback"${o.imagen ? ' style="display:none"' : ''} aria-hidden="true">⚡</span></span>`
-          + `<span class="rs-mini-info"><span class="rs-mini-titulo">${esc(o.titulo)}</span>`
-          + `<span class="rs-mini-fila"><strong class="rs-precio">${fmtMXN(o.precioActual)}</strong>${d > 0 ? `<em class="rs-ahorro">-${d}%</em>` : ''}</span>`
-          + (o.endsAt ? `<span class="rs-count">⏱ <strong data-rs-count data-fin="${esc(o.endsAt)}">—</strong></span>` : '')
-          + `</span><span class="rs-mini-cta" aria-hidden="true">Ver oferta →</span></a></li>`;
-      }
-
-      async function initRelampagoFetch() {
-        const zonas = Array.from(document.querySelectorAll('[data-rs-url]')) as HTMLElement[];
-        // Once-per-DOM: evita doble fetch si initPage corre 2x en la carga
-        // inicial. Tras una View Transition, el DOM es nuevo (sin la marca) → refetch.
-        if (!zonas.length || W.__rsFetching || zonas[0].hasAttribute('data-rs-fetched')) return;
-        zonas.forEach((z) => z.setAttribute('data-rs-fetched', ''));
-        const url = zonas[0].getAttribute('data-rs-url') || '/data/relampago.json';
-        W.__rsFetching = true;
-
-        // Estado de error/vacío reutilizable: oculta skeleton, muestra mensaje.
-        const mostrarVacio = () => {
-          zonas.forEach((z) => {
-            (z.querySelector('[data-rs-skel]') as HTMLElement | null)?.setAttribute('hidden', '');
-            const vacio = z.querySelector('[data-rs-vacio]') as HTMLElement | null;
-            if (vacio) vacio.hidden = false;
-          });
-        };
-
+      async function relampagos() {
+        const zona = document.querySelector<HTMLElement>('[data-relampago]');
+        if (!zona) return;
+        const lista = zona.querySelector<HTMLElement>('[data-relampago-lista]');
         try {
-          const res = await fetch(url, { cache: 'no-store' });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
-          const lote = Array.isArray(data?.ofertas) ? data.ofertas : [];
-          const now = Date.now();
-          // Filtra vencidas (fin real o retiro de seguridad < now). Sin ninguno
-          // de los dos → se mantiene (sin countdown).
-          const vivas = lote
-            .filter((o: any) => !finDe(o) || new Date(finDe(o)).getTime() > now)
-            .sort((a: any, b: any) => (b.scoreKP || 0) - (a.scoreKP || 0));
-
-          // Stat del hero (runtime): muestra el conteo si hay vivas
-          const n = vivas.length;
-          document.querySelectorAll('[data-relampago-stat]').forEach((el) => (el.textContent = String(n)));
-          document.querySelectorAll('[data-relampago-statwrap]').forEach((el) => ((el as HTMLElement).hidden = n === 0));
-
-          // "Precios detectados el…" (timestamp del lote, formateado es-MX)
-          let detectadoTxt = '';
-          if (data?.detectadoEl) {
-            const f = new Date(data.detectadoEl);
-            if (!Number.isNaN(f.getTime())) {
-              detectadoTxt = 'Precios vistos el ' + f.toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' });
-            }
-          }
-
-          zonas.forEach((zona) => {
-            const modo = zona.getAttribute('data-rs-mode');
-            const track = zona.querySelector('[data-rs-track]') as HTMLElement | null;
-            const skel = zona.querySelector('[data-rs-skel]') as HTMLElement | null;
-            const vacio = zona.querySelector('[data-rs-vacio]') as HTMLElement | null;
-            const det = zona.querySelector('[data-rs-detectado]') as HTMLElement | null;
-            if (skel) skel.hidden = true;
-            if (n === 0) {
-              if (track) track.hidden = true;
-              if (vacio) vacio.hidden = false;
-              if (det) det.hidden = true;
-              return;
-            }
-            if (track) {
-              track.innerHTML = vivas.map(modo === 'strip' ? cardMini : cardRail).join('');
-              track.hidden = false;
-            }
-            if (vacio) vacio.hidden = true;
-            if (det && detectadoTxt) { det.textContent = detectadoTxt; det.hidden = false; }
-          });
-          // SPOTLIGHT del hero: rota por las MISMAS ofertas frescas (precio del feed).
-          initHeroSpotlight(vivas);
-        } catch (err) {
-          // Degrada elegante: el resto de la página no se rompe.
-          console.error('[relámpago] no se pudo cargar la fuente runtime:', err);
-          mostrarVacio();
-        } finally {
-          W.__rsFetching = false;
-          // Cablea countdown + loop GSAP + auto-retiro sobre el DOM ya pintado.
-          initRelampago();
-        }
+          const r = await fetch(zona.dataset.rsUrl || '/data/relampago.json', { cache: 'no-cache' });
+          const datos = await r.json();
+          const ahora = Date.now();
+          const vivas = (datos?.ofertas ?? []).filter((o: any) => Date.parse(o.endsAt || o.caduca || '') > ahora).slice(0, 8);
+          if (!vivas.length || !lista) return;
+          lista.innerHTML = vivas.map((o: any, i: number) => `
+            <article class="rel-carta anima-pegar" data-relampago-item style="--i:${i};--giro:${i % 2 ? 1.4 : -1.2}deg">
+              ${o.imagen ? `<img src="${esc(o.imagen)}" alt="" width="96" height="96" loading="lazy">` : ''}
+              <div class="rel-datos">
+                <p class="rel-titulo">${esc(o.titulo)}</p>
+                <p class="rel-precio"><span class="plumon">${pesos(o.precioActual)}</span>${o.precioOriginal ? ` <s class="tache">${pesos(o.precioOriginal)}</s>` : ''}</p>
+                ${o.endsAt ? `<p class="etiqueta">Termina en <b data-countdown data-fin="${esc(o.endsAt)}">—</b></p>` : ''}
+                <a class="boton boton--chico" href="${esc(o.urlAfiliado)}" target="_blank" rel="nofollow sponsored noopener noreferrer"
+                   data-ml-id="${esc(o.id)}" data-kp-seccion="relampago" data-precio="${Number(o.precioActual) || 0}"
+                   data-kp="${Number(o.scoreKP) || 0}" data-descuento="${Number(o.descuentoReal) || 0}">Ver la relámpago</a>
+              </div>
+            </article>`).join('');
+          zona.hidden = false;
+          cuentas();
+        } catch { /* sin relámpagos: la sección se queda escondida */ }
       }
 
-      // ════════════════════════════════════════════════════════════════
-      // SPOTLIGHT EN VIVO DEL HERO — rota por las ofertas frescas del feed.
-      // Resuelve: el hero ya no se queda fijo ni con precio viejo; muestra la
-      // oferta más reciente y CAMBIA cada ~5.5s con transición GSAP. El SSR
-      // pinta la mejor (LCP); aquí mutamos los nodos existentes (incluido el
-      // anillo K-P y las estrellas SSR, cuyo CSS scoped ya aplica). Pausa al
-      // hover, dots clicables, pausa con pestaña oculta, respeta reduced-motion.
-      // ════════════════════════════════════════════════════════════════
-      function initHeroSpotlight(vivas: any[]) {
-        const host = document.querySelector('[data-hero-spotlight]') as HTMLElement | null;
-        if (!host || !Array.isArray(vivas) || vivas.length === 0) return;
-        if (W.__heroTimer) { clearInterval(W.__heroTimer); W.__heroTimer = null; }
-
-        const items = vivas.slice(0, 6); // tope de 6 para no saturar los dots
-        const q = (s: string) => host.querySelector(s) as HTMLElement | null;
-        const elImg = q('.hs-img') as HTMLImageElement | null;
-        const elDesc = q('.hs-desc');
-        const elTit = q('.hs-titulo');
-        const elPrecio = q('.hs-precio');
-        const elPrev = q('.hs-prev');
-        const sello = q('.kp-sello');
-        const ring = host.querySelector('.kp-ring-progress');
-        const num = q('.kp-num');
-        const stars = q('.estrellas');
-        const ratingNum = q('.hs-rating strong');
-        const ratingOp = q('.hs-rating em');
-        const cta = q('.cta-button') as HTMLAnchorElement | null;
-        const count = q('[data-hero-count]');
-        const dots = q('[data-hero-dots]');
-        const media = q('.hs-media');
-        const datos = q('.hs-datos');
-
-        const restante = (iso: string) => {
-          const ms = new Date(iso).getTime() - Date.now();
-          if (ms <= 0) return null;
-          const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60);
-          return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m % 60}m` : `${Math.max(m, 1)}m`;
-        };
-        const kpColor = (s: number) => (s >= 70 ? '#1fd28e' : s >= 55 ? '#e9b86d' : '#ff6b6b');
-        const circ = sello ? (parseFloat(getComputedStyle(sello).getPropertyValue('--kp-circ')) || 216) : 216;
-
-        if (dots) {
-          dots.innerHTML = items.map((_, i) =>
-            `<button class="hs-dot" type="button" data-i="${i}" role="tab" aria-label="Oferta ${i + 1} de ${items.length}"></button>`).join('');
-        }
-
-        const aplicar = (o: any, i: number) => {
-          const d = Math.round(o.descuentoReal || 0);
-          if (elImg) { elImg.src = o.imagen || ''; elImg.alt = o.titulo || ''; elImg.style.visibility = ''; }
-          if (elDesc) { elDesc.textContent = `-${d}%`; elDesc.style.display = d > 0 ? '' : 'none'; }
-          if (elTit) elTit.textContent = o.titulo || '';
-          if (elPrecio) elPrecio.textContent = fmtMXN(o.precioActual);
-          if (elPrev) {
-            if (o.precioOriginal) { elPrev.textContent = fmtMXN(o.precioOriginal); elPrev.style.display = ''; }
-            else elPrev.style.display = 'none';
-          }
-          const s = Math.round(o.scoreKP || 0), col = kpColor(s);
-          if (sello) { sello.style.setProperty('--kp-offset', (circ * (1 - s / 100)).toFixed(2) + 'px'); sello.style.setProperty('--kp-color', col); }
-          if (ring) ring.setAttribute('stroke', col);
-          if (num) { num.textContent = String(s); num.style.color = col; }
-          if (stars) {
-            stars.style.setProperty('--fill', ((Math.max(0, Math.min(5, o.rating || 0)) / 5) * 100) + '%');
-            stars.setAttribute('aria-label', `${(o.rating || 0).toFixed(1)} de 5 estrellas`);
-          }
-          if (ratingNum) ratingNum.textContent = (o.rating || 0).toFixed(1);
-          if (ratingOp) ratingOp.textContent = formatearVendidos(o.vendidos);
-          if (cta) {
-            cta.setAttribute('href', o.urlAfiliado || '#');
-            cta.setAttribute('data-kp-seccion', 'hero');
-            // Los data-* viajan CON el producto: el rotador cambia de oferta
-            // cada pocos segundos, así que unos valores fijos en el HTML
-            // mentirían en cuanto rotara. Se refrescan aquí, junto al href.
-            cta.setAttribute('data-ml-id', String(o.id ?? ''));
-            cta.setAttribute('data-precio', String(Number(o.precioActual) || 0));
-            cta.setAttribute('data-kp', String(Math.round(Number(o.scoreKP) || 0)));
-            cta.setAttribute('data-descuento', String(d));
-            if (o.categoria) cta.setAttribute('data-cat', String(o.categoria));
-          }
-          if (count) { const r = o.endsAt ? restante(o.endsAt) : null; count.textContent = r ? `⏱ Termina en ${r}` : ''; count.hidden = !r; }
-          if (dots) dots.querySelectorAll('.hs-dot').forEach((b, bi) => {
-            b.classList.toggle('is-active', bi === i);
-            b.setAttribute('aria-selected', String(bi === i));
-          });
-        };
-
-        let idx = 0;
-        const pintar = (i: number, animar: boolean) => {
-          idx = ((i % items.length) + items.length) % items.length;
-          const o = items[idx];
-          if (animar && !reduce && (window as any).gsap && media && datos) {
-            gsap.to([media, datos], {
-              opacity: 0, y: 6, duration: 0.22, ease: 'power2.in',
-              onComplete: () => {
-                aplicar(o, idx);
-                gsap.fromTo([media, datos], { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: 0.4, ease: 'expo.out' });
-              },
-            });
-          } else {
-            aplicar(o, idx);
-          }
-        };
-
-        pintar(0, false); // primera: instantáneo (ya hay SSR → sin parpadeo)
-
-        const arrancar = () => {
-          if (reduce || items.length < 2) return;
-          W.__heroTimer = setInterval(() => {
-            if (!document.hidden && !(host as any).__pausado) pintar(idx + 1, true);
-          }, 5500);
-        };
-        arrancar();
-
-        // Pausa al hover/foco (para leer/clicar); dots saltan a una oferta.
-        host.addEventListener('mouseenter', () => ((host as any).__pausado = true));
-        host.addEventListener('mouseleave', () => ((host as any).__pausado = false));
-        host.addEventListener('focusin', () => ((host as any).__pausado = true));
-        host.addEventListener('focusout', () => ((host as any).__pausado = false));
-        if (dots) dots.addEventListener('click', (e) => {
-          const b = (e.target as HTMLElement).closest('.hs-dot') as HTMLElement | null;
-          if (!b) return;
-          pintar(parseInt(b.getAttribute('data-i') || '0', 10), true);
+      function menuActivo() {
+        const aqui = location.pathname.replace(/\/$/, '') || '/';
+        document.querySelectorAll<HTMLAnchorElement>('[data-menu] a[href]').forEach((a) => {
+          const destino = (a.getAttribute('href') || '').replace(/\/$/, '') || '/';
+          if (destino === aqui) a.setAttribute('aria-current', 'page');
         });
       }
 
-      // ════════════════════════════════════════════════════════════════
-      // RELÁMPAGO (RelampagoSticky): auto-retiro + countdown + cola GSAP.
-      //  · purgar(): por item compara data-fin (ISO) contra new Date(); si
-      //    venció, el <li> se RETIRA del DOM (cero CLS: nada se reacomoda
-      //    con animación de layout, el loop solo usa transform). Actualiza
-      //    el "Termina en 2h 15m" y el contador de la cabecera. Corre al
-      //    cargar, cada minuto y antes de cada paso del loop.
-      //  · Loop de cola (solo rail desktop): cada ~4.6 s el item de arriba
-      //    sube y sale, se re-encola al final; pausa al hover y con la
-      //    pestaña oculta; apagado con prefers-reduced-motion.
-      // ════════════════════════════════════════════════════════════════
-      function initRelampago() {
-        // Limpia timers de la página anterior (View Transitions re-monta el DOM)
-        if (W.__rsMin) { clearInterval(W.__rsMin); W.__rsMin = null; }
-        if (W.__rsStep) { clearTimeout(W.__rsStep); W.__rsStep = null; }
-        const zonas = Array.from(document.querySelectorAll('[data-relampago-zona]')) as HTMLElement[];
-        if (!zonas.length) return;
-
-        // La franja móvil arranca SIEMPRE colapsada (tap revela); solo en la
-        // primera init por página — los toggles del usuario se respetan.
-        zonas.forEach((z) => {
-          if (z instanceof HTMLDetailsElement && !z.hasAttribute('data-rs-norm')) {
-            z.setAttribute('data-rs-norm', '');
-            z.open = false;
-          }
-        });
-
-        // "Termina en 2h 15m" — legible, se refresca por minuto
-        const fmtRest = (ms: number) => {
-          const m = Math.floor(ms / 60000);
-          const d = Math.floor(m / 1440);
-          const h = Math.floor((m % 1440) / 60);
-          return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m % 60}m` : `${Math.max(m, 1)}m`;
-        };
-
-        const purgar = () => {
-          const now = Date.now();
-          zonas.forEach((zona) => {
-            let vivos = 0;
-            // Solo los <li> de oferta (el <strong> del countdown también lleva
-            // data-fin para initCountdowns: no debe contarse ni retirarse solo)
-            zona.querySelectorAll('li[data-fin]').forEach((el) => {
-              const li = el as HTMLElement;
-              const fin = new Date(li.getAttribute('data-fin') || '').getTime();
-              if (!fin || Number.isNaN(fin)) { vivos++; return; } // sin fin → vive
-              if (fin <= now) { li.remove(); return; }            // vencida → fuera
-              vivos++;
-              const c = li.querySelector('[data-rs-count]');
-              if (c) c.textContent = fmtRest(fin - now);
-            });
-            // Contador dinámico de la cabecera + estado vacío (copy fijo)
-            const contador = zona.querySelector('[data-rs-contador]');
-            if (contador) contador.textContent = String(vivos);
-            const vacio = zona.querySelector('[data-rs-vacio]') as HTMLElement | null;
-            if (vacio) vacio.hidden = vivos > 0;
-            const lista = zona.querySelector('.rs-viewport, .rs-fila') as HTMLElement | null;
-            if (lista) lista.style.display = vivos > 0 ? '' : 'none';
-          });
-        };
-        purgar();
-        W.__rsMin = setInterval(purgar, 60000);
-
-        // ── Loop de cola (solo el rail vertical, solo con movimiento permitido)
-        const rail = document.querySelector('[data-rs-queue]') as HTMLElement | null;
-        // Sin GSAP (reduced-motion o carga fallida) la cola simplemente no rota:
-        // el rail sigue mostrando sus items, que es lo que importa.
-        if (!rail || reduce || !gsap) return;
-        const track = rail.querySelector('[data-rs-track]') as HTMLElement | null;
-        if (!track) return;
-
-        let pausado = false;
-        rail.addEventListener('mouseenter', () => { pausado = true; });
-        rail.addEventListener('mouseleave', () => { pausado = false; });
-
-        const programar = () => { W.__rsStep = setTimeout(paso, 2500); };
-        const paso = () => {
-          purgar(); // si algo venció a mitad de ciclo, se salta sin esperar al minuto
-          const items = Array.from(track.children) as HTMLElement[];
-          if (document.hidden || pausado || items.length < 2) { programar(); return; }
-          const primero = items[0];
-          const salto = primero.offsetHeight + parseFloat(getComputedStyle(primero).marginBottom || '0');
-          gsap.to(track, {
-            y: -salto,
-            duration: 0.75,
-            ease: 'power3.inOut',
-            onComplete: () => {
-              track.appendChild(primero); // el de arriba pasa al final de la cola
-              gsap.set(track, { y: 0 });
-              programar();
-            },
-          });
-        };
-        programar();
-      }
-
-      // --- Spotlight: el glow sigue el cursor sobre cualquier [data-spotlight] ---
-      function bindSpotlight() {
-        if (W.__kpSpot || reduce) return;
-        W.__kpSpot = true;
-        document.addEventListener('pointermove', (e) => {
-          const el = (e.target as HTMLElement).closest('[data-spotlight]') as HTMLElement | null;
-          if (!el) return;
-          const r = el.getBoundingClientRect();
-          el.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
-          el.style.setProperty('--my', `${((e.clientY - r.top) / r.height) * 100}%`);
-        }, { passive: true });
-      }
-
-      // --- Ripple: círculo de luz desde el punto de contacto (tap o clic) ---
-      // Delegado y único; pointerdown cubre mouse + touch con feedback inmediato.
-      function bindRipple() {
-        if (W.__kpRipple || reduce) return;
-        W.__kpRipple = true;
-        document.addEventListener('pointerdown', (e) => {
-          const host = (e.target as HTMLElement).closest('[data-ripple]') as HTMLElement | null;
-          if (!host) return;
-          const r = host.getBoundingClientRect();
-          const ripple = document.createElement('span');
-          ripple.className = 'kp-ripple';
-          ripple.style.left = `${(e as PointerEvent).clientX - r.left}px`;
-          ripple.style.top = `${(e as PointerEvent).clientY - r.top}px`;
-          host.appendChild(ripple);
-          ripple.addEventListener('animationend', () => ripple.remove());
-        }, { passive: true });
-      }
-
-      // --- Tilt 3D: el elemento se inclina hacia el cursor (solo puntero fino) ---
-      // Un único pointermove delegado; se resetea al salir. Máx 4° → premium, no mareo.
-      function bindTilt() {
-        if (W.__kpTilt || reduce) return;
-        if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-        W.__kpTilt = true;
-        let active: HTMLElement | null = null;
-        const reset = (el: HTMLElement) => { el.style.transform = ''; };
-        document.addEventListener('pointermove', (e) => {
-          const el = (e.target as HTMLElement).closest('[data-tilt]') as HTMLElement | null;
-          if (active && active !== el) { reset(active); active = null; }
-          if (!el) return;
-          active = el;
-          const r = el.getBoundingClientRect();
-          const px = (e.clientX - r.left) / r.width;   // 0..1
-          const py = (e.clientY - r.top) / r.height;   // 0..1
-          const max = 4;                               // grados máximos
-          const ry = (px - 0.5) * max * 2;             // giro horizontal
-          const rx = (0.5 - py) * max * 2;             // giro vertical
-          el.style.transform = `perspective(900px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
-        }, { passive: true });
-        // Si el puntero sale de la ventana, deshace la inclinación
-        document.addEventListener('pointerleave', () => { if (active) { reset(active); active = null; } }, true);
-      }
-
-      // --- Filtros por categoría (chips que reordenan el grid con animación) ---
-      function initFiltros() {
-        const grid = document.querySelector('[data-grid-filtrable]');
-        if (!grid) return;
-        const chips = Array.from(document.querySelectorAll('[data-filter]')) as HTMLElement[];
-        const cards = Array.from(grid.children) as HTMLElement[];
-        if (!chips.length) return;
-
-        const apply = (f: string | null) => {
-          let shown = 0;
-          cards.forEach((card) => {
-            const match = f === '*' || card.getAttribute('data-cat') === f;
-            if (match) {
-              card.style.display = '';
-              if (!reduce) {
-                card.style.animationDelay = `${(shown % 8) * 45}ms`;
-                card.classList.remove('filter-in');
-                void card.offsetWidth; // reinicia la animación
-                card.classList.add('filter-in');
-              }
-              shown++;
-            } else {
-              card.style.display = 'none';
-              card.classList.remove('filter-in');
-            }
-          });
-        };
-
-        chips.forEach((chip) => {
-          chip.addEventListener('click', () => {
-            chips.forEach((c) => { c.classList.remove('is-active'); c.setAttribute('aria-selected', 'false'); });
-            chip.classList.add('is-active');
-            chip.setAttribute('aria-selected', 'true');
-            apply(chip.getAttribute('data-filter'));
-          });
-        });
-      }
-
-      // --- Orden en vivo del catálogo (client-side, sin recargar) ---
-      function initOrden() {
-        const grid = document.querySelector('[data-grid-filtrable]') as HTMLElement | null;
-        const select = document.querySelector('[data-orden]') as HTMLSelectElement | null;
-        if (!grid || !select || select.hasAttribute('data-orden-bound')) return;
-        select.setAttribute('data-orden-bound', '');
-        const original = Array.from(grid.children) as HTMLElement[]; // orden 'recomendado'
-        const num = (c: HTMLElement, k: string) => parseFloat(c.getAttribute(k) || '0') || 0;
-        select.addEventListener('change', () => {
-          const v = select.value;
-          const orden = [...original];
-          if (v === 'descuento') orden.sort((a, b) => num(b, 'data-descuento') - num(a, 'data-descuento'));
-          else if (v === 'precio-asc') orden.sort((a, b) => num(a, 'data-precio') - num(b, 'data-precio'));
-          else if (v === 'precio-desc') orden.sort((a, b) => num(b, 'data-precio') - num(a, 'data-precio'));
-          else if (v === 'kp') orden.sort((a, b) => num(b, 'data-kp') - num(a, 'data-kp'));
-          // 'recomendado' deja el orden original. Re-inserta en el nuevo orden.
-          orden.forEach((c) => grid.appendChild(c));
-          if (!reduce) {
-            let shown = 0;
-            orden.forEach((c) => {
-              if (c.style.display === 'none') return; // respeta el filtro de categoría activo
-              c.style.animationDelay = `${(shown % 8) * 45}ms`;
-              c.classList.remove('filter-in');
-              void c.offsetWidth;
-              c.classList.add('filter-in');
-              shown++;
-            });
-          }
-        });
-      }
-
-      // initPage es idempotente (los selectores filtran lo ya inicializado),
-      // así que es seguro llamarlo más de una vez.
-      // initRelampagoFetch (async) descarga los datos y al terminar invoca
-      // initRelampago() para cablear countdown + loop sobre el DOM pintado.
-      function initPage() { initAnims(); initResenas(); initCountUp(); initCountdowns(); initNavActive(); initRelampagoFetch(); initFiltros(); initOrden(); }
-
-      // Listeners de documento: se atan una vez y sobreviven a las View Transitions.
-      bindSpotlight();
-      bindKpTips();
-      bindRipple();
-      bindTilt();
-      bindShowParallax();
-      bindMagnetic();
-      bindResenaTap();
-      bindVisibility();
-      // astro:page-load dispara en la carga inicial Y tras cada navegación con ClientRouter.
-      document.addEventListener('astro:page-load', initPage);
-      // Respaldo: si el navegador no soporta View Transitions o el evento ya disparó.
-      if (document.readyState !== 'loading') initPage();
-      else document.addEventListener('DOMContentLoaded', initPage);
+      menuActivo();
+      cuentas();
+      relampagos();
     </script>
   </body>
 </html>
 
 <style>
-  .kp-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: var(--spacing-md);
-    min-height: calc(100vh - 200px);
+  .saltar {
+    position: absolute;
+    left: 12px;
+    top: -60px;
+    z-index: 100;
+    background: var(--fosfo);
+    color: var(--tinta);
+    padding: 0.6rem 1rem;
+    font-weight: 700;
   }
+  .saltar:focus { top: 12px; }
 
-  .site-footer {
-    background-color: var(--color-surface);
-    border-top: 1px solid var(--color-primary-border);
-    margin-top: var(--spacing-xl);
-    padding: var(--spacing-xl) var(--spacing-md);
+  .principal { display: block; min-height: 60vh; }
+
+  .pie {
+    margin-top: clamp(3rem, 8vw, 6rem);
+    background: var(--tinta);
+    color: var(--papel);
+    padding-block: clamp(2.5rem, 6vw, 4.5rem) 2rem;
   }
+  .pie-in { display: grid; gap: 1.6rem; }
+  .pie-marca { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem 1.2rem; }
+  .pie-logo { margin: 0; font-size: clamp(2.6rem, 9vw, 5.2rem); color: var(--papel); letter-spacing: 0.01em; }
+  .pie-logo span { color: var(--fosfo); }
+  .pie-lema { margin: 0; font-size: 1.25rem; color: var(--fosfo); transform: rotate(-2deg); }
+  .pie-nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1.4rem; }
+  .pie-nav a { color: var(--papel); font-weight: 700; text-decoration: none; border-bottom: 2px solid transparent; }
+  .pie-nav a:hover { border-bottom-color: var(--fosfo); }
+  .pie-aviso { margin: 0; max-width: 78ch; color: rgba(243, 237, 224, 0.78); font-size: 0.86rem; line-height: 1.7; }
+  .pie-aviso strong { color: var(--papel); }
+  .pie-copy { margin: 0; color: rgba(243, 237, 224, 0.55); }
 
-  .footer-content {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--spacing-md);
-    text-align: center;
+  /* Relámpagos: el HTML lo pinta el script, por eso estos estilos son globales. */
+  :global(.rel-carta) {
+    --giro: -1.2deg;
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 0.9rem;
+    align-items: start;
+    background: var(--fosfo-naranja);
+    padding: 0.9rem;
+    transform: rotate(var(--giro));
+    box-shadow: var(--sombra-papel);
+    border-radius: 2px;
+    min-width: min(320px, 86vw);
+    scroll-snap-align: start;
   }
-
-  .footer-nav {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: var(--spacing-md);
-  }
-
-  .footer-nav a {
-    color: var(--color-text-muted);
-    text-decoration: none;
-    font-size: 0.9rem;
-    transition: var(--transition-fast);
-  }
-
-  .footer-nav a:hover { color: var(--color-primary); }
-
-  .footer-disclaimer {
-    font-size: 0.78rem;
-    color: var(--color-text-muted);
-    max-width: 600px;
-    line-height: 1.6;
-    padding: var(--spacing-sm);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: var(--radius-sm);
-    background-color: rgba(0,0,0,0.2);
-    margin: 0;
-  }
-
-  .footer-copy {
-    font-size: 0.78rem;
-    color: var(--color-text-muted);
-    opacity: 0.6;
-    margin: 0;
-  }
+  :global(.rel-carta img) { width: 96px; height: 96px; object-fit: contain; background: var(--cartulina); border-radius: 2px; }
+  :global(.rel-titulo) { margin: 0 0 0.3rem; font-weight: 700; font-size: 0.92rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  :global(.rel-precio) { margin: 0 0 0.3rem; display: flex; align-items: baseline; gap: 0.5rem; }
+  :global(.rel-precio .plumon) { font-size: 1.7rem; line-height: 1; }
+  :global(.rel-datos .etiqueta) { margin: 0 0 0.6rem; color: var(--tinta); }
 </style>

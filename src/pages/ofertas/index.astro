@@ -12,7 +12,7 @@
  */
 import Layout from '../../layouts/Layout.astro';
 import SelloFrescura from '../../components/SelloFrescura.astro';
-import ExplorarChips from '../../components/ExplorarChips.astro';
+import Explorar from '../../components/Explorar.astro';
 import { SECCIONES_CON_PAGINA, GENERADO_EL } from '../../data/secciones.js';
 
 const total = SECCIONES_CON_PAGINA.reduce((n, s) => n + s.items.length, 0);
@@ -22,22 +22,22 @@ const total = SECCIONES_CON_PAGINA.reduce((n, s) => n + s.items.length, 0);
   title="Ofertas por sección — KalidaPresio"
   description="Las ofertas de Mercado Libre México que recomendamos, organizadas por sección y puntuadas con el Sello K-P."
 >
-  <article class="hub">
-    <header class="hub-head">
-      <h1 class="hub-titulo">Ofertas por sección</h1>
+  <article class="hub hoja">
+    <header class="hub-cabeza">
+      <p class="etiqueta">Por presupuesto{total > 0 && <> · <SelloFrescura generadoEl={GENERADO_EL} /></>}</p>
+      <h1 class="hub-titulo">Ofertas por <span class="plumon hub-sec">sección</span></h1>
       <p class="hub-sub">
         {total > 0
           ? `${total} productos que recomendamos, agrupados por sección y ordenados por el Sello K-P.`
           : 'Estamos eligiendo las ofertas de hoy. Vuelve en un momento.'}
       </p>
-      <p class="hub-frescura"><SelloFrescura generadoEl={GENERADO_EL} /></p>
     </header>
 
     {SECCIONES_CON_PAGINA.length > 0 ? (
       <ul class="hub-lista">
-        {SECCIONES_CON_PAGINA.map((sec) => (
-          <li>
-            <a href={`/ofertas/${sec.slug}`} data-spotlight data-ripple>
+        {SECCIONES_CON_PAGINA.map((sec, i) => (
+          <li class="anima-pegar" style={`--i:${i + 1}`}>
+            <a class="hub-fila" href={`/ofertas/${sec.slug}`}>
               <span class="hub-cuenta" aria-hidden="true">{sec.items.length}</span>
               <span class="hub-txt">
                 <strong>{sec.titulo}</strong>
@@ -49,111 +49,67 @@ const total = SECCIONES_CON_PAGINA.reduce((n, s) => n + s.items.length, 0);
         ))}
       </ul>
     ) : (
-      <p class="hub-vacio">
-        Ninguna sección tiene suficientes productos ahora mismo.
-        <a href="/">Vuelve a la portada</a> para ver el catálogo completo.
-      </p>
+      <div class="hub-vacio cartulina cartulina--blanca con-cinta">
+        <p class="hub-vacio-h rotulo">Ninguna sección está completa hoy</p>
+        <p>
+          Una sección necesita al menos 8 productos elegidos a mano para tener su página: con menos, no le sirve a
+          nadie. <a href="/">En la portada</a> están todas las de hoy.
+        </p>
+      </div>
     )}
 
     <p class="hub-nota">
-      ¿Por qué no hay una sección de relámpago? Son ofertas por tiempo limitado:
-      una página fija las seguiría mostrando después de que terminen. Las verás en
-      el carrusel de la portada, que las retira solo al vencer.
+      <b class="etiqueta">¿Y las relámpago?</b>
+      Son ofertas por tiempo limitado: una página fija las seguiría mostrando después de que terminen. Las verás en
+      la portada, que las retira solas al vencer.
     </p>
 
-    <ExplorarChips />
+    <Explorar excluir="/ofertas" />
   </article>
 </Layout>
 
 <style>
-  .hub { padding-top: var(--spacing-md); }
+  .hub { padding-block: clamp(1.5rem, 4vw, 2.5rem) 0; }
+  .hub-cabeza { margin-bottom: clamp(2rem, 5vw, 3rem); }
+  .hub-cabeza .etiqueta { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+  .hub-titulo { font-size: clamp(3rem, 9vw, 6rem); text-transform: uppercase; margin: 0.6rem 0 0.9rem; }
+  .hub-sec { text-transform: none; color: var(--sello-rojo); font-size: 0.7em; display: inline-block; transform: rotate(-4deg); }
+  .hub-sub { color: var(--tinta-2); max-width: 56ch; }
 
-  .hub-head { text-align: center; margin-bottom: var(--spacing-lg); }
-
-  .hub-titulo {
-    font-size: clamp(1.7rem, 5vw, 2.3rem);
-    color: #fff;
-    margin: 0 0 0.4rem;
-    line-height: 1.15;
-  }
-
-  .hub-sub {
-    color: var(--color-text-muted);
-    font-size: 0.98rem;
-    line-height: 1.65;
-    max-width: 56ch;
-    margin: 0 auto;
-  }
-
-  .hub-frescura { margin: var(--spacing-sm) 0 0; }
-
-  .hub-lista {
-    list-style: none;
-    margin: 0 auto;
-    padding: 0;
-    max-width: 720px;
-    display: grid;
-    gap: var(--spacing-sm);
-  }
-
-  .hub-lista a {
+  .hub-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.2rem; max-width: 860px; }
+  .hub-fila {
     display: flex;
     align-items: center;
-    gap: 0.9rem;
-    padding: 1.15rem 1.3rem;
-    background: var(--glass-bg);
-    border: 1px solid var(--color-violet-border);
-    border-radius: var(--radius-md);
+    gap: 1.2rem;
+    padding: 1.1rem 1.4rem;
+    background: var(--cartulina);
+    border: 2px solid var(--tinta);
+    box-shadow: 5px 5px 0 var(--tinta);
     text-decoration: none;
-    color: var(--color-text);
-    position: relative;
-    overflow: hidden;
-    transition: border-color var(--dur-fast) var(--ease-soft), transform var(--dur-fast) var(--ease-soft);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
   }
-  .hub-lista a:hover { border-color: var(--color-primary); transform: translateY(-2px); }
-
-  /* El ancla visual es el DATO, no un emoji: cuántos productos hay dentro.
-     Informa, y no convierte la sección en un mensaje de WhatsApp. */
+  .hub-fila:hover { transform: translate(-3px, -3px); box-shadow: 8px 8px 0 var(--tinta); background: #fffde0; }
+  /* El ancla visual es el DATO: cuántos productos hay dentro. */
   .hub-cuenta {
-    flex: 0 0 auto;
-    min-width: 2.4ch;
-    font-family: var(--font-display);
-    font-size: 1.75rem;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--color-primary);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 4rem;
+    height: 4rem;
+    background: var(--fosfo);
+    border: 2px solid var(--tinta);
+    border-radius: 50%;
+    font: 900 1.9rem/1 var(--f-rotulo);
+    transform: rotate(-6deg);
   }
   .hub-txt { flex: 1 1 auto; min-width: 0; }
-  .hub-txt strong {
-    display: block;
-    font-family: var(--font-display);
-    font-size: 1.1rem;
-    margin-bottom: 0.15rem;
-  }
-  .hub-txt em {
-    display: block;
-    font-style: normal;
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
-    line-height: 1.45;
-  }
-  .hub-flecha { flex: 0 0 auto; color: var(--color-primary); font-size: 1.2rem; }
+  .hub-txt strong { display: block; font: 900 clamp(1.5rem, 3.4vw, 2.1rem)/1 var(--f-rotulo); text-transform: uppercase; margin-bottom: 0.3rem; }
+  .hub-txt em { display: block; font-style: normal; color: var(--tinta-2); font-size: 0.92rem; }
+  .hub-flecha { flex: none; font: 900 1.8rem/1 var(--f-rotulo); }
 
-  .hub-vacio,
-  .hub-nota {
-    max-width: 60ch;
-    margin: var(--spacing-xl) auto 0;
-    text-align: center;
-    color: var(--color-text-muted);
-    font-size: 0.88rem;
-    line-height: 1.7;
-  }
-  .hub-vacio a,
-  .hub-nota a { color: var(--color-primary); }
+  .hub-vacio { --giro: -0.8deg; max-width: 720px; padding: clamp(1.4rem, 4vw, 2.2rem); }
+  .hub-vacio-h { font-size: clamp(1.8rem, 5vw, 2.6rem); margin: 0 0 0.6rem; }
+  .hub-vacio a { font-weight: 700; }
 
-  @media (prefers-reduced-motion: reduce) {
-    .hub-lista a:hover { transform: none; }
-  }
+  .hub-nota { display: grid; gap: 0.3rem; max-width: 62ch; margin-top: clamp(2.5rem, 6vw, 3.5rem); color: var(--tinta-2); font-size: 0.95rem; }
 </style>
