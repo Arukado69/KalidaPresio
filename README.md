@@ -33,6 +33,7 @@ npm run dev               # http://localhost:4321
 | Qué | Dónde |
 | :--- | :--- |
 | Agregar o actualizar un producto | `/panel/agregar` (con el marcador del navegador) |
+| La página de un producto (precio, historial, Sello K-P) | `/p/<slug>`: se crea sola y no desaparece al retirarlo (ver [`docs/vitrina.md`](docs/vitrina.md#la-página-de-cada-producto-p)) |
 | Publicar en WhatsApp, Telegram, Facebook, Instagram, TikTok… | `/panel/hoy` |
 | Tu «link en bio» numerado | `/hoy` (`/hoy?c=ig`, `/hoy?c=tt`) |
 | Telegram automático | `n8n/telegram-tecnologia.json` |
@@ -86,11 +87,13 @@ versiona: es observación acumulada, no un derivado.
 
 ```
 src/
-  components/   Tarjetas, sello K-P, carrusel relámpago, boletín…
+  components/   Tarjeta (cartulina), sello K-P, rejilla con filtro y orden, fila relámpago, boletín…
   data/         vitrina.json (tus productos) · ofertas.js · secciones.js · colecciones.js
-  layouts/      Layout.astro — head, SEO, footer y toda la orquestación de JS
-  pages/        index, hoy, colecciones/[coleccion], ofertas/[seccion], panel/agregar,
-                panel/hoy, sobre-mi, contacto, privacidad, 404, robots.txt
+  layouts/      Layout.astro — head, SEO, pie y el poco JS que queda (cuentas regresivas y relámpago)
+  pages/        index, hoy, p/[slug], buen-fin, ofertas/(index|[seccion]),
+                colecciones/(index|[coleccion]), panel/agregar, panel/hoy, sobre-mi,
+                contacto, privacidad, 404, robots.txt
+  styles/       global.css — el sistema visual («el tianguis honesto»)
   scripts/      Build (relámpago, feed, tarjetas) y herramientas manuales
   utils/        Lógica pura y testeada: vitrina, publicacion, marcador, canales, score…
 backend/        API Express + SQLite: contacto, boletín y los /r/ viejos

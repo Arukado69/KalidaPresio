@@ -4,14 +4,18 @@
  * Front: input + botón, honeypot anti-bots, validación en cliente, estados
  * (enviando/éxito/error) vía fetch (NO <form> que recargue). El backend
  * (/api/subscribe) firma un token HMAC y manda el correo de confirmación.
+ *
+ * Diseño: una cartulina rosa pegada con cinta, con el correo escrito como en
+ * un ticket. El script depende de los atributos data-nl-* y de .nl-btn-txt.
  */
 ---
-<section class="nl" aria-labelledby="nl-titulo" data-newsletter>
-  <div class="nl-inner">
+<section class="nl hoja" aria-labelledby="nl-titulo" data-newsletter>
+  <div class="nl-cartulina cartulina cartulina--rosa con-cinta">
     <div class="nl-copy">
-      <h2 id="nl-titulo" class="nl-titulo">Ofertas que sí valen la pena, en tu correo</h2>
-      <p class="nl-sub">De vez en cuando te avisamos de las mejores oportunidades calidad-precio.
-        Te mandamos un correo para confirmar que eres tu, y cada envio lleva un enlace de baja en un clic.</p>
+      <p class="etiqueta nl-eyebrow">Gratis · sin spam · baja en un clic</p>
+      <h2 id="nl-titulo" class="nl-titulo">Te avisamos cuando <span class="plumon">sí</span> valga la pena</h2>
+      <p class="nl-sub">De vez en cuando, las ofertas que pasaron el Sello K-P y los descuentos que resultaron puro cuento.
+        Te pedimos confirmar por correo, y cada envío trae su enlace de baja.</p>
     </div>
 
     <div class="nl-form">
@@ -25,7 +29,7 @@
             <input type="text" name="website" tabindex="-1" autocomplete="off" data-nl-hp />
           </label>
         </div>
-        <button type="button" class="nl-btn" data-nl-submit data-ripple>
+        <button type="button" class="boton boton--tinta nl-btn" data-nl-submit>
           <span class="nl-btn-txt">Suscribirme</span>
         </button>
       </div>
@@ -94,103 +98,51 @@
         email.addEventListener('keydown', (e) => { if (e.key === 'Enter') enviar(); });
       });
     }
-    // Bind en carga inicial y tras cada View Transition (idempotente por la
-    // marca). Guard window: el inline script se re-ejecuta en cada navegación,
-    // así que solo registramos el listener UNA vez (evita apilarlos).
-    if (!window.__kpNlInit) {
-      window.__kpNlInit = true;
-      document.addEventListener('astro:page-load', () => bind(document));
-    }
+    // Bind al cargar (idempotente por la marca data-nl-bound).
     if (document.readyState !== 'loading') bind(document);
     else document.addEventListener('DOMContentLoaded', () => bind(document));
   })();
 </script>
 
 <style>
-  .nl {
-    margin: var(--spacing-2xl) auto 0;
-    max-width: 1200px;
-    padding: var(--spacing-xl) var(--spacing-md);
-  }
-  .nl-inner {
+  .nl { margin-top: clamp(3rem, 8vw, 5.5rem); }
+  .nl-cartulina {
+    --giro: -0.8deg;
     display: grid;
-    gap: var(--spacing-lg);
+    grid-template-columns: 1.15fr 1fr;
+    gap: clamp(1.2rem, 4vw, 3rem);
     align-items: center;
-    background: var(--glass-bg);
-    border: 1px solid var(--color-violet-border);
-    border-radius: var(--radius-xl);
-    padding: clamp(1.5rem, 4vw, 2.5rem);
-    box-shadow: var(--shadow-md);
+    padding: clamp(1.6rem, 4vw, 2.8rem);
   }
-  @media (min-width: 820px) {
-    .nl-inner { grid-template-columns: 1.1fr 1fr; gap: var(--spacing-xl); }
-  }
-  .nl-titulo {
-    font-size: clamp(1.3rem, 2.6vw, 1.7rem);
-    color: #fff;
-    margin: 0 0 0.4rem;
-    line-height: 1.2;
-  }
-  .nl-sub { color: var(--color-text-muted); font-size: 0.92rem; line-height: 1.6; margin: 0; }
+  .nl-eyebrow { color: var(--tinta); margin-bottom: 0.6rem; }
+  /* Interlineado más holgado que otros títulos: el acento de «sí» a plumón es
+     alto y, apretado, se metía en el renglón de arriba. */
+  .nl-titulo { font-size: clamp(2.2rem, 5.5vw, 3.6rem); line-height: 1.06; text-transform: uppercase; margin-bottom: 0.7rem; }
+  .nl-titulo .plumon { display: inline-block; text-transform: none; font-size: 0.95em; margin-right: 0.12em; color: var(--tinta); }
+  .nl-sub { margin: 0; max-width: 46ch; font-size: 0.98rem; }
 
-  .nl-row { display: flex; flex-wrap: wrap; gap: 0.6rem; }
-  .nl-label-sr {
-    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
-  }
+  .nl-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .nl-label-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
   .nl-input {
-    flex: 1 1 200px;
+    flex: 1 1 220px;
     min-width: 0;
-    padding: 0.85rem 1rem;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: var(--radius-md);
-    color: var(--color-text);
-    font: inherit;
-    font-size: 0.95rem;
-    transition: border-color var(--dur-fast) var(--ease-soft), box-shadow var(--dur-fast) var(--ease-soft);
+    padding: 0.9rem 1rem;
+    border: 2.5px solid var(--tinta);
+    border-radius: 999px;
+    background: var(--cartulina);
+    color: var(--tinta);
+    font: 500 1rem var(--f-ticket);
   }
-  .nl-input::placeholder { color: var(--color-text-muted); }
-  .nl-input:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(31, 210, 142, 0.15);
-  }
-  /* Honeypot: fuera de pantalla para humanos, visible para bots tontos */
+  .nl-input::placeholder { color: var(--tinta-3); }
+  .nl-input:focus { outline: 3px solid var(--tinta); outline-offset: 2px; }
+  .nl-btn { flex: 0 0 auto; }
   .nl-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .nl-status { margin: 0.8rem 0 0; font: 600 0.82rem/1.5 var(--f-ticket); }
+  .nl-status[data-tipo="ok"] { color: var(--tinta); }
+  .nl-status[data-tipo="error"] { color: var(--tinta); text-decoration: underline wavy var(--tinta); }
+  .nl-legal { margin: 0.8rem 0 0; font-size: 0.8rem; }
 
-  .nl-btn {
-    flex: 0 0 auto;
-    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-    color: #0b231a;
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 0.95rem;
-    border: none;
-    border-radius: var(--radius-md);
-    padding: 0.85rem 1.6rem;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    transition: transform var(--dur-fast) var(--ease-soft), box-shadow var(--dur-fast) var(--ease-soft), opacity var(--dur-fast);
+  @media (max-width: 760px) {
+    .nl-cartulina { grid-template-columns: 1fr; }
   }
-  .nl-btn:hover { transform: translateY(-1px); box-shadow: var(--glow-primary-md); }
-  .nl-btn:active { transform: translateY(0) scale(0.98); }
-  .nl-btn:disabled { opacity: 0.7; cursor: default; }
-
-  .nl-status {
-    margin: 0.7rem 0 0;
-    font-size: 0.86rem;
-    line-height: 1.4;
-  }
-  .nl-status[data-tipo="ok"] { color: var(--color-primary); }
-  .nl-status[data-tipo="error"] { color: var(--color-error); }
-
-  .nl-legal {
-    margin: 0.6rem 0 0;
-    font-size: 0.76rem;
-    line-height: 1.5;
-    color: var(--color-text-muted);
-  }
-  .nl-legal a { color: var(--color-text-muted); text-decoration: underline; text-underline-offset: 0.2em; }
-  .nl-legal a:hover { color: var(--color-primary); }
 </style>

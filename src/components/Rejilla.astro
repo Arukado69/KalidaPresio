@@ -1,0 +1,158 @@
+---
+/**
+ * Rejilla — La pared de cartulinas de una sección, con filtro y orden.
+ *
+ * Reemplaza a SeccionGrid. Los filtros y el orden viven AQUÍ, con su propio
+ * script, y no en el Layout: así funcionan con cualquier número de rejillas
+ * por página y una página sin rejilla no carga nada de esto.
+ *
+ *  · Filtro por categoría: chips con aria-pressed (solo si hay 2 o más).
+ *  · Orden en vivo: recomendado (el de la vitrina), descuento, precio, K-P.
+ *    Lee los data-* que ya trae cada TarjetaOferta; no toca los links.
+ *  · `campana` nombra la sección en la analítica (data-kp-seccion del botón).
+ */
+import TarjetaOferta from './TarjetaOferta.astro';
+import { categorizar, ORDEN_CATEGORIAS } from '../utils/categorias.js';
+
+export interface Props {
+  productos: any[];
+  /** Nombre de la sección para la analítica de clics (data-kp-seccion). */
+  campana: string;
+  /** Muestra los controles de filtro y orden (por defecto, sí). */
+  controles?: boolean;
+}
+
+const { productos, campana, controles = true } = Astro.props;
+
+const conCategoria = productos.map((o) => ({ ...o, categoria: o.categoria ?? categorizar(o.titulo) }));
+const presentes = new Set(conCategoria.map((o) => o.categoria));
+const categorias = ORDEN_CATEGORIAS.filter((c) => presentes.has(c));
+const conControles = controles && conCategoria.length > 2;
+---
+
+{conCategoria.length > 0 && (
+  <div class="rejilla-caja" data-rejilla>
+    {conControles && (
+      <div class="rj-controles">
+        {categorias.length > 1 && (
+          <div class="rj-filtros" role="group" aria-label="Filtrar por categoría">
+            <button class="chip" type="button" data-filtro="*" aria-pressed="true">Todas</button>
+            {categorias.map((c) => (
+              <button class="chip" type="button" data-filtro={c} aria-pressed="false">{c}</button>
+            ))}
+          </div>
+        )}
+        <label class="rj-orden etiqueta">
+          Ordenar
+          <select data-orden>
+            <option value="recomendado">Recomendado</option>
+            <option value="descuento">Mayor descuento</option>
+            <option value="precio-asc">Menor precio</option>
+            <option value="precio-desc">Mayor precio</option>
+            <option value="kp">Mejor Sello K-P</option>
+          </select>
+        </label>
+      </div>
+    )}
+
+    <div class="rj-pared" data-rejilla-pared>
+      {conCategoria.map((o, i) => (
+        <TarjetaOferta
+          oferta={o}
+          score={o.score_seccion ?? o.score_kalidad_presio}
+          indice={i}
+          categoria={o.categoria}
+          campana={campana}
+        />
+      ))}
+    </div>
+    <p class="rj-nada etiqueta" data-rejilla-nada hidden>No hay ofertas de esa categoría ahora.</p>
+  </div>
+)}
+
+<script>
+  const reducir = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /** Vuelve a «pegar» las cartulinas visibles, escalonadas. */
+  function repegar(tarjetas: HTMLElement[]) {
+    if (reducir) return;
+    let n = 0;
+    tarjetas.forEach((t) => {
+      if (t.hidden) return;
+      t.style.setProperty('--i', String(n++ % 8));
+      t.classList.remove('anima-pegar');
+      void t.offsetWidth; // reinicia la animación
+      t.classList.add('anima-pegar');
+    });
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-rejilla]').forEach((caja) => {
+    const pared = caja.querySelector<HTMLElement>('[data-rejilla-pared]');
+    if (!pared) return;
+    const original = Array.from(pared.children) as HTMLElement[]; // orden «recomendado»
+    const nada = caja.querySelector<HTMLElement>('[data-rejilla-nada]');
+    const chips = Array.from(caja.querySelectorAll<HTMLButtonElement>('[data-filtro]'));
+
+    chips.forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const f = chip.dataset.filtro;
+        chips.forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+        let visibles = 0;
+        original.forEach((t) => {
+          t.hidden = !(f === '*' || t.dataset.cat === f);
+          if (!t.hidden) visibles++;
+        });
+        if (nada) nada.hidden = visibles > 0;
+        repegar(Array.from(pared.children) as HTMLElement[]);
+      });
+    });
+
+    const select = caja.querySelector<HTMLSelectElement>('[data-orden]');
+    const num = (t: HTMLElement, k: string) => parseFloat(t.dataset[k] || '0') || 0;
+    select?.addEventListener('change', () => {
+      const orden = [...original];
+      const v = select.value;
+      if (v === 'descuento') orden.sort((a, b) => num(b, 'descuento') - num(a, 'descuento'));
+      else if (v === 'precio-asc') orden.sort((a, b) => num(a, 'precio') - num(b, 'precio'));
+      else if (v === 'precio-desc') orden.sort((a, b) => num(b, 'precio') - num(a, 'precio'));
+      else if (v === 'kp') orden.sort((a, b) => num(b, 'kp') - num(a, 'kp'));
+      orden.forEach((t) => pared.appendChild(t));
+      repegar(orden);
+    });
+  });
+</script>
+
+<style>
+  .rj-controles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem 1.5rem;
+    margin-bottom: 2.2rem;
+    padding-bottom: 1.2rem;
+    border-bottom: 1.5px dashed var(--linea-fuerte);
+  }
+  .rj-filtros { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .rj-filtros .chip { font-size: 0.74rem; padding: 0.5em 0.95em; }
+  .rj-orden { display: inline-flex; align-items: center; gap: 0.6rem; }
+  .rj-orden select {
+    font: 600 0.78rem/1 var(--f-ticket);
+    color: var(--tinta);
+    background: var(--cartulina);
+    border: 2px solid var(--tinta);
+    border-radius: 999px;
+    padding: 0.55em 0.9em;
+    cursor: pointer;
+    box-shadow: 2px 2px 0 var(--tinta);
+  }
+
+  .rj-pared {
+    display: grid;
+    /* Tres por fila en escritorio: cartulinas grandes, que el precio se lea de lejos. */
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
+    gap: clamp(1.8rem, 4vw, 2.6rem) clamp(1.2rem, 3vw, 2rem);
+    padding-top: 0.6rem;
+  }
+  .rj-nada { margin-top: 1rem; }
+</style>

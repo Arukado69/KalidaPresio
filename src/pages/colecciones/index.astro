@@ -8,244 +8,84 @@
  */
 import Layout from '../../layouts/Layout.astro';
 import { COLECCIONES_ACTIVAS } from '../../data/colecciones.js';
+import Explorar from '../../components/Explorar.astro';
+
+const colores = ['', 'cartulina--rosa', 'cartulina--verde', 'cartulina--cielo', 'cartulina--naranja'];
+const giros = [-1.6, 1.4, -0.9, 1.8, -1.2];
 ---
 
 <Layout
-  title="Colecciones Curadas — KalidaPresio"
-  description="Explora nuestras colecciones curadas: ofertas en tecnología, los más vendidos y descuentos relámpago. Selección editorial verificada por KalidaPresio."
+  title="Colecciones — KalidaPresio"
+  description="Colecciones de ofertas de Mercado Libre México elegidas a mano: por presupuesto, tecnología, lo más vendido y el mayor descuento, ordenadas con el Sello K-P."
 >
-  <article class="col-index">
-
-    <!-- Breadcrumb -->
-    <nav class="ci-breadcrumb" aria-label="Ruta de navegación">
-      <a href="/" class="ci-bc-link">Inicio</a>
-      <span class="ci-bc-sep" aria-hidden="true">›</span>
-      <span class="ci-bc-current" aria-current="page">Colecciones</span>
+  <article class="ci hoja">
+    <nav class="ci-migas etiqueta" aria-label="Estás en">
+      <a href="/">Inicio</a> <span aria-hidden="true">/</span> <span aria-current="page">Colecciones</span>
     </nav>
 
-    <!-- Header -->
-    <header class="ci-header" data-reveal>
-      <h1 class="ci-titulo">Colecciones Curadas</h1>
-      <p class="ci-descripcion">
-        Cada colección agrupa las mejores ofertas según un criterio específico:
-        tecnología, popularidad o descuento. Selección editorial verificada por
-        nuestro algoritmo KalidaPresio.
+    <header class="ci-cabeza">
+      <h1 class="ci-titulo">Colecciones</h1>
+      <p class="ci-sub">
+        Cada colección agrupa lo que elegimos a mano con un criterio: presupuesto, tecnología, lo más vendido o el
+        mayor descuento. Dentro, se ordenan con el Sello K-P.
       </p>
     </header>
 
-    <!-- Grid de colecciones -->
-    <div class="ci-grid">
-      {COLECCIONES_ACTIVAS.map((col, i) => (
-        <a href={`/colecciones/${col.slug}`} class="ci-card" data-reveal data-spotlight style={`--reveal-delay:${i * 100}ms`}>
-          <div class="ci-card-cuenta"><strong>{col.items.length}</strong><span>productos</span></div>
-          <h2 class="ci-card-titulo">{col.titulo}</h2>
-          <p class="ci-card-desc">{col.descripcion.substring(0, 120)}...</p>
-          <div class="ci-card-meta">
-            <span class="ci-card-count">Ver colección</span>
-            <span class="ci-card-arrow" aria-hidden="true">→</span>
-          </div>
-        </a>
-      ))}
-    </div>
+    {COLECCIONES_ACTIVAS.length > 0 ? (
+      <ul class="ci-pared">
+        {COLECCIONES_ACTIVAS.map((col, i) => (
+          <li class="anima-pegar" style={`--i:${i + 1}`}>
+            <a href={`/colecciones/${col.slug}`} class:list={['ci-carta', 'cartulina', 'con-cinta', colores[i % colores.length]]} style={`--giro:${giros[i % giros.length]}deg`}>
+              <span class="ci-n plumon">{col.items.length}</span>
+              <span class="ci-carta-t rotulo">{col.titulo}</span>
+              <span class="ci-carta-d">{col.descripcion.length > 120 ? `${col.descripcion.slice(0, 117).trimEnd()}…` : col.descripcion}</span>
+              <span class="ci-ver etiqueta">Ver colección →</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <div class="ci-vacio cartulina cartulina--blanca con-cinta">
+        <p class="ci-vacio-h rotulo">Hoy no hay colecciones</p>
+        <p>Una colección necesita al menos dos productos elegidos a mano. <a href="/">En la portada</a> están todas las de hoy.</p>
+      </div>
+    )}
 
-    <!-- CTA de retorno -->
-    <div class="ci-back" data-reveal>
-      <a href="/" class="ci-back-link">← Volver al inicio</a>
-    </div>
-
+    <Explorar solo="secciones" titulo="También por sección" />
   </article>
 </Layout>
 
 <style>
-  /* ═══════════════════════════════════════════════════════
-     ÍNDICE DE COLECCIONES (Hub Page)
-     ═══════════════════════════════════════════════════════ */
+  .ci { padding-block: clamp(1.2rem, 3vw, 2rem) 0; }
+  .ci-migas { margin-bottom: 1.2rem; }
+  .ci-migas a { color: inherit; }
+  .ci-cabeza { margin-bottom: clamp(2.2rem, 5vw, 3.2rem); }
+  .ci-titulo { font-size: clamp(3rem, 9vw, 6rem); text-transform: uppercase; margin-bottom: 0.9rem; }
+  .ci-sub { color: var(--tinta-2); max-width: 60ch; }
 
-  .col-index {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: var(--spacing-lg) var(--spacing-md);
-  }
-
-  /* Breadcrumb */
-  .ci-breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-bottom: var(--spacing-lg);
-    font-size: 0.82rem;
-  }
-  .ci-bc-link {
-    color: var(--color-text-muted);
-    text-decoration: none;
-    transition: color 0.2s ease;
-  }
-  .ci-bc-link:hover { color: var(--color-primary); }
-  .ci-bc-sep { color: rgba(255, 255, 255, 0.2); }
-  .ci-bc-current { color: var(--color-primary); font-weight: 600; }
-
-  /* Header */
-  .ci-header {
-    text-align: center;
-    margin-bottom: var(--spacing-2xl);
-  }
-
-  .ci-titulo {
-    font-family: var(--font-display);
-    font-size: var(--fs-2xl);
-    color: #ffffff;
-    margin-bottom: var(--spacing-sm);
-  }
-
-  .ci-descripcion {
-    font-size: var(--fs-base);
-    color: var(--color-text-muted);
-    max-width: 600px;
-    margin: 0 auto;
-    line-height: 1.6;
-  }
-
-  /* Grid de tarjetas de colección */
-  .ci-grid {
+  .ci-pared {
+    list-style: none;
+    margin: 0;
+    padding: 0.6rem 0 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-2xl);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: clamp(2rem, 4vw, 2.8rem) clamp(1.4rem, 3vw, 2.2rem);
   }
-
-  .ci-card {
-    display: flex;
-    flex-direction: column;
-    padding: var(--spacing-xl) var(--spacing-lg);
-    background: var(--card-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-xl);
+  .ci-carta {
+    display: grid;
+    gap: 0.6rem;
+    height: 100%;
+    padding: 1.6rem 1.4rem 1.3rem;
     text-decoration: none;
-    position: relative;
-    overflow: hidden;
-    transition: transform var(--dur-med) var(--ease-out-expo),
-                border-color var(--dur-med) var(--ease-out-expo),
-                box-shadow var(--dur-med) var(--ease-out-expo);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
   }
+  .ci-carta:hover { transform: rotate(0deg) translateY(-4px); box-shadow: 8px 10px 0 var(--tinta); }
+  .ci-n { font-size: 3.4rem; line-height: 1; }
+  .ci-carta-t { font-size: clamp(1.7rem, 3.2vw, 2.2rem); }
+  .ci-carta-d { font-size: 0.9rem; line-height: 1.5; }
+  .ci-ver { color: var(--tinta); align-self: end; }
 
-  .ci-card:hover {
-    transform: translateY(-6px);
-    border-color: rgba(31, 210, 142, 0.32);
-    box-shadow: var(--elev-card-hover);
-  }
-
-  /* Halo de fondo sutil */
-  .ci-card::before {
-    content: '';
-    position: absolute;
-    top: -40px;
-    right: -40px;
-    width: 160px;
-    height: 160px;
-    background: radial-gradient(circle, rgba(31, 210, 142, 0.06), transparent 70%);
-    pointer-events: none;
-  }
-
-  /* Donde había un emoji de 3rem hay ahora el dato: cuántos productos tiene
-     la colección. Ocupa el mismo peso visual y encima dice algo. */
-  .ci-card-cuenta {
-    display: flex;
-    align-items: baseline;
-    gap: 0.35rem;
-    margin-bottom: var(--spacing-sm);
-  }
-  .ci-card-cuenta strong {
-    font-family: var(--font-display);
-    font-size: 2.6rem;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--color-primary);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.03em;
-  }
-  .ci-card-cuenta span {
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--color-text-muted);
-  }
-
-  .ci-card-titulo {
-    font-family: var(--font-display);
-    font-size: var(--fs-md);
-    color: #ffffff;
-    margin-bottom: var(--spacing-xs);
-    line-height: 1.25;
-  }
-
-  .ci-card-desc {
-    font-size: var(--fs-sm);
-    color: var(--color-text-muted);
-    line-height: 1.5;
-    flex-grow: 1;
-    margin-bottom: var(--spacing-md);
-  }
-
-  .ci-card-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-top: var(--spacing-sm);
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  .ci-card-count {
-    font-size: var(--fs-sm);
-    font-weight: 700;
-    color: var(--color-primary);
-  }
-
-  .ci-card-arrow {
-    font-size: 1.2rem;
-    color: var(--color-primary);
-    transition: transform var(--dur-fast) var(--ease-out-expo);
-  }
-
-  .ci-card:hover .ci-card-arrow {
-    transform: translateX(6px);
-  }
-
-  /* Borde animado al hover */
-  .ci-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    border: 1px solid var(--color-primary);
-    opacity: 0;
-    pointer-events: none;
-    z-index: 4;
-  }
-  .ci-card:hover::after {
-    animation: kp-breathe 2.4s var(--ease-soft) infinite;
-  }
-
-  /* Responsive */
-  @media (max-width: 640px) {
-    .ci-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  /* Back link */
-  .ci-back {
-    text-align: center;
-    padding-top: var(--spacing-lg);
-  }
-
-  .ci-back-link {
-    color: var(--color-text-muted);
-    text-decoration: none;
-    font-size: var(--fs-sm);
-    transition: color 0.2s ease;
-  }
-
-  .ci-back-link:hover {
-    color: var(--color-primary);
-  }
+  .ci-vacio { --giro: -0.8deg; max-width: 720px; padding: clamp(1.4rem, 4vw, 2.2rem); }
+  .ci-vacio-h { font-size: clamp(1.8rem, 5vw, 2.6rem); margin: 0 0 0.6rem; }
+  .ci-vacio a { font-weight: 700; }
 </style>

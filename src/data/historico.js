@@ -38,6 +38,15 @@ if (!datos) {
 }
 
 /**
+ * El historial de un producto (todas sus claves juntas), para dibujarlo.
+ * @param {string|string[]} claves
+ * @returns {Array<[string, number, number]>} más reciente primero
+ */
+export function entradasDe(claves) {
+  return entradasPara(datos?.productos, claves);
+}
+
+/**
  * Qué se puede decir del precio de este producto, hoy.
  * @param {string|string[]} claves — id de Mercado Libre, o todas las claves
  *   del producto (`claves_historico`: catálogo y artículo)

@@ -53,7 +53,8 @@ export function deBase64(b64) {
  * @param {any} b — vitrina (objeto) o su texto
  */
 export function mismaVitrina(a, b) {
-  const productos = (v) => {
+  // Productos y retirados: retirar un producto también es cambiar la vitrina.
+  const firma = (v) => {
     let o = v;
     if (typeof v === 'string') {
       try {
@@ -62,10 +63,12 @@ export function mismaVitrina(a, b) {
         return null;
       }
     }
-    return JSON.stringify(Array.isArray(o) ? o : (o?.productos ?? null));
+    if (Array.isArray(o)) return JSON.stringify({ productos: o, retirados: [] });
+    if (!o || !Array.isArray(o.productos)) return null;
+    return JSON.stringify({ productos: o.productos, retirados: Array.isArray(o.retirados) ? o.retirados : [] });
   };
-  const pa = productos(a);
-  return pa !== null && pa === productos(b);
+  const fa = firma(a);
+  return fa !== null && fa === firma(b);
 }
 
 /** «Arukado69/KalidaPresio» y «main» desde la URL del editor de GitHub. */

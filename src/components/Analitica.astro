@@ -63,8 +63,8 @@ const dominio = Astro.site?.hostname ?? '';
 
     <script is:inline>
       (function () {
-        // Una sola vez por pestaña: los listeners van en `document`, así que
-        // sobreviven a las View Transitions sin volver a registrarse.
+        // Una sola vez por pestaña: los listeners van en `document` (delegación),
+        // así que sirven para cualquier enlace de la página.
         if (window.__kpAnalitica) return;
         window.__kpAnalitica = true;
 

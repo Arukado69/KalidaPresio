@@ -108,10 +108,36 @@ oficial, título y precio bastan.
 | `url_producto` | La ficha en Mercado Libre. Sirve para «Abrir en ML» y para que el marcador reconozca el producto si lo vuelves a abrir (actualiza el precio en vez de duplicarlo). |
 | `id_articulo` | El id de la publicación que gana la ficha (`MLM…`). Lo llena el marcador cuando la página lo trae. El histórico de precios se guardó por artículo y la vitrina identifica por catálogo (`/p/MLM…`): con las dos claves, el producto encuentra su historial. Si queda vacío, no pasa nada. |
 | `imagen`, `rating`, `vendidos`, `envio_gratis` | Lo que se ve en la tarjeta y calcula el Sello K-P. |
-| `relampago` + `termina` | Sale en el carrusel relámpago con cuenta regresiva real. Sin `termina`, no se muestra cuenta regresiva y se retira sola 12 h después de `revisado`. |
-| `destacado` | Sale en «Elegidos por nosotros». Puede ser `true` o un texto («Más vendido»). |
+| `relampago` + `termina` | Sale en la fila relámpago de la portada con cuenta regresiva real. Sin `termina`, no se muestra cuenta regresiva y se retira sola 12 h después de `revisado`. |
+| `destacado` | Lleva un moño en su tarjeta (tu texto, o «Elegido» si pones `true`) y sale antes que el resto en `/hoy`. Puede ser `true` o un texto («Más vendido»). |
 | `nota` | Por qué lo recomiendas. Sale en el sitio, en `/hoy` y en las publicaciones. Es lo que ningún otro canal de ofertas puede escribir. |
 | `enlaces` | Links oficiales por canal (ver abajo). |
+
+Además de `productos`, el archivo puede tener **`retirados`**: lo que quitaste
+de la vitrina y ya tenía link oficial. No se publica en la portada, el feed ni
+`/hoy`, pero **su página sigue en línea** (ver abajo). Cada uno lleva la fecha
+en `retirado`.
+
+---
+
+## La página de cada producto (`/p/…`)
+
+Cada producto con link oficial tiene su página propia, por ejemplo
+`/p/hidrolavadora-electrica-portatil-1600-psi-mlm53177027`: foto, precio, Sello
+K-P, tu nota, el veredicto «¿es buen momento?» y la **gráfica de su precio** con
+lo que observamos (la línea se corta donde no se miró). Es la que puede salir en
+Google cuando alguien busca «<producto> precio» o «<producto> vale la pena».
+
+- **La URL no cambia** aunque corrijas el título: sale de la ficha de Mercado
+  Libre y del id del producto.
+- **No desaparece**: si el precio lleva más de 7 días sin revisarse o la
+  relámpago terminó, la página lo dice arriba y no lo presenta como oferta. Si
+  retiras el producto, la página se queda con su historial.
+- En el panel, **«Quitar»** retira un producto que ya tenía link (aparece en
+  «Retirados», con «Ver su página», «Volver a la vitrina» y «Borrar del todo»).
+  Un borrador sin link sí se borra directo: nunca tuvo página.
+- El título de cada tarjeta del sitio lleva a esta página; el botón sigue yendo
+  directo a Mercado Libre con tu link oficial.
 
 ---
 
