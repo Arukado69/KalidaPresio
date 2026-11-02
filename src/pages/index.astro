@@ -181,6 +181,7 @@ const conVeredicto = DETECTOR.falsos.length + DETECTOR.inflados.length + DETECTO
      ventana: así «¿DESCUENTAZO» nunca se mete debajo de la pared. */
   .portada-txt { container-type: inline-size; }
   .portada-h1 {
+    font-size: clamp(3.2rem, 8vw, 6.4rem); /* respaldo: navegadores sin cqi */
     font-size: clamp(3.2rem, 17.5cqi, 8.6rem);
     line-height: 0.9;
     text-transform: uppercase;
