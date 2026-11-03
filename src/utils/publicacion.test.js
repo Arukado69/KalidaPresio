@@ -51,14 +51,21 @@ describe('textoProducto', () => {
     expect(textoProducto('fb', producto(), { ahora: AHORA })).not.toMatch(/\*|~/);
   });
 
-  it('Instagram y TikTok no llevan el link de compra: apuntan a /hoy con el número', () => {
+  it('Instagram y TikTok no llevan el link de compra: apuntan al código fijo y a /k/<n>', () => {
     for (const f of ['ig', 'tt']) {
-      const t = textoProducto(f, producto(), { numero: 3, sitio: 'https://kp.mx/', ahora: AHORA });
+      const t = textoProducto(f, producto({ codigo: 17 }), { sitio: 'https://kp.mx/', ahora: AHORA });
       expect(t).not.toContain('meli.la');
-      expect(t).toContain('#3');
-      expect(t).toContain('https://kp.mx/hoy');
+      expect(t).toContain('busca el K-17');
+      expect(t).toContain('https://kp.mx/k/17');
       expect(t).toContain('#publicidad');
     }
+  });
+
+  it('sin código fijo, Instagram y TikTok mandan a /hoy', () => {
+    const t = textoProducto('ig', producto(), { sitio: 'https://kp.mx', ahora: AHORA });
+    expect(t).toContain('🔗 Link en mi perfil');
+    expect(t).not.toContain('busca el');
+    expect(t).toContain('https://kp.mx/hoy');
   });
 
   it('NINGUNA publicación sale sin el aviso de afiliado', () => {
@@ -120,8 +127,9 @@ describe('utilidades', () => {
     expect(recortar('corto', 20)).toBe('corto');
   });
 
-  it('ideaVideo cierra con el número del perfil', () => {
-    expect(ideaVideo(producto(), 4)).toContain('el número 4');
+  it('ideaVideo cierra con el código fijo del producto', () => {
+    expect(ideaVideo(producto({ codigo: 4 }))).toContain('el K-4');
+    expect(ideaVideo(producto(), 9)).toContain('el K-9');
   });
 
   it('repartirEnHorarios no inventa horarios de más', () => {

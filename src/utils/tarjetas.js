@@ -16,15 +16,24 @@
  * Comparten marco a propósito. Si el post que DESENMASCARA se ve tan nuestro
  * como el que RECOMIENDA, los dos construyen la misma reputación:
  *
- *   · oferta   → franja verde. El precio manda; el veredicto lo respalda.
- *   · mentira  → franja roja. La acusación manda; el precio es el detalle.
+ *   · oferta   → sello verde. El precio manda; el veredicto lo respalda.
+ *   · mentira  → sello rojo «PURO CUENTO». La acusación manda.
  *
  * ── LOS DOS FORMATOS ───────────────────────────────────────────────────────
  *   · post     (4:5, 1080×1350) → feed de Telegram, WhatsApp, Facebook.
  *   · historia (9:16, 1080×1920) → estados de WhatsApp, historias de
- *     Instagram/Facebook y TikTok. Lleva el NÚMERO del producto en /hoy,
- *     porque ahí el link no se puede tocar: «link en mi perfil, el #3».
+ *     Instagram/Facebook y TikTok. Lleva el CÓDIGO FIJO del producto
+ *     («K-17», src/utils/codigos.js), porque ahí el link no se puede tocar:
+ *     «link en mi perfil, el K-17». El código no cambia con la vitrina.
+ *
+ * ── LA MARCA ───────────────────────────────────────────────────────────────
+ * La misma del sitio («el tianguis honesto», src/styles/global.css): papel,
+ * tinta, el precio a plumón en cartulina fosforescente y sellos de hule. Las
+ * fuentes viajan en el repo (src/assets/fuentes) y el generador se las da a
+ * sharp con un fonts.conf propio (confFuentes): así el texto se dibuja igual
+ * en tu computadora que en el contenedor del VPS, que no trae fuentes.
  */
+import { formatoCodigo, normalizarCodigo } from './codigos.js';
 
 // ── Lienzo ─────────────────────────────────────────────────────────────────
 // 4:5 es el formato que más alto ocupa en un feed sin que lo recorten, y es
@@ -34,15 +43,39 @@ export const ALTO = 1350;
 export const FOTO_ALTO = 620;
 export const BANDA_ALTO = 132;
 
-// ── Paleta (la misma de src/styles/global.css; si cambia allí, cambia aquí) ──
-export const FONDO = '#170533';
-const SUPERFICIE = '#1F0742';
-const VIOLETA = '#280455';
-const VERDE = '#1fd28e';
-const ROJO = '#ff5d76';
-const TEXTO = '#f0eef8';
-const TENUE = '#a59cc4';
-const AMBAR = '#f6d14f';
+// ── Paleta (la de src/styles/global.css; si cambia allí, cambia aquí) ───────
+const PAPEL = '#f3ede0';
+const HOJA = '#fffcf4';
+const TINTA = '#17140f';
+const TINTA_2 = '#4a443a';
+const FOSFO = '#e6ff2a';
+const NARANJA = '#ff8b2c';
+const ROJO = '#c21f2a';
+const VERDE = '#0a6e39';
+/** El color de fondo del lienzo (lo usa el generador al crear la imagen). */
+export const FONDO = PAPEL;
+
+// ── Fuentes (src/assets/fuentes) ───────────────────────────────────────────
+// Solo caracteres que estas fuentes tienen: la estrella ★ NO está, por eso se
+// dibuja (estrella()). Un carácter que falta sale como un cuadrito.
+const ROTULO = `font-family="Big Shoulders Display" font-weight="900"`;
+const PLUMON = `font-family="Permanent Marker"`;
+const TEXTO = (peso = 400) => `font-family="Schibsted Grotesk" font-weight="${peso}"`;
+
+/**
+ * El fonts.conf que le da a sharp SOLO las fuentes del repo. Rutas absolutas.
+ * @param {string} dirFuentes — carpeta con los .ttf
+ * @param {string} dirCache — carpeta escribible para la caché de fontconfig
+ */
+export function confFuentes(dirFuentes, dirCache) {
+  return `<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <dir>${esc(dirFuentes)}</dir>
+  <cachedir>${esc(dirCache)}</cachedir>
+</fontconfig>
+`;
+}
 
 /** Escapa lo que XML no perdona dentro de un nodo de texto. */
 export const esc = (s) =>
@@ -93,8 +126,28 @@ export function partirLineas(texto, tamano, anchoMax, maxLineas) {
   return lineas;
 }
 
+/** Una estrella de 5 picos (la ★ no existe en las fuentes de la marca). */
+function estrella(cx, cy, r, color) {
+  const puntos = [];
+  for (let k = 0; k < 10; k++) {
+    const radio = k % 2 === 0 ? r : r * 0.45;
+    const ang = -Math.PI / 2 + (k * Math.PI) / 5;
+    puntos.push(`${(cx + radio * Math.cos(ang)).toFixed(1)},${(cy + radio * Math.sin(ang)).toFixed(1)}`);
+  }
+  return `<polygon points="${puntos.join(' ')}" fill="${color}"/>`;
+}
+
+/** Ancho aproximado de un texto (sin medir: el SVG aún no se rasteriza). */
+const anchoTexto = (t, tamano, factor) => String(t).length * tamano * factor;
+
+/** «+250 mil vendidos» / «840 vendidos». */
+function vendidosTexto(v) {
+  const n = Number(v) || 0;
+  return n >= 1000 ? `+${Math.round(n / 1000)} mil vendidos` : `${n} vendidos`;
+}
+
 /**
- * El degradado de fondo. Va DEBAJO de la foto del producto.
+ * El papel de fondo. Va DEBAJO de la foto del producto.
  *
  * Está separado del marco porque la primera versión pintaba su fondo sobre
  * TODO el lienzo en la misma capa que el texto, después de componer la foto:
@@ -102,90 +155,76 @@ export function partirLineas(texto, tamano, anchoMax, maxLineas) {
  */
 export function svgFondo(alto = ALTO) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${ANCHO}" height="${alto}">
-  <defs><linearGradient id="f" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0%" stop-color="${FONDO}"/><stop offset="100%" stop-color="${VIOLETA}"/>
-  </linearGradient></defs>
-  <rect width="${ANCHO}" height="${alto}" fill="url(#f)"/>
+  <rect width="${ANCHO}" height="${alto}" fill="${PAPEL}"/>
 </svg>`;
 }
 
 /**
- * El marco con todo el texto. Va ENCIMA de la foto.
+ * El marco con todo el texto del post 4:5. Va ENCIMA de la foto.
  *
  * @param {object} o — item de feed.json
  * @param {boolean} esMentira — variante de descuento falso
  * @returns {string} SVG
  */
 export function svgTarjeta(o, esMentira) {
-  const acento = esMentira ? ROJO : VERDE;
+  const sello = esMentira ? ROJO : VERDE;
   const etiqueta = esMentira ? 'EL DESCUENTO NO ES REAL' : 'CALIDAD-PRECIO VERIFICADO';
+  const codigo = formatoCodigo(o.codigo);
 
   const titulo = partirLineas(o.titulo, 38, 980, 2);
   // El veredicto del histórico manda; si no hay, tu nota. Si no hay ninguno,
-  // la caja no se dibuja (antes salía un recuadro vacío).
+  // el sello no se dibuja (antes salía un recuadro vacío).
   const veredicto = o.historico?.texto || o.nota || '';
-  const lineasVer = partirLineas(veredicto, 40, 940, 2);
+  const lineasVer = partirLineas(veredicto.toUpperCase(), 40, 900, 2);
 
-  const yContenido = BANDA_ALTO + FOTO_ALTO;
-  const ahorro = Number(o.precio_previo) - Number(o.precio_actual);
+  const y0 = BANDA_ALTO + FOTO_ALTO;
+  const precio = pesos(o.precio_actual);
+  const tienePrevio = Number(o.precio_previo) > Number(o.precio_actual);
+  const anchoEtiqueta = Math.min(620, anchoTexto(precio, esMentira ? 84 : 104, 0.62) + 70);
+  const yPrecio = y0 + 248;
+  // El tachón cubre solo el precio viejo, no la palabra «antes».
+  const anchoPrevio = tienePrevio ? anchoTexto(pesos(o.precio_previo), 32, 0.54) : 0;
+  const anchoCodigo = codigo ? anchoTexto(codigo, 52, 0.48) + 48 : 0;
+  const alturaSello = lineasVer.length > 1 ? 128 : 84;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${ANCHO}" height="${ALTO}" viewBox="0 0 ${ANCHO} ${ALTO}">
-  <defs>
-    <linearGradient id="velo" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="${FONDO}" stop-opacity="0"/>
-      <stop offset="100%" stop-color="${FONDO}" stop-opacity="0.92"/>
-    </linearGradient>
-  </defs>
+  <!-- Banda de tinta: la marca, de qué va y el código fijo -->
+  <rect width="${ANCHO}" height="${BANDA_ALTO}" fill="${TINTA}"/>
+  <text x="56" y="76" ${ROTULO} font-size="62" fill="${PAPEL}">KALIDA<tspan fill="${FOSFO}">PRESIO</tspan></text>
+  <text x="58" y="112" ${TEXTO(700)} font-size="21" fill="${esMentira ? '#ff8f97' : FOSFO}" letter-spacing="3">${esc(etiqueta)}</text>
+  ${codigo ? `<rect x="${ANCHO - 56 - anchoCodigo}" y="30" width="${anchoCodigo}" height="72" rx="36" fill="${FOSFO}"/>
+  <text x="${ANCHO - 56 - anchoCodigo / 2}" y="86" ${ROTULO} font-size="56" fill="${TINTA}" text-anchor="middle">${esc(codigo)}</text>` : ''}
+  <rect y="${y0 - 5}" width="${ANCHO}" height="5" fill="${TINTA}"/>
+  ${esMentira ? `<g transform="rotate(-8 ${ANCHO - 260} ${y0 - 110})">
+    <rect x="${ANCHO - 470}" y="${y0 - 168}" width="420" height="116" rx="8" fill="${HOJA}" fill-opacity="0.82" stroke="${ROJO}" stroke-width="9"/>
+    <text x="${ANCHO - 260}" y="${y0 - 86}" ${ROTULO} font-size="70" fill="${ROJO}" text-anchor="middle" letter-spacing="2">PURO CUENTO</text>
+  </g>` : ''}
 
-  <!-- Banda superior: la marca y de qué va este post -->
-  <rect width="${ANCHO}" height="${BANDA_ALTO}" fill="${SUPERFICIE}"/>
-  <rect width="${ANCHO}" height="7" y="${BANDA_ALTO - 7}" fill="${acento}"/>
-  <text x="56" y="60" font-family="sans-serif" font-size="34" font-weight="bold" fill="${TEXTO}" letter-spacing="3">KALIDA<tspan fill="${acento}">PRESIO</tspan></text>
-  <text x="56" y="100" font-family="sans-serif" font-size="23" fill="${TENUE}" letter-spacing="2.5">${esc(etiqueta)}</text>
+  <!-- El título -->
+  ${titulo.map((l, i) => `<text x="56" y="${y0 + 62 + i * 48}" ${TEXTO(700)} font-size="38" fill="${TINTA}">${esc(l)}</text>`).join('\n  ')}
 
-  <!-- Velo bajo la foto, para que el contenido siempre se lea -->
-  <rect y="${yContenido - 190}" width="${ANCHO}" height="190" fill="url(#velo)"/>
+  <!-- El precio a plumón, en su cartulina (blanca si el descuento es puro cuento) -->
+  <g transform="rotate(-2 ${56 + anchoEtiqueta / 2} ${yPrecio - 40})">
+    <rect x="48" y="${yPrecio - 118}" width="${anchoEtiqueta}" height="150" fill="${esMentira ? HOJA : FOSFO}" stroke="${TINTA}" stroke-width="3"/>
+    <text x="${48 + anchoEtiqueta / 2}" y="${yPrecio}" ${PLUMON} font-size="${esMentira ? 84 : 104}" fill="${TINTA}" text-anchor="middle">${esc(precio)}</text>
+  </g>
+  ${Number(o.descuento) > 0 ? `<rect x="${ANCHO - 236}" y="${y0 + 136}" width="180" height="86" rx="6" fill="${TINTA}"/>
+  <text x="${ANCHO - 146}" y="${y0 + 202}" ${ROTULO} font-size="64" fill="${FOSFO}" text-anchor="middle">-${esc(o.descuento)}%</text>` : ''}
+  ${tienePrevio ? `<text x="${ANCHO - 56}" y="${y0 + 270}" ${TEXTO(600)} font-size="32" fill="${TINTA_2}" text-anchor="end">antes ${esc(pesos(o.precio_previo))}</text>
+  <line x1="${ANCHO - 62 - anchoPrevio}" y1="${y0 + 266}" x2="${ANCHO - 50}" y2="${y0 + 254}" stroke="${ROJO}" stroke-width="5" stroke-linecap="round"/>
+  ${esMentira ? `<text x="${ANCHO - 56}" y="${y0 + 306}" ${TEXTO(700)} font-size="24" fill="${ROJO}" text-anchor="end">un precio «anterior» que nunca vimos</text>` : ''}` : ''}
 
-  <!-- Contenido -->
-  <rect y="${yContenido}" width="${ANCHO}" height="${ALTO - yContenido}" fill="${FONDO}"/>
+  <!-- El veredicto como sello de hule: esto es lo que nadie más puede escribir -->
+  ${lineasVer.length ? `<g transform="rotate(-1.5 ${ANCHO / 2} ${y0 + 340 + alturaSello / 2})">
+    <rect x="56" y="${y0 + 330}" width="${ANCHO - 112}" height="${alturaSello}" rx="8" fill="none" stroke="${sello}" stroke-width="6"/>
+    ${lineasVer.map((l, i) => `<text x="${ANCHO / 2}" y="${y0 + 386 + i * 46}" ${ROTULO} font-size="42" fill="${sello}" text-anchor="middle" letter-spacing="1.5">${esc(l)}</text>`).join('\n    ')}
+  </g>` : ''}
 
-  ${titulo
-    .map(
-      (l, i) =>
-        `<text x="56" y="${yContenido + 62 + i * 50}" font-family="sans-serif" font-size="38" fill="${TEXTO}">${esc(l)}</text>`,
-    )
-    .join('\n  ')}
-
-  <!-- Precio: el titular en la variante buena, el detalle en la de mentira -->
-  <text x="56" y="${yContenido + 232}" font-family="sans-serif" font-size="${esMentira ? 76 : 104}" font-weight="bold" fill="${TEXTO}">${esc(pesos(o.precio_actual))}</text>
-  ${
-    Number(o.precio_previo) > Number(o.precio_actual)
-      ? `<text x="${esMentira ? 300 : 400}" y="${yContenido + 232}" font-family="sans-serif" font-size="40" fill="${TENUE}" text-decoration="line-through">${esc(pesos(o.precio_previo))}</text>
-  ${
-    esMentira
-      ? `<text x="${300}" y="${yContenido + 270}" font-family="sans-serif" font-size="24" fill="${ROJO}">precio &quot;anterior&quot; que nunca vimos</text>`
-      : `<text x="${400}" y="${yContenido + 270}" font-family="sans-serif" font-size="26" fill="${VERDE}">ahorras ${esc(pesos(ahorro))}</text>`
-  }`
-      : ''
-  }
-
-  <!-- Insignia de descuento (solo si lo hay: un «-0%» no vende nada) -->
-  ${Number(o.descuento) > 0 ? `<rect x="${ANCHO - 216}" y="${yContenido + 170}" width="160" height="82" rx="16" fill="${acento}"/>
-  <text x="${ANCHO - 136}" y="${yContenido + 226}" font-family="sans-serif" font-size="46" font-weight="bold" fill="${FONDO}" text-anchor="middle">-${esc(o.descuento)}%</text>` : ''}
-
-  <!-- El veredicto: esto es lo que nadie más puede escribir -->
-  ${lineasVer.length ? `<rect x="56" y="${yContenido + 312}" width="${ANCHO - 112}" height="${lineasVer.length > 1 ? 122 : 84}" rx="18" fill="${acento}" fill-opacity="0.14"/>
-  <rect x="56" y="${yContenido + 312}" width="7" height="${lineasVer.length > 1 ? 122 : 84}" rx="3" fill="${acento}"/>` : ''}
-  ${lineasVer
-    .map(
-      (l, i) =>
-        `<text x="88" y="${yContenido + 364 + i * 44}" font-family="sans-serif" font-size="34" font-weight="bold" fill="${acento}">${esc(l)}</text>`,
-    )
-    .join('\n  ')}
-
-  <!-- Pie: el sello y la prueba social -->
-  <text x="56" y="${ALTO - 74}" font-family="sans-serif" font-size="26" fill="${TENUE}">Sello K-P <tspan fill="${AMBAR}" font-weight="bold">${esc(o.score)}</tspan>   ·   ${esc(o.rating ?? '—')}★   ·   ${esc(Number(o.vendidos) >= 1000 ? `+${Math.round(Number(o.vendidos) / 1000)} mil vendidos` : `${o.vendidos ?? 0} vendidos`)}</text>
-  <text x="56" y="${ALTO - 34}" font-family="sans-serif" font-size="26" fill="${acento}" fill-opacity="0.75">kalidapresio.albis-labs.xyz</text>
+  <!-- Pie: el sello K-P y la prueba social -->
+  <text x="56" y="${ALTO - 74}" ${TEXTO(700)} font-size="27" fill="${TINTA}">SELLO K-P ${esc(o.score ?? '—')}</text>
+  ${Number(o.rating) > 0 ? `${estrella(262, ALTO - 83, 14, TINTA)}
+  <text x="282" y="${ALTO - 74}" ${TEXTO(600)} font-size="27" fill="${TINTA_2}">${esc(Number(o.rating).toFixed(1))}  ·  ${esc(vendidosTexto(o.vendidos))}</text>` : ''}
+  <text x="56" y="${ALTO - 34}" ${TEXTO(400)} font-size="25" fill="${TINTA_2}">kalidapresio.albis-labs.xyz${codigo ? `/k/${esc(normalizarCodigo(o.codigo))}` : ''} · enlace de afiliado</text>
 </svg>`;
 }
 
@@ -222,37 +261,49 @@ export function finAbsoluto(iso) {
  */
 export function svgHistoria(o) {
   const relampago = Boolean(o.relampago);
-  const acento = relampago ? AMBAR : VERDE;
+  const acento = relampago ? NARANJA : FOSFO;
   const etiqueta = relampago ? 'OFERTA RELÁMPAGO' : 'CALIDAD-PRECIO VERIFICADO';
+  // El código fijo; si la entrada no lo trae, la posición de hoy en /hoy.
+  const codigo = formatoCodigo(o.codigo) ?? (o.numero ? `#${o.numero}` : null);
+  const corto = normalizarCodigo(o.codigo) ? `/k/${normalizarCodigo(o.codigo)}` : '/hoy';
   const titulo = partirLineas(o.titulo, 50, 968, 3);
   const y = HISTORIA_FOTO_Y + HISTORIA_FOTO_ALTO + 40;
   const fin = relampago ? finAbsoluto(o.termina) : null;
   const tienePrevio = Number(o.precio_previo) > Number(o.precio_actual);
   const yPrecio = y + 60 + titulo.length * 62 + 110;
+  const precio = pesos(o.precio_actual);
+  const anchoEtiqueta = Math.min(900, anchoTexto(precio, 130, 0.62) + 80);
+  const anchoCodigo = codigo ? anchoTexto(codigo, 84, 0.48) + 64 : 0;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${ANCHO}" height="${HISTORIA_ALTO}" viewBox="0 0 ${ANCHO} ${HISTORIA_ALTO}">
-  <!-- Marca y de qué va -->
-  <text x="56" y="150" font-family="sans-serif" font-size="40" font-weight="bold" fill="${TEXTO}" letter-spacing="3">KALIDA<tspan fill="${acento}">PRESIO</tspan></text>
-  <text x="56" y="200" font-family="sans-serif" font-size="28" font-weight="bold" fill="${acento}" letter-spacing="3">${esc(etiqueta)}</text>
-  ${o.numero ? `<circle cx="${ANCHO - 120}" cy="160" r="72" fill="${acento}"/>
-  <text x="${ANCHO - 120}" y="182" font-family="sans-serif" font-size="64" font-weight="bold" fill="${FONDO}" text-anchor="middle">#${esc(o.numero)}</text>` : ''}
+  <!-- Marca, de qué va y el código fijo (dentro de la franja segura) -->
+  <text x="56" y="160" ${ROTULO} font-size="84" fill="${TINTA}">KALIDA<tspan fill="${ROJO}">PRESIO</tspan></text>
+  <text x="60" y="208" ${TEXTO(700)} font-size="28" fill="${relampago ? ROJO : TINTA_2}" letter-spacing="3">${esc(etiqueta)}</text>
+  ${codigo ? `<rect x="${ANCHO - 56 - anchoCodigo}" y="88" width="${anchoCodigo}" height="118" rx="59" fill="${acento}" stroke="${TINTA}" stroke-width="4"/>
+  <text x="${ANCHO - 56 - anchoCodigo / 2}" y="176" ${ROTULO} font-size="84" fill="${TINTA}" text-anchor="middle">${esc(codigo)}</text>` : ''}
 
   <!-- Marco de la foto -->
-  <rect x="40" y="${HISTORIA_FOTO_Y}" width="${ANCHO - 80}" height="${HISTORIA_FOTO_ALTO}" rx="28" fill="none" stroke="${acento}" stroke-width="6"/>
-  ${Number(o.descuento) > 0 ? `<rect x="${ANCHO - 290}" y="${HISTORIA_FOTO_Y + 30}" width="220" height="104" rx="20" fill="${ROJO}"/>
-  <text x="${ANCHO - 180}" y="${HISTORIA_FOTO_Y + 104}" font-family="sans-serif" font-size="62" font-weight="bold" fill="#ffffff" text-anchor="middle">-${esc(o.descuento)}%</text>` : ''}
+  <rect x="40" y="${HISTORIA_FOTO_Y}" width="${ANCHO - 80}" height="${HISTORIA_FOTO_ALTO}" fill="none" stroke="${TINTA}" stroke-width="6"/>
+  ${Number(o.descuento) > 0 ? `<g transform="rotate(6 ${ANCHO - 190} ${HISTORIA_FOTO_Y + 84})">
+    <rect x="${ANCHO - 310}" y="${HISTORIA_FOTO_Y + 30}" width="240" height="108" rx="6" fill="${TINTA}"/>
+    <text x="${ANCHO - 190}" y="${HISTORIA_FOTO_Y + 112}" ${ROTULO} font-size="80" fill="${FOSFO}" text-anchor="middle">-${esc(o.descuento)}%</text>
+  </g>` : ''}
 
   <!-- Título -->
-  ${titulo.map((l, i) => `<text x="56" y="${y + 60 + i * 62}" font-family="sans-serif" font-size="50" fill="${TEXTO}">${esc(l)}</text>`).join('\n  ')}
+  ${titulo.map((l, i) => `<text x="56" y="${y + 60 + i * 62}" ${TEXTO(700)} font-size="50" fill="${TINTA}">${esc(l)}</text>`).join('\n  ')}
 
-  <!-- Precio -->
-  <text x="56" y="${yPrecio}" font-family="sans-serif" font-size="140" font-weight="bold" fill="${TEXTO}">${esc(pesos(o.precio_actual))}</text>
-  ${tienePrevio ? `<text x="60" y="${yPrecio + 64}" font-family="sans-serif" font-size="46" fill="${TENUE}" text-decoration="line-through">antes ${esc(pesos(o.precio_previo))}</text>` : ''}
-  ${fin ? `<text x="56" y="${yPrecio + (tienePrevio ? 130 : 70)}" font-family="sans-serif" font-size="40" font-weight="bold" fill="${AMBAR}">TERMINA ${esc(fin.toUpperCase())}</text>` : ''}
+  <!-- Precio a plumón en su cartulina -->
+  <g transform="rotate(-2 ${48 + anchoEtiqueta / 2} ${yPrecio - 45})">
+    <rect x="48" y="${yPrecio - 130}" width="${anchoEtiqueta}" height="170" fill="${acento}" stroke="${TINTA}" stroke-width="4"/>
+    <text x="${48 + anchoEtiqueta / 2}" y="${yPrecio}" ${PLUMON} font-size="130" fill="${TINTA}" text-anchor="middle">${esc(precio)}</text>
+  </g>
+  ${tienePrevio ? `<text x="60" y="${yPrecio + 96}" ${TEXTO(600)} font-size="46" fill="${TINTA_2}">antes ${esc(pesos(o.precio_previo))}</text>
+  <line x1="200" y1="${yPrecio + 90}" x2="${200 + anchoTexto(pesos(o.precio_previo), 46, 0.56) + 10}" y2="${yPrecio + 74}" stroke="${ROJO}" stroke-width="6" stroke-linecap="round"/>` : ''}
+  ${fin ? `<text x="56" y="${yPrecio + (tienePrevio ? 160 : 96)}" ${ROTULO} font-size="54" fill="${ROJO}" letter-spacing="1">TERMINA ${esc(fin.toUpperCase())}</text>` : ''}
 
   <!-- Llamado: el link no se toca en una historia, así que se dice dónde está -->
-  <rect x="56" y="1660" width="${ANCHO - 112}" height="120" rx="60" fill="${acento}"/>
-  <text x="${ANCHO / 2}" y="1736" font-family="sans-serif" font-size="44" font-weight="bold" fill="${FONDO}" text-anchor="middle">${o.numero ? `LINK EN MI PERFIL · #${esc(o.numero)}` : 'LINK EN MI PERFIL'}</text>
-  <text x="${ANCHO / 2}" y="1836" font-family="sans-serif" font-size="28" fill="${TENUE}" text-anchor="middle">kalidapresio.albis-labs.xyz/hoy · enlace de afiliado</text>
+  <rect x="56" y="1660" width="${ANCHO - 112}" height="120" rx="60" fill="${TINTA}"/>
+  <text x="${ANCHO / 2}" y="1742" ${ROTULO} font-size="64" fill="${FOSFO}" text-anchor="middle" letter-spacing="2">${codigo ? `LINK EN MI PERFIL · ${esc(codigo)}` : 'LINK EN MI PERFIL'}</text>
+  <text x="${ANCHO / 2}" y="1836" ${TEXTO(400)} font-size="30" fill="${TINTA_2}" text-anchor="middle">kalidapresio.albis-labs.xyz${corto} · enlace de afiliado</text>
 </svg>`;
 }

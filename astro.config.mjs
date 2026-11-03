@@ -22,7 +22,9 @@ export default defineConfig({
       // indexado. /api/* no existe como página estática, pero el filtro deja
       // constancia de la intención. /panel/* sí existe y es herramienta
       // interna de reparto: no es contenido y no debe invitarse a rastrearla.
-      filter: (page) => !page.includes('/api/') && !page.includes('/panel/'),
+      // /k/<n> son direcciones cortas que redirigen a /p/<slug>: la que se
+      // indexa es la del producto.
+      filter: (page) => !page.includes('/api/') && !page.includes('/panel/') && !/\/k\/\d+\/?$/.test(page),
       i18n: undefined,
     }),
   ],

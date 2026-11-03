@@ -1,13 +1,13 @@
 ---
 /**
- * /hoy — Tu «link en bio»: las ofertas de hoy, numeradas.
+ * /hoy — Tu «link en bio»: las ofertas de hoy, cada una con su código fijo.
  *
  * ── POR QUÉ EXISTE ─────────────────────────────────────────────────────────
  * Instagram y TikTok no dejan poner links en las publicaciones: el único link
  * que se toca es el del perfil. Esta página es ese link. Cada producto lleva
- * un NÚMERO grande, el mismo que sale en el panel de publicación y en las
- * imágenes verticales, para que un video pueda decir «el #3 está en mi
- * perfil» y la persona lo encuentre en un segundo.
+ * su CÓDIGO FIJO en grande («K-17»), el mismo que sale en el panel de
+ * publicación y en las imágenes verticales, para que un video pueda decir
+ * «busca el K-17 en mi perfil» y la persona lo encuentre en un segundo.
  *
  * ── UN LINK DE PERFIL POR RED ──────────────────────────────────────────────
  * Pon /hoy?c=ig en Instagram y /hoy?c=tt en TikTok. Con eso:
@@ -16,16 +16,27 @@
  *     las ventas por red;
  *   · el clic llega a Umami con su canal.
  *
- * Los números son los de HOY: cambian cuando actualizas la vitrina. Úsalos en
- * historias y videos del día.
+ * El código NO cambia cuando actualizas la vitrina (antes se numeraba por
+ * posición y «el #3» de un video viejo terminaba en otro producto). Además,
+ * /k/17 lleva directo a la página del producto, aunque ya no esté aquí.
  */
 import Layout from '../layouts/Layout.astro';
 import { VITRINA } from '../data/ofertas.js';
 import { ordenParaPublicar } from '../utils/vitrina.js';
 import { categorizar } from '../utils/categorias.js';
 import { CODIGOS_CANAL } from '../utils/canales.js';
+import { formatoCodigo, anclaCodigo } from '../utils/codigos.js';
 
-const productos = ordenParaPublicar(VITRINA).map((p, i) => ({ ...p, numero: i + 1 }));
+// Cada producto se busca por su CÓDIGO FIJO («K-17», src/utils/codigos.js): no
+// cambia cuando cambia la vitrina, así que un video viejo sigue apuntando al
+// producto correcto. Si una entrada no tiene código (la escribieron a mano),
+// cae a su posición, como antes.
+const productos = ordenParaPublicar(VITRINA).map((p, i) => ({
+  ...p,
+  numero: i + 1,
+  etiqueta: formatoCodigo(p.codigo) ?? `#${i + 1}`,
+  ancla: anclaCodigo(p.codigo) ?? `n${i + 1}`,
+}));
 const pesos = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
 const visto = (iso) => new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' }).format(new Date(iso));
 ---
@@ -37,11 +48,14 @@ const visto = (iso) => new Intl.DateTimeFormat('es-MX', { day: 'numeric', month:
   <article class="hoy hoja" data-hoy data-canales={CODIGOS_CANAL.join(',')}>
     <header class="hoy-cabeza">
       <p class="etiqueta">Link en bio · KalidaPresio</p>
-      <h1 class="hoy-titulo">Las de hoy, <span class="hoy-con plumon">con número</span></h1>
-      <p class="hoy-sub">¿Viste un número en una historia o un video? Búscalo aquí.</p>
+      <h1 class="hoy-titulo">Las de hoy, <span class="hoy-con plumon">con su código</span></h1>
+      <p class="hoy-sub">¿Viste un código como <b>K-17</b> en una historia o un video? Búscalo aquí.</p>
       {productos.length > 1 && (
-        <nav class="hoy-saltos" aria-label="Ir al número">
-          {productos.map((p) => <a class="hoy-salto" href={`#n${p.numero}`}>{p.numero}</a>)}
+        <nav class="hoy-saltos" aria-label="Ir al código">
+          {/* En orden de código: quien busca el K-12 lo encuentra de un vistazo. */}
+          {[...productos]
+            .sort((a, b) => (a.codigo ?? Infinity) - (b.codigo ?? Infinity) || a.numero - b.numero)
+            .map((p) => <a class="hoy-salto" href={`#${p.ancla}`}>{p.etiqueta}</a>)}
         </nav>
       )}
     </header>
@@ -49,13 +63,13 @@ const visto = (iso) => new Intl.DateTimeFormat('es-MX', { day: 'numeric', month:
     {productos.length === 0 ? (
       <div class="hoy-vacio cartulina cartulina--blanca con-cinta">
         <p class="hoy-vacio-h rotulo">Estamos eligiendo las de hoy</p>
-        <p>Cada oferta lleva su número para que la encuentres desde nuestras historias. Mientras, <a href="/">mira la portada</a>.</p>
+        <p>Cada oferta lleva un código fijo (como K-17) para que la encuentres desde nuestras historias. Mientras, <a href="/">mira la portada</a>.</p>
       </div>
     ) : (
       <ol class="hoy-lista">
         {productos.map((p) => (
-          <li class="hoy-item anima-pegar" id={`n${p.numero}`} data-caduca={p.caduca ?? ''} style={`--i:${Math.min(p.numero, 8)}`}>
-            <span class="hoy-num" aria-label={`Número ${p.numero}`}>{p.numero}</span>
+          <li class="hoy-item anima-pegar" id={p.ancla} data-caduca={p.caduca ?? ''} style={`--i:${Math.min(p.numero, 8)}`}>
+            <span class="hoy-num" aria-label={`Código ${p.etiqueta}`}>{p.etiqueta}</span>
             <div class="hoy-foto">
               {p.imagen ? <img src={p.imagen} alt={p.titulo} loading={p.numero <= 3 ? 'eager' : 'lazy'} /> : <span class="hoy-sin-foto" aria-hidden="true"></span>}
             </div>
@@ -137,7 +151,7 @@ const visto = (iso) => new Intl.DateTimeFormat('es-MX', { day: 'numeric', month:
     tic();
     setInterval(tic, 1000);
 
-    // Si llegaron con #n3 en la URL, se resalta ese producto.
+    // Si llegaron con #k17 en la URL (o la /k/17 de un video), se resalta ese producto.
     const destino = location.hash ? document.querySelector(location.hash) : null;
     destino?.classList.add('hoy-item--destino');
     window.addEventListener('hashchange', () => {
@@ -163,12 +177,14 @@ const visto = (iso) => new Intl.DateTimeFormat('es-MX', { day: 'numeric', month:
   .hoy-salto {
     display: grid;
     place-items: center;
-    width: 2.6rem;
+    min-width: 2.6rem;
     height: 2.6rem;
+    padding: 0 0.7rem;
     border: 2px solid var(--tinta);
-    border-radius: 50%;
+    border-radius: 999px;
     background: var(--cartulina);
-    font: 900 1.25rem/1 var(--f-rotulo);
+    font: 900 1.15rem/1 var(--f-rotulo);
+    letter-spacing: 0.02em;
     text-decoration: none;
     box-shadow: 2px 2px 0 var(--tinta);
   }
@@ -210,7 +226,6 @@ const visto = (iso) => new Intl.DateTimeFormat('es-MX', { day: 'numeric', month:
     text-align: center;
     transform: rotate(-6deg);
   }
-  .hoy-num::before { content: "#"; font-size: 0.55em; vertical-align: 0.55em; margin-right: 0.05em; }
 
   .hoy-foto { aspect-ratio: 1; background: #fff; border: 1.5px solid var(--linea); }
   .hoy-foto img { width: 100%; height: 100%; object-fit: contain; padding: 8px; }

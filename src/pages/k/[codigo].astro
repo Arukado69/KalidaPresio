@@ -1,0 +1,54 @@
+---
+/**
+ * /k/<n> — La dirección corta de cada producto: /k/17 → /p/<slug>.
+ *
+ * Es lo que se dice en un video («entra a kalidapresio…/k/17» o «busca el
+ * K-17»). El código es fijo (src/utils/codigos.js), y la página del producto
+ * se queda aunque lo retires, así que esta dirección no se rompe nunca.
+ *
+ * Es una redirección en una página estática: meta refresh + location.replace,
+ * con la canónica apuntando a la página del producto y fuera del sitemap
+ * (astro.config.mjs). Si dos productos tuvieran el mismo código (solo pasa
+ * editando vitrina.json a mano), gana el primero y el build lo avisa.
+ */
+import crudo from '../../data/vitrina.json';
+import { paginasDeVitrina } from '../../utils/paginaProducto.js';
+import { formatoCodigo } from '../../utils/codigos.js';
+
+export function getStaticPaths() {
+  const usados = new Map();
+  for (const pagina of paginasDeVitrina(crudo)) {
+    const n = pagina.producto.codigo;
+    if (!n) continue;
+    if (usados.has(n)) {
+      console.warn(`⚠ [k] El código K-${n} lo tienen dos productos; /k/${n} lleva al primero (${usados.get(n).slug}).`);
+      continue;
+    }
+    usados.set(n, pagina);
+  }
+  return [...usados].map(([n, pagina]) => ({
+    params: { codigo: String(n) },
+    props: { slug: pagina.slug, titulo: pagina.producto.titulo, codigo: n },
+  }));
+}
+
+const { slug, titulo, codigo } = Astro.props;
+const destino = `/p/${slug}`;
+const canonica = new URL(destino, Astro.site).href;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{formatoCodigo(codigo)} · {titulo} — KalidaPresio</title>
+    <meta name="robots" content="noindex" />
+    <link rel="canonical" href={canonica} />
+    <meta http-equiv="refresh" content={`0; url=${destino}`} />
+    <script is:inline define:vars={{ destino }}>location.replace(destino);</script>
+  </head>
+  <body style="font-family: system-ui, sans-serif; background: #f3ede0; color: #17140f; padding: 2rem;">
+    <p><a href={destino} style="color: inherit; font-weight: 700;">{formatoCodigo(codigo)}: {titulo} →</a></p>
+  </body>
+</html>

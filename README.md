@@ -35,7 +35,7 @@ npm run dev               # http://localhost:4321
 | Agregar o actualizar un producto | `/panel/agregar` (con el marcador del navegador) |
 | La página de un producto (precio, historial, Sello K-P) | `/p/<slug>`: se crea sola y no desaparece al retirarlo (ver [`docs/vitrina.md`](docs/vitrina.md#la-página-de-cada-producto-p)) |
 | Publicar en WhatsApp, Telegram, Facebook, Instagram, TikTok… | `/panel/hoy` |
-| Tu «link en bio» numerado | `/hoy` (`/hoy?c=ig`, `/hoy?c=tt`) |
+| Tu «link en bio», con el código fijo de cada producto (K-17) | `/hoy` (`/hoy?c=ig`, `/hoy?c=tt`) y la dirección corta `/k/17` |
 | Telegram automático | `n8n/telegram-tecnologia.json` |
 | Saber si el sitio se quedó vacío o qué precios caducan | El issue `alarma-vitrina` (se abre y se cierra solo) |
 | Ver qué descuentos son reales en el Buen Fin | `/buen-fin` (se llena con el observador diario; ver [`docs/vitrina.md`](docs/vitrina.md#el-detector-del-buen-fin-buen-fin)) |

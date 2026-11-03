@@ -63,6 +63,12 @@ describe('mismaVitrina — los productos, no el formato', () => {
     expect(mismaVitrina(a, { ...a, retirados: [] })).toBe(true);
   });
 
+  it('borrar un producto del todo sube ultimo_codigo: también es un cambio', () => {
+    const a = vitrina('Uno');
+    expect(mismaVitrina({ ...a, ultimo_codigo: 3 }, { ...a, ultimo_codigo: 4 })).toBe(false);
+    expect(mismaVitrina({ ...a, ultimo_codigo: 3 }, { ...a, ultimo_codigo: 3 })).toBe(true);
+  });
+
   it('un texto que no es JSON nunca es «la misma»', () => {
     expect(mismaVitrina('{roto', vitrina('Uno'))).toBe(false);
   });

@@ -135,6 +135,7 @@ const datos = JSON.stringify({
     .fila img, .fila .sin-foto { width: 64px; height: 64px; object-fit: contain; background: #fff; border-radius: 8px; }
     .fila .sin-foto { background: var(--panel-2); }
     .f-titulo { font-weight: 600; font-size: .92rem; margin: 0 0 4px; line-height: 1.35; }
+    .f-codigo { display: inline-block; background: var(--acento); color: #23120a; font-weight: 800; font-size: .74rem; border-radius: 999px; padding: 1px 8px; margin-right: 4px; vertical-align: 1px; }
     .f-meta { font-size: .82rem; color: var(--tinta-2); margin: 0 0 6px; }
     .estado { display: inline-block; font-size: .74rem; border-radius: 999px; padding: 2px 9px; border: 1px solid currentColor; margin-right: 6px; }
     .estado.ok { color: var(--bien); } .estado.mal { color: var(--mal); } .estado.aviso { color: var(--aviso); } .estado.local { color: var(--acento); }
@@ -307,6 +308,7 @@ const datos = JSON.stringify({
     import { normalizarProducto, esLinkOficial, claveProducto, urlProductoLimpia, idArticulo, DIAS_VIGENCIA_PRECIO } from '../../utils/vitrina.js';
     import { leerEnvioMarcador } from '../../utils/marcador.js';
     import { publicarVitrina } from '../../utils/publicarGithub.js';
+    import { asignarCodigos, formatoCodigo } from '../../utils/codigos.js';
 
     const DATOS = JSON.parse(document.getElementById('kp-datos')?.textContent || '{}');
     const ARCHIVO = DATOS.archivo || { productos: [] };
@@ -334,27 +336,48 @@ const datos = JSON.stringify({
     let BASE = cargarBase();
 
     // ── Borrador local ─────────────────────────────────────────────────────
-    // Se guarda {productos, retirados}. Un borrador de antes (solo la lista de
-    // productos) se sigue leyendo, con los retirados de la base.
-    function cargar(): { productos: any[]; retirados: any[] } {
+    // Se guarda {productos, retirados, ultimo_codigo}. Un borrador de antes
+    // (solo la lista de productos) se sigue leyendo, con los retirados de la base.
+    function cargar(): { productos: any[]; retirados: any[]; ultimo: number | null } {
+      const ultimoBase = BASE.ultimo_codigo ?? null;
       try {
         const b = JSON.parse(localStorage.getItem(CLAVE) || 'null');
-        if (Array.isArray(b)) return { productos: b, retirados: structuredClone(BASE.retirados || []) };
-        if (b && Array.isArray(b.productos)) return { productos: b.productos, retirados: Array.isArray(b.retirados) ? b.retirados : [] };
+        if (Array.isArray(b)) return { productos: b, retirados: structuredClone(BASE.retirados || []), ultimo: ultimoBase };
+        if (b && Array.isArray(b.productos)) {
+          return { productos: b.productos, retirados: Array.isArray(b.retirados) ? b.retirados : [], ultimo: b.ultimo_codigo ?? ultimoBase };
+        }
       } catch { /* sin almacenamiento: se trabaja en memoria */ }
-      return { productos: structuredClone(BASE.productos || []), retirados: structuredClone(BASE.retirados || []) };
+      return { productos: structuredClone(BASE.productos || []), retirados: structuredClone(BASE.retirados || []), ultimo: ultimoBase };
     }
-    let { productos, retirados } = cargar();
+    let { productos, retirados, ultimo } = cargar();
+
+    // El código fijo («K-17») se pone al guardar y no cambia nunca: ver
+    // src/utils/codigos.js. Así el que ves aquí es el que dirás en tus videos.
+    function ponerCodigos() {
+      const r = asignarCodigos({ productos, retirados, ultimo_codigo: ultimo });
+      productos = r.productos;
+      retirados = r.retirados;
+      ultimo = r.ultimo_codigo;
+    }
+    ponerCodigos();
+
     const iguales = () => JSON.stringify(productos) === JSON.stringify(BASE.productos || [])
-      && JSON.stringify(retirados) === JSON.stringify(BASE.retirados || []);
+      && JSON.stringify(retirados) === JSON.stringify(BASE.retirados || [])
+      && (ultimo ?? null) === (BASE.ultimo_codigo ?? null);
     function guardarBorrador() {
+      ponerCodigos();
       try {
         if (iguales()) localStorage.removeItem(CLAVE);
-        else localStorage.setItem(CLAVE, JSON.stringify({ productos, retirados }));
+        else localStorage.setItem(CLAVE, JSON.stringify({ productos, retirados, ultimo_codigo: ultimo }));
       } catch { /* modo privado: el borrador vive mientras la pestaña esté abierta */ }
     }
     const archivoCompleto = () => JSON.stringify(
-      { _ayuda: ARCHIVO._ayuda, productos, ...(retirados.length ? { retirados } : {}) }, null, 2,
+      {
+        _ayuda: ARCHIVO._ayuda,
+        ...(ultimo ? { ultimo_codigo: ultimo } : {}),
+        productos,
+        ...(retirados.length ? { retirados } : {}),
+      }, null, 2,
     ) + '\n';
 
     // ── Copiar (con respaldo para http y navegadores viejos) ──────────────
@@ -462,7 +485,7 @@ const datos = JSON.stringify({
         const img = p.imagen ? `<img src="${esc(p.imagen)}" alt="" loading="lazy">` : '<div class="sin-foto"></div>';
         const ml = urlProductoLimpia(p.url_producto);
         return `<article class="fila">${img}<div>`
-          + `<p class="f-titulo">${esc(p.titulo || '(sin título)')}</p>`
+          + `<p class="f-titulo">${p.codigo ? `<span class="f-codigo" title="Código fijo: el que dices en historias y videos">${esc(formatoCodigo(p.codigo))}</span> ` : ''}${esc(p.titulo || '(sin título)')}</p>`
           + `<p class="f-meta">${p.precio ? pesos(Number(p.precio)) : 'sin precio'}${p.precio_antes ? ` · antes ${pesos(Number(p.precio_antes))}` : ''}${p.revisado ? ` · visto el ${esc(new Date(p.revisado).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }))}` : ''}</p>`
           + `<div>${estado}</div>`
           + `<div class="acciones">`
@@ -481,8 +504,8 @@ const datos = JSON.stringify({
         const cuando = p.retirado ? new Date(p.retirado).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '';
         const img = p.imagen ? `<img src="${esc(p.imagen)}" alt="" loading="lazy">` : '<div class="sin-foto"></div>';
         return `<article class="fila">${img}<div>`
-          + `<p class="f-titulo">${esc(p.titulo || '(sin título)')}</p>`
-          + `<p class="f-meta">Retirado${cuando ? ` el ${esc(cuando)}` : ''} · su página sigue en línea</p>`
+          + `<p class="f-titulo">${p.codigo ? `<span class="f-codigo">${esc(formatoCodigo(p.codigo))}</span> ` : ''}${esc(p.titulo || '(sin título)')}</p>`
+          + `<p class="f-meta">Retirado${cuando ? ` el ${esc(cuando)}` : ''} · su página sigue en línea${p.codigo ? ` (y /k/${esc(String(p.codigo))} lleva a ella)` : ''}</p>`
           + (enArchivo.has(JSON.stringify(p)) ? '' : '<div><span class="estado local">sin subir</span></div>')
           + `<div class="acciones">`
           + (slug ? `<a class="btn" href="/p/${esc(slug)}" target="_blank" rel="noopener">Ver su página</a>` : '')
@@ -600,6 +623,11 @@ const datos = JSON.stringify({
       // Mismo producto ya en la lista → se actualiza en vez de duplicarlo.
       const clave = claveProducto(entrada.url_producto);
       const otro = editando ?? (clave ? productos.findIndex((p) => claveProducto(p.url_producto) === clave) : -1);
+      // El código es del producto, no del formulario: editar no lo cambia, y
+      // un producto retirado que vuelve recupera el suyo.
+      const retiradoPrevio = clave ? retirados.find((x) => claveProducto(x.url_producto) === clave) : null;
+      const codigoPrevio = (otro !== null && otro >= 0 ? productos[otro]?.codigo : null) ?? retiradoPrevio?.codigo;
+      if (codigoPrevio) entrada.codigo = codigoPrevio;
       if (otro !== null && otro >= 0) productos[otro] = entrada;
       else productos.unshift(entrada);
       // Si estaba retirado, vuelve: no puede estar en las dos listas.
@@ -707,6 +735,7 @@ const datos = JSON.stringify({
       if (t.closest('[data-descartar]') && confirm('¿Descartar todos los cambios que no has subido?')) {
         productos = structuredClone(BASE.productos || []);
         retirados = structuredClone(BASE.retirados || []);
+        ultimo = BASE.ultimo_codigo ?? null;
         guardarBorrador();
         form.reset();
         editar(null);

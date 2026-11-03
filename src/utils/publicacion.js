@@ -17,6 +17,7 @@
  *  2. Toda publicación declara que es de afiliado. Es lo que piden Mercado
  *     Libre y la PROFECO, y tu marca entera es decir la verdad sobre precios.
  */
+import { formatoCodigo, normalizarCodigo } from './codigos.js';
 import { enlacePara } from './vitrina.js';
 
 /**
@@ -107,14 +108,21 @@ function hashtags(p) {
  *
  * @param {string} formato — id de FORMATOS
  * @param {object} p — producto de la vitrina (shape canónico)
- * @param {{numero?: number, sitio?: string, ahora?: number}} [opciones]
+ * Instagram y TikTok no dejan tocar links: el texto manda al perfil con el
+ * CÓDIGO FIJO del producto («busca el K-17») y a su dirección corta (/k/17),
+ * que no cambian aunque cambie la vitrina. Sin código, solo a /hoy.
+ *
+ * @param {{codigo?: number|string|null, sitio?: string, ahora?: number}} [opciones]
+ *   `codigo` sale del producto si no se pasa.
  * @returns {string}
  */
-export function textoProducto(formato, p, { numero, sitio = '', ahora = Date.now() } = {}) {
+export function textoProducto(formato, p, { codigo = p?.codigo, sitio = '', ahora = Date.now() } = {}) {
   const f = FORMATOS.find((x) => x.id === formato) ?? FORMATOS[0];
   const b = base(p, ahora);
   const link = enlacePara(p, f.canal);
-  const hoy = `${sitio.replace(/\/+$/, '')}/hoy`;
+  const raiz = sitio.replace(/\/+$/, '');
+  const hoy = `${raiz}/hoy`;
+  const k = formatoCodigo(codigo);
   const etiqueta = p.oferta_relampago ? '⚡ OFERTA RELÁMPAGO' : '🔥 OFERTA';
   const precioPlano = [b.precio, b.antes ? `(antes ${b.antes}${b.descuento ? `, ${b.descuento}` : ''})` : null].filter(Boolean).join(' ');
   const pie = `${AVISO_AFILIADO}${b.visto ? ` Precio visto el ${b.visto}; confírmalo en Mercado Libre.` : ''}`;
@@ -174,14 +182,14 @@ export function textoProducto(formato, p, { numero, sitio = '', ahora = Date.now
 
     case 'ig':
     case 'tt': {
-      const donde = numero ? `🔗 Link en mi perfil → busca el #${numero}` : '🔗 Link en mi perfil';
+      const donde = k ? `🔗 Link en mi perfil → busca el ${k}` : '🔗 Link en mi perfil';
       return [
         `${p.oferta_relampago ? '⚡' : '🔥'} ${recortar(p.titulo, f.id === 'tt' ? 80 : 120)}`,
         `💰 ${b.precio}${b.antes ? ` (antes ${b.antes})` : ''}${b.descuento ? ` ${b.descuento}` : ''}`,
         b.termina ? `⏱ Termina ${b.termina}` : null,
         p.nota && f.id === 'ig' ? `📝 ${p.nota}` : null,
         donde,
-        `(${hoy})`,
+        k ? `(o entra a ${raiz}/k/${normalizarCodigo(codigo)})` : `(${hoy})`,
         '',
         'Enlace de afiliado: si compras, recibo una comisión sin costo extra para ti.',
         hashtags(p),
@@ -268,15 +276,16 @@ export function textoPaquete(formato, productos, { sitio = '', ahora = Date.now(
  * es lo mínimo para grabar con el teléfono sin pensar.
  *
  * @param {object} p
- * @param {number} [numero]
+ * @param {number|string|null} [codigo] — el código fijo; sale del producto si no se pasa
  * @returns {string}
  */
-export function ideaVideo(p, numero) {
+export function ideaVideo(p, codigo = p?.codigo) {
+  const k = formatoCodigo(codigo);
   const b = base(p, Date.now());
   return [
     `0–3 s · Gancho: «${b.descuento ? `${b.descuento} en ` : ''}${recortar(p.titulo, 40)}${b.antes ? `: de ${b.antes} a ${b.precio}` : ` a ${b.precio}`}».`,
     '3–10 s · Muéstralo (foto o el producto real) y di UNA razón para comprarlo' + (p.nota ? `: «${p.nota}».` : '.'),
-    `10–15 s · Cierre: «Link en mi perfil${numero ? `, el número ${numero}` : ''}». Menciona que es enlace de afiliado.`,
+    `10–15 s · Cierre: «Link en mi perfil${k ? `, el ${k}` : ''}». Menciona que es enlace de afiliado.`,
   ].join('\n');
 }
 

@@ -28,16 +28,32 @@
  * Ejecutar:  npm run generar-tarjetas
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   ANCHO, FOTO_ALTO, BANDA_ALTO, ALTO, FONDO, svgFondo, svgTarjeta,
-  HISTORIA_ALTO, HISTORIA_FOTO_Y, HISTORIA_FOTO_ALTO, svgHistoria,
+  HISTORIA_ALTO, HISTORIA_FOTO_Y, HISTORIA_FOTO_ALTO, svgHistoria, confFuentes,
 } from '../utils/tarjetas.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FEED = path.resolve(__dirname, '../../public/data/feed.json');
 const SALIDA = path.resolve(__dirname, '../../public/promos');
+const FUENTES = path.resolve(__dirname, '../assets/fuentes');
+
+/**
+ * Le da a sharp las fuentes de la marca (src/assets/fuentes) con un
+ * fonts.conf propio. El contenedor donde corre el build no trae fuentes: sin
+ * esto, el texto de las tarjetas depende de lo que haya instalado en cada
+ * máquina (o no sale). Tiene que correr ANTES de cargar sharp.
+ */
+function prepararFuentes() {
+  const dir = path.join(os.tmpdir(), 'kalidapresio-fuentes');
+  mkdirSync(path.join(dir, 'cache'), { recursive: true });
+  const conf = path.join(dir, 'fonts.conf');
+  writeFileSync(conf, confFuentes(FUENTES, path.join(dir, 'cache')));
+  process.env.FONTCONFIG_FILE = conf;
+}
 
 /** Descarga la foto del producto. Devuelve null si no se puede: la tarjeta se hace igual. */
 async function bajarFoto(url) {
@@ -71,6 +87,7 @@ async function main() {
     return;
   }
 
+  prepararFuentes();
   const { default: sharp } = await import('sharp');
   let hechas = 0;
   let sinFoto = 0;

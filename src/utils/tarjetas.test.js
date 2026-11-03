@@ -13,7 +13,7 @@
  * SVG de forma visible — lo hace ilegible para sharp y la tarjeta sale vacía.
  */
 import { describe, it, expect } from 'vitest';
-import { partirLineas, esc, pesos, svgHistoria, finAbsoluto } from './tarjetas.js';
+import { partirLineas, esc, pesos, svgHistoria, svgTarjeta, finAbsoluto, confFuentes } from './tarjetas.js';
 
 /** El ancho real de un renglón, con el mismo factor que usa el generador. */
 const anchoAprox = (linea, tamano) => linea.length * tamano * 0.62;
@@ -91,7 +91,7 @@ describe('pesos', () => {
 
 describe('svgHistoria', () => {
   const base = {
-    id: 'MLM1', numero: 3, titulo: 'palabra '.repeat(40), precio_actual: 869, precio_previo: 2299,
+    id: 'MLM1', codigo: 17, numero: 3, titulo: 'palabra '.repeat(40), precio_actual: 869, precio_previo: 2299,
     descuento: 62, relampago: true, termina: '2026-10-27T05:00:00Z',
   };
 
@@ -104,14 +104,54 @@ describe('svgHistoria', () => {
     expect(sobreBoton).toEqual([]);
   });
 
-  it('lleva el número del producto y la hora de fin en hora de CDMX', () => {
+  it('lleva el código fijo del producto, su dirección corta y la hora de fin en hora de CDMX', () => {
     const svg = svgHistoria(base);
-    expect(svg).toContain('#3');
+    expect(svg).toContain('LINK EN MI PERFIL · K-17');
+    expect(svg).toContain('kalidapresio.albis-labs.xyz/k/17');
+    expect(svg).not.toContain('#3');
     expect(svg).toContain('TERMINA 26 OCT · 23:00');
+  });
+
+  it('sin código fijo cae a la posición de /hoy', () => {
+    const svg = svgHistoria({ ...base, codigo: null });
+    expect(svg).toContain('LINK EN MI PERFIL · #3');
+    expect(svg).toContain('kalidapresio.albis-labs.xyz/hoy');
   });
 
   it('sin hora de fin real no inventa una', () => {
     expect(svgHistoria({ ...base, termina: null })).not.toContain('TERMINA');
+  });
+});
+
+describe('svgTarjeta (post 4:5)', () => {
+  const o = {
+    id: 'MLM1', codigo: 17, titulo: 'Licuadora & batidora «Pro»', precio_actual: 1499, precio_previo: 2299,
+    descuento: 35, score: 88, rating: 4.7, vendidos: 12000, historico: { texto: 'El precio más bajo en 46 días' },
+  };
+
+  it('lleva el código fijo y la dirección corta', () => {
+    const svg = svgTarjeta(o, false);
+    expect(svg).toContain('K-17');
+    expect(svg).toContain('/k/17');
+  });
+
+  it('la variante de mentira lo dice con un sello', () => {
+    expect(svgTarjeta(o, true)).toContain('PURO CUENTO');
+    expect(svgTarjeta(o, false)).not.toContain('PURO CUENTO');
+  });
+
+  it('escapa el título y no usa caracteres que las fuentes de la marca no tienen', () => {
+    const svg = svgTarjeta(o, false) + svgHistoria(o);
+    expect(svg).toContain('Licuadora &amp; batidora');
+    expect(svg).not.toContain('★'); // la estrella se dibuja; en la fuente sale un cuadrito
+  });
+});
+
+describe('confFuentes', () => {
+  it('le da a sharp solo la carpeta de fuentes del repo', () => {
+    const xml = confFuentes('/repo/src/assets/fuentes', '/tmp/fc');
+    expect(xml).toContain('<dir>/repo/src/assets/fuentes</dir>');
+    expect(xml).toContain('<cachedir>/tmp/fc</cachedir>');
   });
 });
 

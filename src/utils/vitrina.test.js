@@ -253,6 +253,24 @@ describe('cargarVitrina', () => {
     expect(cargarVitrina({ productos: [] }, AHORA).productos).toEqual([]);
     expect(cargarVitrina(null, AHORA).productos).toEqual([]);
   });
+
+  it('lleva el código fijo y avisa si falta', () => {
+    const con = cargarVitrina([base({ codigo: 'K-17' })], AHORA);
+    expect(con.productos[0].codigo).toBe(17);
+    expect(con.avisos).toEqual([]);
+    const sin = cargarVitrina([base()], AHORA);
+    expect(sin.productos[0].codigo).toBeNull();
+    expect(sin.avisos[0]).toMatch(/código fijo/);
+  });
+
+  it('dos productos con el mismo código: el segundo se queda sin él y se avisa', () => {
+    const r = cargarVitrina([
+      base({ codigo: 4 }),
+      base({ codigo: 4, link: 'https://meli.la/2XyZ', url_producto: 'https://www.mercadolibre.com.mx/licuadora/p/MLM80000003' }),
+    ], AHORA);
+    expect(r.productos.map((p) => p.codigo)).toEqual([4, null]);
+    expect(r.avisos.join(' ')).toMatch(/K-4 ya lo tiene otro producto/);
+  });
 });
 
 describe('revisionMasVieja y ordenParaPublicar', () => {
