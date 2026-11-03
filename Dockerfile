@@ -48,9 +48,10 @@ RUN test -n "$SITE_URL" || \
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# `npm run build` = relampago.json + feed.json + tarjetas + astro build, todo
-# desde src/data/vitrina.json (tus productos con link oficial). No necesita
-# red hacia Mercado Libre: lo único que se descarga son las fotos.
+# `npm run build` = relampago.json + feed.json + precios.json + tarjetas +
+# astro build, todo desde src/data/vitrina.json (tus productos con link
+# oficial). No necesita red hacia Mercado Libre: lo único que se descarga son
+# las fotos.
 RUN npm run build
 
 # ── Etapa 3: servidor Caddy ─────────────────────────────────────────────────

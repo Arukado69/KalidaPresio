@@ -146,6 +146,13 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
 
     <div class="oferta-acciones">
       <BotonCTA id={oferta.id} enlace={oferta.link_afiliado} seccion={campana} texto="Ver en Mercado Libre" />
+      {pagina && (
+        <a class="oferta-alerta" href={`${pagina}#alerta`} aria-label={`Avísame si baja: ${oferta.titulo}`} title="Avísame si baja">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+          </svg>
+        </a>
+      )}
       <a
         class="oferta-compartir"
         href={urlWhatsApp}
@@ -237,7 +244,8 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
 
   .oferta-acciones { display: flex; align-items: center; gap: 0.6rem; }
   .oferta-acciones :global(.cta) { flex: 1; font-size: 1rem; padding: 0.7em 0.9em 0.66em; }
-  .oferta-compartir {
+  .oferta-compartir,
+  .oferta-alerta {
     display: grid;
     place-items: center;
     flex: none;
@@ -249,6 +257,8 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
     background: var(--cartulina);
   }
   .oferta-compartir:hover { background: var(--fosfo-verde); }
+  /* La campanita lleva al formulario «avísame cuando baje» de su página. */
+  .oferta-alerta:hover { background: var(--fosfo-cielo); }
 
   /* Variante grande (colecciones): foto a un lado */
   .oferta--deal { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 0 1.4rem; padding: 1.2rem; }

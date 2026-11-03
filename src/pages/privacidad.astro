@@ -22,7 +22,7 @@ const RESPONSABLE = {
   pais: 'México',
 };
 
-const ACTUALIZADO = '20 de agosto de 2026';
+const ACTUALIZADO = '3 de noviembre de 2026';
 ---
 
 <Layout
@@ -34,8 +34,8 @@ const ACTUALIZADO = '20 de agosto de 2026';
       <p class="etiqueta">Documento legal · última actualización: {ACTUALIZADO}</p>
       <h1 class="legal-titulo">Aviso de privacidad</h1>
       <p class="legal-resumen">
-        <span class="resalta">En corto:</span> pedimos lo mínimo (tu correo si te suscribes o nos escribes), no lo
-        vendemos y puedes pedir que lo borremos cuando quieras.
+        <span class="resalta">En corto:</span> pedimos lo mínimo (tu correo si te suscribes, nos escribes o pides
+        una alerta de precio), no lo vendemos y puedes pedir que lo borremos cuando quieras.
       </p>
     </header>
 
@@ -64,6 +64,11 @@ const ACTUALIZADO = '20 de agosto de 2026';
           <strong>Formulario de contacto:</strong> tu nombre, tu correo electrónico, el
           asunto, el mensaje que escribes y la dirección IP desde la que lo enviaste.
         </li>
+        <li>
+          <strong>Alertas de precio («avísame cuando baje»):</strong> tu correo electrónico,
+          el producto, el precio que elegiste y la dirección IP desde la que confirmaste la
+          alerta.
+        </li>
       </ul>
       <p>
         No pedimos datos financieros, ni domicilio, ni teléfono, ni datos personales
@@ -79,6 +84,10 @@ const ACTUALIZADO = '20 de agosto de 2026';
         <li>Enviarte el correo de confirmación de la suscripción (doble opt-in).</li>
         <li>Enviarte avisos ocasionales de ofertas, solo si confirmaste la suscripción.</li>
         <li>Responder los mensajes que nos mandas por el formulario de contacto.</li>
+        <li>
+          Escribirte <strong>una sola vez</strong> cuando un producto por el que pediste una
+          alerta llegue al precio que elegiste. Una alerta no te suscribe al boletín.
+        </li>
         <li>
           La dirección IP se guarda únicamente como evidencia de tu consentimiento y para
           contener abuso automatizado (bots que envían formularios en masa).
@@ -99,11 +108,12 @@ const ACTUALIZADO = '20 de agosto de 2026';
       <ul class="legal-lista">
         <li>
           <strong>Proveedor de correo transaccional</strong> (Resend): procesa el envío de
-          los correos de confirmación y del boletín.
+          los correos de confirmación, del boletín y de las alertas de precio.
         </li>
         <li>
           <strong>Proveedor de alojamiento</strong> (Hetzner, servidores en la Unión
-          Europea): almacena la base de datos donde viven las suscripciones y los mensajes.
+          Europea): almacena la base de datos donde viven las suscripciones, los mensajes y
+          las alertas.
         </li>
       </ul>
       <p>
@@ -126,6 +136,10 @@ const ACTUALIZADO = '20 de agosto de 2026';
           hace falta retomar la conversación.
         </li>
         <li>
+          <strong>Alertas de precio:</strong> una alerta activa dura hasta 6 meses. Cuando
+          se dispara, la cancelas o vence, el registro se borra 90 días después.
+        </li>
+        <li>
           <strong>Direcciones IP:</strong> se conservan junto al registro correspondiente y
           se eliminan con él.
         </li>
@@ -143,7 +157,8 @@ const ACTUALIZADO = '20 de agosto de 2026';
       <p>
         <strong>Para el boletín, la vía más rápida es el enlace «Date de baja» que va al
         pie de cada correo que te enviamos</strong>: un clic y queda hecho, sin pedir nada
-        a cambio.
+        a cambio. Una alerta de precio se cancela igual, con el enlace que viene en su
+        correo de confirmación.
       </p>
       <p>
         Para cualquier otro derecho, escribe a

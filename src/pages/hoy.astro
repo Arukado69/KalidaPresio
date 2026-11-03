@@ -86,7 +86,8 @@ const visto = (iso) => new Intl.DateTimeFormat('es-MX', { day: 'numeric', month:
               >Ver en Mercado Libre <span aria-hidden="true">→</span></a>
               <p class="hoy-visto etiqueta">
                 Visto el {visto(p.revisado)} · confírmalo en Mercado Libre ·
-                <a href={`/p/${p.slug}`}>historial</a>
+                <a href={`/p/${p.slug}`}>historial</a> ·
+                <a href={`/p/${p.slug}#alerta`}>avísame si baja</a>
               </p>
             </div>
           </li>

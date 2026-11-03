@@ -1,5 +1,6 @@
 # =============================================================================
-# KalidaPresio — API (Express + SQLite): contacto y boletín con doble opt-in.
+# KalidaPresio — API (Express + SQLite): contacto, boletín con doble opt-in y
+# alertas de precio «avísame cuando baje».
 # Escucha SOLO en la red interna de Docker; Caddy le hace proxy en /api/*.
 # =============================================================================
 FROM node:22.12.0-alpine

@@ -18,7 +18,7 @@
     "observar-diario": "node src/scripts/observarDiario.js",
     "generar-feed": "node src/scripts/generarFeedPublico.js",
     "generar-tarjetas": "node src/scripts/generarTarjetasPromo.js",
-    "build": "node src/scripts/generarRelampago.js && node src/scripts/generarFeedPublico.js && node src/scripts/generarTarjetasPromo.js && astro build",
+    "build": "node src/scripts/generarRelampago.js && node src/scripts/generarFeedPublico.js && node src/scripts/generarPrecios.js && node src/scripts/generarTarjetasPromo.js && astro build",
     "build:completo": "node src/scripts/importarOfertas.js && npm run build",
     "test": "vitest run",
     "test:watch": "vitest",

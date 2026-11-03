@@ -39,13 +39,14 @@ npm run dev               # http://localhost:4321
 | Telegram automático | `n8n/telegram-tecnologia.json` |
 | Saber si el sitio se quedó vacío o qué precios caducan | El issue `alarma-vitrina` (se abre y se cierra solo) |
 | Ver qué descuentos son reales en el Buen Fin | `/buen-fin` (se llena con el observador diario; ver [`docs/vitrina.md`](docs/vitrina.md#el-detector-del-buen-fin-buen-fin)) |
+| Saber qué productos tienen gente esperando que bajen | `GET /api/alertas/resumen` (ver [`docs/alertas.md`](docs/alertas.md)) |
 
 ## Comandos
 
 | Comando | Qué hace |
 | :--- | :--- |
 | `npm run dev` | Servidor de desarrollo en `localhost:4321` |
-| `npm run build` | Relámpago + feed.json + tarjetas + `astro build` → `dist/` |
+| `npm run build` | Relámpago + feed.json + precios.json + tarjetas + `astro build` → `dist/` |
 | `npm test` | Tests de la lógica de negocio (Vitest) |
 | `npm run revisar-vitrina` | ¿Está publicando el sitio? Lo mismo que la alarma diaria, en la consola |
 | `npm run observar-diario` | Foto diaria de precios para el histórico, en tu computadora (`-- --subir` la sube). Ver [`docs/vitrina.md`](docs/vitrina.md#el-observador-diario-el-reloj-del-buen-fin) |
@@ -96,9 +97,9 @@ src/
   styles/       global.css — el sistema visual («el tianguis honesto»)
   scripts/      Build (relámpago, feed, tarjetas) y herramientas manuales
   utils/        Lógica pura y testeada: vitrina, publicacion, marcador, canales, score…
-backend/        API Express + SQLite: contacto, boletín y los /r/ viejos
+backend/        API Express + SQLite: contacto, boletín, alertas de precio y los /r/ viejos
 docker/         Caddyfile · analitica/ (Umami) · n8n/
-docs/           vitrina.md · reparto.md · analitica.md · deploy.md
+docs/           vitrina.md · alertas.md · reparto.md · analitica.md · deploy.md
 ```
 
 ## Medición

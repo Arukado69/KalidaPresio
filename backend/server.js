@@ -1,4 +1,5 @@
-// backend/server.js — API de KalidaPresio (contacto + boletín con doble opt-in).
+// backend/server.js — API de KalidaPresio: contacto, boletín con doble opt-in y
+// alertas de precio «avísame cuando baje» (ver backend/alertas.js).
 //
 // Corre detrás de DOS proxies: Nginx Proxy Manager (TLS, host) → Caddy
 // (contenedor web) → aquí. De ahí TRUST_PROXY=2 por defecto: con un valor
@@ -16,7 +17,20 @@ import {
   escapeHtml,
   correoConfirmacion,
   correoBienvenida,
+  correoConfirmarAlerta,
+  correoBajo,
+  pesos,
+  fechaMx,
 } from './email.js';
+import {
+  crearRepoAlertas,
+  crearRevisor,
+  leerCatalogo,
+  normalizarIdProducto,
+  normalizarObjetivo,
+  validarAlta,
+  MAX_ACTIVAS_POR_CORREO,
+} from './alertas.js';
 import {
   destinoLimpio,
   normalizarCanal,
@@ -32,6 +46,12 @@ const SITE_URL = (process.env.PUBLIC_SITE_URL || 'https://kalidapresio.albis-lab
 const SUBSCRIBE_SECRET = process.env.SUBSCRIBE_SECRET || '';
 const EXPORT_TOKEN = process.env.EXPORT_TOKEN || '';
 const SUPPORT_INBOX = process.env.SUPPORT_INBOX || '';
+// Catálogo de precios del sitio para las alertas. Por defecto, el contenedor
+// `web` por la red interna de Docker (no sale a internet ni pasa por NPM).
+const PRECIOS_URL = process.env.PRECIOS_URL || 'http://web/data/precios.json';
+const MINUTOS_ALERTAS = Math.max(5, Number(process.env.ALERTAS_MINUTOS) || 30);
+const HORA = 60 * 60 * 1000;
+const DIA = 24 * HORA;
 
 // ── ARRANQUE: decir en voz alta qué está y qué no ─────────────────────────────
 // Un backend que arranca "bien" pero con medio boletín apagado es cómo se
@@ -125,23 +145,41 @@ const stmtBaja = db.prepare(`
   UPDATE suscriptores SET estado = 'baja', baja_en = CURRENT_TIMESTAMP WHERE email = ?
 `);
 
-/** Página HTML mínima con los tokens de marca (no depende del CSS del sitio). */
-function pagina(titulo, mensaje, ok, status) {
-  const acento = ok ? '#1fd28e' : '#ff5d76';
+/**
+ * Página HTML mínima con la marca del sitio («el tianguis honesto»): una hoja
+ * con el título como sello de hule. No depende del CSS del sitio.
+ * `acciones` es HTML extra antes del botón (ya escapado por quien lo arma).
+ */
+function pagina(titulo, mensaje, ok, acciones = '') {
+  const sello = ok ? '#0a6e39' : '#c21f2a';
+  const rotulo = `'Big Shoulders Display','Arial Narrow',Impact,sans-serif`;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(titulo)} — KalidaPresio</title><meta name="robots" content="noindex"></head>
-<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#140e1f;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#f0eef8">
-  <main style="max-width:480px;padding:40px 28px;text-align:center">
-    <div style="font-size:34px;font-weight:800;color:${acento};margin-bottom:6px">KalidaPresio</div>
-    <h1 style="font-size:22px;margin:0 0 12px">${escapeHtml(titulo)}</h1>
-    <p style="font-size:15px;line-height:1.6;color:#c9c3e0;margin:0 0 28px">${mensaje}</p>
-    <a href="${SITE_URL}/" style="display:inline-block;background:${acento};color:#0b231a;font-weight:bold;text-decoration:none;padding:12px 26px;border-radius:10px">Ir al inicio</a>
+<title>${escapeHtml(titulo)} — KalidaPresio</title><meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@900&family=Schibsted+Grotesk:wght@400;700&display=swap" rel="stylesheet"></head>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#f3ede0;font-family:'Schibsted Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;color:#17140f">
+  <main style="max-width:520px;margin:24px 16px;padding:32px 24px;background:#fffcf4;border:2px solid #17140f;box-shadow:6px 6px 0 #17140f;text-align:center">
+    <p style="margin:0 0 20px;font:900 26px/1 ${rotulo};text-transform:uppercase;letter-spacing:.01em">Kalida<span style="color:#c21f2a">Presio</span></p>
+    <h1 style="display:inline-block;margin:0 0 18px;padding:7px 14px 5px;border:3px solid ${sello};border-radius:4px;color:${sello};font:900 25px/1.1 ${rotulo};text-transform:uppercase;letter-spacing:.04em;transform:rotate(-2deg)">${escapeHtml(titulo)}</h1>
+    <p style="font-size:16px;line-height:1.6;color:#4a443a;margin:0 0 24px">${mensaje}</p>
+    ${acciones}
+    <a href="${SITE_URL}/" style="display:inline-block;background:#e6ff2a;color:#17140f;font:900 17px/1 ${rotulo};text-transform:uppercase;letter-spacing:.05em;text-decoration:none;padding:13px 24px 12px;border:2.5px solid #17140f;border-radius:999px;box-shadow:4px 4px 0 #17140f">Ir al inicio</a>
   </main>
 </body></html>`;
 }
 
 const responderHtml = (res, status, html) =>
   res.status(status).type('text/html; charset=utf-8').send(html);
+
+/** Authorization: Bearer <EXPORT_TOKEN>, comparado en tiempo constante. */
+function tokenExportValido(req) {
+  const cabecera = req.get('authorization') || '';
+  const recibido = cabecera.startsWith('Bearer ') ? cabecera.slice(7) : '';
+  return Boolean(recibido) && secretoIgual(recibido, EXPORT_TOKEN);
+}
+
+const recortar = (s, n) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+const paginaProducto = (slug) => `${SITE_URL}/p/${encodeURIComponent(slug)}`;
 
 const enlaceBaja = (email) =>
   `${SITE_URL}/api/baja?token=${encodeURIComponent(
@@ -371,9 +409,7 @@ app.get('/api/export/subscribers', limitadorExport, (req, res) => {
       return res.status(503).json({ ok: false, error: 'export_deshabilitado' });
     }
 
-    const cabecera = req.get('authorization') || '';
-    const recibido = cabecera.startsWith('Bearer ') ? cabecera.slice(7) : '';
-    if (!recibido || !secretoIgual(recibido, EXPORT_TOKEN)) {
+    if (!tokenExportValido(req)) {
       console.warn(`[Export] Intento no autorizado desde ${req.ip}`);
       return res.status(403).json({ ok: false, error: 'No autorizado' });
     }
@@ -407,6 +443,208 @@ app.get('/api/export/subscribers', limitadorExport, (req, res) => {
     console.error('[Export] Error:', error);
     return res.status(500).json({ ok: false, error: 'Error al exportar datos' });
   }
+});
+
+// ── ALERTAS DE PRECIO: «avísame cuando baje» ─────────────────────────────────
+// La lógica vive en backend/alertas.js; aquí solo se conecta con HTTP, la base,
+// el catálogo del sitio y el correo.
+
+const repoAlertas = crearRepoAlertas(db);
+
+// Catálogo de precios del sitio (/data/precios.json). El formulario lo usa con
+// una caché corta; el revisor siempre lo pide fresco.
+let catalogoCache = { en: 0, datos: null };
+async function obtenerCatalogo({ fresco = false } = {}) {
+  if (!fresco && catalogoCache.datos && Date.now() - catalogoCache.en < 5 * 60 * 1000) return catalogoCache.datos;
+  const res = await fetch(PRECIOS_URL, { signal: AbortSignal.timeout(10_000), headers: { 'Cache-Control': 'no-cache' } });
+  if (!res.ok) throw new Error(`${PRECIOS_URL} respondió ${res.status}`);
+  const datos = leerCatalogo(await res.json());
+  catalogoCache = { en: Date.now(), datos };
+  return datos;
+}
+
+/**
+ * POST /api/alertas — paso 1: pedir la alerta.
+ * Como el boletín, NO guarda nada: firma un token con {producto, objetivo} y
+ * manda el correo de confirmación, que trae también el enlace para cancelarla.
+ */
+app.post('/api/alertas', limitadorFormularios, async (req, res) => {
+  try {
+    const { email, producto, objetivo, honeypot } = req.body ?? {};
+
+    if (honeypot) {
+      console.warn(`[Alertas] Bot detectado y bloqueado (honeypot): IP ${req.ip}`);
+      return res.status(200).json({ ok: true });
+    }
+
+    const emailClean = sanitizar(email).toLowerCase();
+    if (!emailValido(emailClean)) return res.status(400).json({ ok: false, error: 'email_invalido' });
+    const id = normalizarIdProducto(producto);
+    if (!id) return res.status(404).json({ ok: false, error: 'producto_desconocido' });
+    const meta = normalizarObjetivo(objetivo);
+    if (meta === null) return res.status(400).json({ ok: false, error: 'objetivo_invalido' });
+
+    if (!SUBSCRIBE_SECRET || !espConfigurado()) {
+      console.error('[Alertas] Falta SUBSCRIBE_SECRET o RESEND_API_KEY: no se puede confirmar ninguna alerta.');
+      return res.status(503).json({ ok: false, error: 'config_incompleta' });
+    }
+
+    let catalogo;
+    try {
+      catalogo = await obtenerCatalogo();
+    } catch (e) {
+      console.error(`[Alertas] Sin catálogo de precios (${PRECIOS_URL}): ${e.message}`);
+      return res.status(503).json({ ok: false, error: 'catalogo_no_disponible' });
+    }
+    const prod = catalogo.find((p) => p.id === id);
+    if (!prod) return res.status(404).json({ ok: false, error: 'producto_desconocido' });
+
+    const v = validarAlta(prod, meta);
+    if (!v.ok) return res.status(400).json({ ok: false, error: v.error, precio: v.precio });
+
+    const token = crearToken(emailClean, SUBSCRIBE_SECRET, 'alerta', 48 * HORA, { p: id, o: meta });
+    const tokenCancelar = crearToken(emailClean, SUBSCRIBE_SECRET, 'alerta-baja', 365 * DIA, { p: id });
+    const enlace = `${SITE_URL}/api/alertas/confirmar?token=${encodeURIComponent(token)}`;
+    const enlaceCancelar = `${SITE_URL}/api/alertas/baja?token=${encodeURIComponent(tokenCancelar)}`;
+
+    await enviarCorreo({
+      to: emailClean,
+      subject: `Confirma tu alerta: ${recortar(prod.titulo, 60)}`,
+      text: `Pediste que te avisemos cuando «${prod.titulo}» baje de ${pesos(meta)} (el último precio que vimos: ${pesos(prod.precio)}).\n\nConfírmalo aquí (el enlace dura 48 h): ${enlace}\n\nTe escribiremos una sola vez. Para cancelarla después: ${enlaceCancelar}\n\nSi no fuiste tú, ignora este correo.`,
+      html: correoConfirmarAlerta({ enlace, enlaceCancelar, titulo: prod.titulo, objetivo: meta, precio: prod.precio }),
+    });
+
+    console.log(`[Alertas] Confirmación enviada a ${emailClean} (${id}, menos de ${meta})`);
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('[Alertas] No se pudo enviar la confirmación:', error.message);
+    return res.status(502).json({ ok: false, error: 'envio_fallido' });
+  }
+});
+
+/**
+ * GET /api/alertas/confirmar?token=… — paso 2: la persona confirma y ahí sí
+ * se guarda la alerta. Devuelve HTML porque se abre desde el correo.
+ */
+app.get('/api/alertas/confirmar', limitadorFormularios, async (req, res) => {
+  if (!SUBSCRIBE_SECRET) {
+    return responderHtml(res, 503, pagina('Configuración incompleta', 'No podemos confirmar alertas ahora mismo. Inténtalo más tarde.', false));
+  }
+
+  const r = verificarToken(String(req.query.token || ''), SUBSCRIBE_SECRET, 'alerta');
+  const id = r.ok ? normalizarIdProducto(r.datos.p) : null;
+  const meta = r.ok ? normalizarObjetivo(r.datos.o) : null;
+  if (!r.ok || !id || meta === null) {
+    const msg = r.error === 'expirado'
+      ? 'Este enlace caducó (duraba 48 horas). Vuelve a pedir la alerta desde la página del producto.'
+      : 'Este enlace de confirmación no es válido.';
+    return responderHtml(res, 400, pagina('Enlace no válido', msg, false));
+  }
+
+  // El catálogo solo da el título y la página. Si no está a la mano, la
+  // alerta se guarda igual: el revisor usa el catálogo del momento.
+  let prod = null;
+  try {
+    prod = (await obtenerCatalogo()).find((p) => p.id === id) ?? null;
+  } catch (e) {
+    console.error(`[Alertas] Confirmación sin catálogo (${e.message}); se guarda igual.`);
+  }
+
+  if (repoAlertas.contarOtrasActivas(r.email, id) >= MAX_ACTIVAS_POR_CORREO) {
+    return responderHtml(res, 429, pagina(
+      'Demasiadas alertas',
+      `Ya tienes ${MAX_ACTIVAS_POR_CORREO} alertas activas. Cancela alguna desde su correo de confirmación y vuelve a intentarlo.`,
+      false,
+    ));
+  }
+
+  try {
+    repoAlertas.guardar({
+      email: r.email,
+      productoId: id,
+      objetivo: meta,
+      titulo: prod?.titulo ?? null,
+      slug: prod?.slug ?? null,
+      precio: prod?.precio ?? null,
+      ip: req.ip,
+    });
+    console.log(`[Alertas] Alerta confirmada: ${r.email} (${id}, menos de ${meta})`);
+  } catch (e) {
+    console.error('[Alertas] Error al guardar la alerta confirmada:', e.message);
+    return responderHtml(res, 500, pagina('Algo salió mal', 'Tu confirmación es válida pero no pudimos guardarla. Escríbenos y lo resolvemos.', false));
+  }
+
+  const nombre = prod ? `<strong>${escapeHtml(prod.titulo)}</strong>` : 'el producto';
+  const acciones = prod?.slug
+    ? `<p style="margin:0 0 22px"><a href="${escapeHtml(paginaProducto(prod.slug))}" style="color:#17140f;font-weight:700">Ver su página y su historial de precio</a></p>`
+    : '';
+  return responderHtml(res, 200, pagina(
+    '¡Alerta activada!',
+    `Te escribimos <strong>una sola vez</strong>, cuando veamos ${nombre} a ${pesos(meta)} o menos. Revisamos los precios a mano: puede tardar, y no prometemos que baje. La alerta dura 6 meses.`,
+    true,
+    acciones,
+  ));
+});
+
+/** GET /api/alertas/baja?token=… — cancelar una alerta en un clic. */
+app.get('/api/alertas/baja', limitadorFormularios, (req, res) => {
+  if (!SUBSCRIBE_SECRET) {
+    return responderHtml(res, 503, pagina('Configuración incompleta', 'No podemos cancelar alertas ahora mismo. Escríbenos y lo hacemos a mano.', false));
+  }
+  const r = verificarToken(String(req.query.token || ''), SUBSCRIBE_SECRET, 'alerta-baja');
+  const id = r.ok ? normalizarIdProducto(r.datos.p) : null;
+  if (!r.ok || !id) {
+    return responderHtml(res, 400, pagina('Enlace no válido', 'Este enlace para cancelar no es válido. Escríbenos desde el formulario de contacto y la cancelamos a mano.', false));
+  }
+  try {
+    const cancelada = repoAlertas.cancelar(r.email, id);
+    if (cancelada) console.log(`[Alertas] Cancelada: ${r.email} (${id})`);
+    return responderHtml(res, 200, cancelada
+      ? pagina('Alerta cancelada', 'Listo: no te escribiremos por ese producto.', true)
+      : pagina('Nada que cancelar', 'Esa alerta ya no estaba activa: se disparó, ya la habías cancelado o venció.', true));
+  } catch (e) {
+    console.error('[Alertas] Error al cancelar:', e.message);
+    return responderHtml(res, 500, pagina('Algo salió mal', 'No pudimos cancelarla. Escríbenos y lo hacemos a mano de inmediato.', false));
+  }
+});
+
+/**
+ * GET /api/alertas/resumen — cuántas personas esperan cada producto y a qué
+ * precio. Sin correos. Protegido con EXPORT_TOKEN, igual que el export:
+ *   curl -H "Authorization: Bearer $EXPORT_TOKEN" https://…/api/alertas/resumen
+ */
+app.get('/api/alertas/resumen', limitadorExport, (req, res) => {
+  if (!EXPORT_TOKEN) return res.status(503).json({ ok: false, error: 'export_deshabilitado' });
+  if (!tokenExportValido(req)) {
+    console.warn(`[Alertas] Resumen: intento no autorizado desde ${req.ip}`);
+    return res.status(403).json({ ok: false, error: 'No autorizado' });
+  }
+  res.setHeader('Cache-Control', 'no-store');
+  return res.json({ ok: true, productos: repoAlertas.resumen() });
+});
+
+// El revisor: cada MINUTOS_ALERTAS lee el catálogo y manda los «¡Bajó!».
+const revisarAlertas = crearRevisor({
+  repo: repoAlertas,
+  obtenerCatalogo: () => obtenerCatalogo({ fresco: true }),
+  avisar: async (alerta, producto) => {
+    const urlPagina = paginaProducto(producto.slug);
+    await enviarCorreo({
+      to: alerta.email,
+      subject: `¡Bajó! ${recortar(producto.titulo, 60)} a ${pesos(producto.precio)}`,
+      text: `¡Bajó! ${producto.titulo}: ${pesos(producto.precio)}. Lo vimos a ese precio el ${fechaMx(producto.visto)}; tu alerta era de ${pesos(alerta.objetivo)}.\n\nVerlo en Mercado Libre (enlace de afiliado): ${producto.enlace}\nSu historial de precio: ${urlPagina}\n\nConfirma el precio final en Mercado Libre antes de comprar. Era una alerta de una sola vez.`,
+      html: correoBajo({
+        titulo: producto.titulo,
+        precio: producto.precio,
+        objetivo: alerta.objetivo,
+        visto: producto.visto,
+        enlaceMl: producto.enlace,
+        pagina: urlPagina,
+        imagen: producto.imagen,
+        termina: producto.relampago ? producto.termina : null,
+      }),
+    });
+  },
 });
 
 /**
@@ -456,6 +694,16 @@ const HOST = process.env.HOST || '0.0.0.0';
 app.listen(PORT, HOST, () => {
   console.log(`🚀 [Backend] Servidor iniciado en http://${HOST}:${PORT}`);
   console.log(`🛡️  [Backend] CORS restringido · rate limit 5/min · trust proxy = ${app.get('trust proxy')}`);
+  // El revisor solo corre si puede mandar correos: sin ESP, cada intento
+  // fallido gastaría un reintento de las alertas.
+  if (SUBSCRIBE_SECRET && espConfigurado()) {
+    const correr = () => revisarAlertas().then((r) => {
+      if (r.enviadas || r.fallidas || r.error || r.vencidas) console.log(`[Alertas] Revisión: ${JSON.stringify(r)}`);
+    });
+    setTimeout(correr, 60 * 1000);
+    setInterval(correr, MINUTOS_ALERTAS * 60 * 1000);
+    console.log(`🔔 [Alertas] Revisión cada ${MINUTOS_ALERTAS} min contra ${PRECIOS_URL}`);
+  }
   if (avisos.length) {
     console.warn('⚠️  [Backend] Configuración incompleta:');
     for (const a of avisos) console.warn(`   · ${a}`);

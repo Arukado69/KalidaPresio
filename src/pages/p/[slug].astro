@@ -19,6 +19,7 @@ import Layout from '../../layouts/Layout.astro';
 import SelloKP from '../../components/SelloKP.astro';
 import Estrellas from '../../components/Estrellas.astro';
 import BotonCTA from '../../components/BotonCTA.astro';
+import AlertaPrecio from '../../components/AlertaPrecio.astro';
 import crudo from '../../data/vitrina.json';
 import { paginasDeVitrina, seriePrecios, graficaPrecios } from '../../utils/paginaProducto.js';
 import { entradasDe, veredictoDe } from '../../data/historico.js';
@@ -200,6 +201,12 @@ const migas = JSON.stringify({
         )}
       </section>
     </div>
+
+    <!-- «Avísame cuando baje»: solo de lo que seguimos. Un retirado ya no se
+         revisa, así que nunca habría un precio nuevo con qué avisar. -->
+    {pagina.estado !== 'retirado' && (
+      <AlertaPrecio productoId={p.id} precio={p.precio_actual} minimo={g?.minimo ?? null} vigente={vigente} />
+    )}
 
     <section class="pp-como" aria-labelledby="pp-como-h">
       <h2 id="pp-como-h" class="pp-h2">Cómo lo calificamos</h2>

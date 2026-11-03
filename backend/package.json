@@ -1,7 +1,7 @@
 {
   "name": "kalidapresio-backend",
   "version": "1.0.0",
-  "description": "Microservicio backend para KalidaPresio (Contacto y Newsletter)",
+  "description": "Microservicio backend para KalidaPresio (contacto, boletín y alertas de precio)",
   "type": "module",
   "main": "server.js",
   "scripts": {

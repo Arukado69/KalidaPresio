@@ -6,13 +6,17 @@
 // Port de functions/_lib/email.js al backend que sí se despliega.
 // Variables de entorno: RESEND_API_KEY, EMAIL_FROM.
 
+// La marca del sitio («el tianguis honesto»): papel, tinta, cartulina
+// fosforescente y rojo de sello. Los correos no cargan fuentes externas: van
+// con estilos en línea y tipos del sistema, que es lo que todo cliente respeta.
 const PALETA = {
-  fondo: '#140e1f',
-  texto: '#f0eef8',
-  suave: '#d9d4ec',
-  tenue: '#a59cc4',
-  acento: '#1fd28e',
-  tintaBoton: '#0b231a',
+  papel: '#f3ede0',
+  hoja: '#fffcf4',
+  tinta: '#17140f',
+  suave: '#4a443a',
+  tenue: '#857c6c',
+  fosfo: '#e6ff2a',
+  rojo: '#c21f2a',
 };
 
 /** true si hay un ESP configurado. Sin esto, el boletín no puede funcionar. */
@@ -63,32 +67,60 @@ export function escapeHtml(s) {
   );
 }
 
+/** «$1,349» — pesos sin centavos, como en el sitio. */
+export function pesos(n) {
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
+}
+
+/** «3 de noviembre», en la hora de la Ciudad de México. */
+export function fechaMx(iso) {
+  const t = Date.parse(iso ?? '');
+  if (!Number.isFinite(t)) return '';
+  return new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', day: 'numeric', month: 'long' }).format(new Date(t));
+}
+
+/** «3 de noviembre, 18:30» (para la hora de fin de una relámpago). */
+function fechaHoraMx(iso) {
+  const t = Date.parse(iso ?? '');
+  if (!Number.isFinite(t)) return '';
+  return new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Mexico_City', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(new Date(t));
+}
+
+const estiloTexto = `font-size:15px;line-height:1.6;color:${PALETA.suave};margin:0 0 14px`;
+
+/** Botón de cartulina fosforescente con borde de tinta. */
+function boton(href, texto) {
+  return `<a href="${escapeHtml(href)}" style="display:inline-block;background:${PALETA.fosfo};color:${PALETA.tinta};font-weight:bold;text-transform:uppercase;letter-spacing:.04em;text-decoration:none;padding:13px 24px;border:2px solid ${PALETA.tinta};border-radius:999px;box-shadow:3px 3px 0 ${PALETA.tinta}">${texto}</a>`;
+}
+
 /** Envoltura común de los correos de marca. */
-function plantilla(cuerpo, enlaceBaja) {
+function plantilla(cuerpo, enlaceBaja, textoBaja = '¿Ya no quieres estos correos? <a href="{enlace}" style="color:inherit">Date de baja en un clic</a>.') {
   const pie = enlaceBaja
-    ? `<p style="font-size:12px;color:${PALETA.tenue};line-height:1.5;margin-top:28px;border-top:1px solid rgba(255,255,255,.1);padding-top:16px">
-         ¿Ya no quieres estos correos? <a href="${enlaceBaja}" style="color:${PALETA.tenue}">Date de baja en un clic</a>.
+    ? `<p style="font-size:12px;color:${PALETA.tenue};line-height:1.5;margin:28px 0 0;border-top:1px dashed ${PALETA.tenue};padding-top:16px">
+         ${textoBaja.replace('{enlace}', escapeHtml(enlaceBaja))}
        </p>`
     : '';
-  return `<!doctype html><html lang="es"><body style="margin:0;background:${PALETA.fondo};font-family:Arial,Helvetica,sans-serif;color:${PALETA.texto}">
-  <div style="max-width:520px;margin:0 auto;padding:32px 24px">
-    <h1 style="color:${PALETA.acento};font-size:20px;margin:0 0 16px">KalidaPresio</h1>
-    ${cuerpo}
-    ${pie}
+  return `<!doctype html><html lang="es"><body style="margin:0;background:${PALETA.papel};font-family:Arial,Helvetica,sans-serif;color:${PALETA.tinta}">
+  <div style="max-width:540px;margin:0 auto;padding:28px 16px">
+    <p style="margin:0 0 14px;font-family:'Arial Narrow',Arial,sans-serif;font-size:22px;font-weight:900;letter-spacing:.02em;text-transform:uppercase">Kalida<span style="color:${PALETA.rojo}">Presio</span></p>
+    <div style="background:${PALETA.hoja};border:2px solid ${PALETA.tinta};padding:24px 22px">
+      ${cuerpo}
+      ${pie}
+    </div>
   </div></body></html>`;
 }
 
 /** Correo de confirmación del doble opt-in (paso 1). */
 export function correoConfirmacion(enlace) {
   return plantilla(`
-    <p style="font-size:15px;line-height:1.6;color:${PALETA.suave}">
+    <p style="${estiloTexto}">
       Confirma tu suscripción para recibir, de vez en cuando, las mejores ofertas
       calidad-precio que detectamos. Nada de spam.
     </p>
-    <p style="margin:24px 0">
-      <a href="${enlace}" style="display:inline-block;background:${PALETA.acento};color:${PALETA.tintaBoton};font-weight:bold;text-decoration:none;padding:12px 24px;border-radius:10px">Confirmar suscripción</a>
-    </p>
-    <p style="font-size:12px;color:${PALETA.tenue};line-height:1.5">
+    <p style="margin:22px 0">${boton(enlace, 'Confirmar suscripción')}</p>
+    <p style="font-size:12px;color:${PALETA.tenue};line-height:1.5;margin:0">
       El enlace caduca en 24 horas. Si no solicitaste esto, ignora este correo y no pasará nada.
     </p>`);
 }
@@ -96,12 +128,58 @@ export function correoConfirmacion(enlace) {
 /** Correo de bienvenida tras confirmar (paso 2). Ya lleva enlace de baja. */
 export function correoBienvenida(enlaceBaja) {
   return plantilla(`
-    <p style="font-size:15px;line-height:1.6;color:${PALETA.suave}">
+    <p style="${estiloTexto}">
       Listo, ya estás dentro. Te escribiremos solo cuando encontremos algo que de
       verdad valga la pena — no cada semana por costumbre.
     </p>
-    <p style="font-size:15px;line-height:1.6;color:${PALETA.suave}">
+    <p style="${estiloTexto}">
       Recuerda: los precios que publicamos son una foto del momento en que los
       detectamos. Verifica siempre el precio final en Mercado Libre antes de comprar.
     </p>`, enlaceBaja);
+}
+
+/**
+ * Confirmación de una alerta de precio (paso 1). Trae también el enlace para
+ * cancelarla después: así el único correo que la persona guarda sirve para
+ * las dos cosas.
+ */
+export function correoConfirmarAlerta({ enlace, enlaceCancelar, titulo, objetivo, precio }) {
+  return plantilla(`
+    <p style="${estiloTexto}">Pediste que te avisemos cuando este producto baje de <strong style="color:${PALETA.tinta}">${pesos(objetivo)}</strong>:</p>
+    <p style="font-size:16px;line-height:1.45;font-weight:bold;color:${PALETA.tinta};margin:0 0 6px">${escapeHtml(titulo)}</p>
+    <p style="font-size:13px;color:${PALETA.tenue};margin:0 0 18px">El último precio que vimos: ${pesos(precio)}.</p>
+    <p style="margin:22px 0">${boton(enlace, 'Confirmar mi alerta')}</p>
+    <p style="font-size:13px;line-height:1.55;color:${PALETA.suave};margin:0 0 10px">
+      Te escribimos <strong>una sola vez</strong>: cuando lo veamos a ese precio o menos. Revisamos los
+      precios a mano, así que puede tardar, y no prometemos que baje. La alerta dura 6 meses.
+    </p>
+    <p style="font-size:12px;color:${PALETA.tenue};line-height:1.5;margin:0">
+      El enlace para confirmar caduca en 48 horas. Si no pediste esto, ignora este correo y no pasará nada.
+    </p>`, enlaceCancelar, '¿Cambiaste de opinión después de confirmarla? <a href="{enlace}" style="color:inherit">Cancela la alerta en un clic</a>.');
+}
+
+/** El aviso: «¡Bajó!». Lleva el link oficial de afiliado TAL CUAL. */
+export function correoBajo({ titulo, precio, objetivo, visto, enlaceMl, pagina, imagen, termina }) {
+  const foto = imagen
+    ? `<p style="margin:0 0 16px;text-align:center"><img src="${escapeHtml(imagen)}" alt="" width="180" style="max-width:180px;height:auto;background:#fff"></p>`
+    : '';
+  const relampago = termina
+    ? `<p style="font-size:13px;font-weight:bold;color:${PALETA.rojo};margin:0 0 14px">Es una oferta relámpago: termina el ${escapeHtml(fechaHoraMx(termina))} (hora del centro).</p>`
+    : '';
+  return plantilla(`
+    <p style="margin:0 0 12px"><span style="display:inline-block;border:3px solid ${PALETA.rojo};color:${PALETA.rojo};font-weight:900;text-transform:uppercase;letter-spacing:.06em;padding:4px 10px;transform:rotate(-4deg)">¡Bajó!</span></p>
+    ${foto}
+    <p style="font-size:16px;line-height:1.45;font-weight:bold;color:${PALETA.tinta};margin:0 0 10px">${escapeHtml(titulo)}</p>
+    <p style="font-size:30px;font-weight:900;color:${PALETA.tinta};margin:0 0 4px">${pesos(precio)}</p>
+    <p style="font-size:13px;color:${PALETA.suave};margin:0 0 16px">Lo vimos a ese precio el ${escapeHtml(fechaMx(visto))}. Tu alerta era de ${pesos(objetivo)}.</p>
+    ${relampago}
+    <p style="margin:20px 0">${boton(enlaceMl, 'Verlo en Mercado Libre')}</p>
+    <p style="font-size:13px;line-height:1.55;color:${PALETA.suave};margin:0 0 10px">
+      Los precios cambian rápido: <strong>confirma el precio final en Mercado Libre antes de comprar</strong>.
+      <a href="${escapeHtml(pagina)}" style="color:${PALETA.tinta}">Aquí está su historial de precio</a>.
+    </p>
+    <p style="font-size:12px;color:${PALETA.tenue};line-height:1.5;margin:14px 0 0">
+      Era una alerta de una sola vez: no te volveremos a escribir por este producto. Si quieres otra, créala en su página.
+      El botón es un enlace de afiliado: si compras, KalidaPresio recibe una comisión sin costo extra para ti.
+    </p>`);
 }
