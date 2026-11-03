@@ -132,11 +132,13 @@ cada componente.
 | `precio` · `score` · `descuento` · `categoria` | `data-*` que ya usaban el filtro y el ordenador |
 | `destino` | `meli.la`, `sec`, `directo`, o `recomienda`/`corto` (redirecciones viejas) |
 
-### `boletin-alta` y `contacto-enviado`
+### `boletin-alta`, `contacto-enviado` y `alerta-pedida`
 
-Las otras dos conversiones. Los componentes no conocen Umami: lanzan un
-`CustomEvent('kp:evento')` y `Analitica.astro` lo traduce. Si algún día cambias
-de herramienta, solo se toca ese archivo.
+Las otras conversiones. `alerta-pedida` sale cuando alguien pide un «avísame
+cuando baje» en la página de un producto (con su `producto`); el aviso real
+llega después, por correo (ver [`alertas.md`](alertas.md)). Los componentes no
+conocen Umami: lanzan un `CustomEvent('kp:evento')` y `Analitica.astro` lo
+traduce. Si algún día cambias de herramienta, solo se toca ese archivo.
 
 ---
 

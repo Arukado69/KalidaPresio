@@ -1,0 +1,209 @@
+---
+/**
+ * AlertaPrecio — «¿Te parece caro? Te avisamos cuando baje».
+ *
+ * Va en la página de cada producto que seguimos (vigente o vencido). Manda el
+ * correo, el producto y el precio a POST /api/alertas; el backend pide
+ * confirmarla por correo y, cuando ve un precio VIGENTE igual o menor, escribe
+ * una sola vez con el link oficial (ver backend/alertas.js).
+ *
+ * El precio que se propone sale de sugerirObjetivo(): el mínimo del histórico
+ * si lo hubo, o un 10 % menos redondeado. Nunca uno más alto que el actual.
+ */
+import { sugerirObjetivo } from '../utils/alertas.js';
+
+export interface Props {
+  productoId: string;
+  /** El último precio que vimos. */
+  precio: number;
+  /** El más bajo de la gráfica (90 días), si lo hay. */
+  minimo?: number | null;
+  /** ¿El precio es de hoy (vigente) o ya venció? Cambia el texto. */
+  vigente: boolean;
+}
+
+const { productoId, precio, minimo = null, vigente } = Astro.props;
+const pesos = (n: number) =>
+  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
+const sugerencia = sugerirObjetivo(precio, minimo);
+---
+
+{sugerencia && (
+  <section class="alerta" id="alerta" aria-labelledby="alerta-h" data-alerta data-precio={precio}>
+    <div class="alerta-hoja cartulina cartulina--cielo con-cinta">
+      <div class="alerta-texto">
+        <p class="etiqueta">Avísame cuando baje</p>
+        <h2 id="alerta-h" class="alerta-h">¿Te parece caro? <span class="alerta-mano plumon">Te avisamos.</span></h2>
+        <p>
+          {vigente ? `Hoy lo vimos a ${pesos(precio)}.` : `La última vez lo vimos a ${pesos(precio)}.`}
+          {' '}Dinos tu precio: si lo vemos a ese precio o menos, te escribimos <strong>una sola vez</strong> con el enlace.
+        </p>
+        <p class="alerta-honesto">Revisamos los precios a mano, así que puede tardar. Y no prometemos que baje.</p>
+      </div>
+
+      <form class="alerta-form" data-alerta-form novalidate>
+        <input type="hidden" name="producto" value={productoId} />
+        <label class="alerta-campo">
+          <span class="etiqueta">Avísame si baja de</span>
+          <span class="alerta-monto">
+            <span aria-hidden="true">$</span>
+            <input type="text" inputmode="decimal" name="objetivo" value={sugerencia.objetivo} required aria-describedby="alerta-sug" data-alerta-objetivo />
+          </span>
+        </label>
+        <p id="alerta-sug" class="alerta-sug">
+          {sugerencia.razon === 'minimo'
+            ? `Sugerencia: su mínimo en 90 días, ${pesos(sugerencia.objetivo)}.`
+            : 'Sugerencia: 10 % menos que el último precio.'}
+        </p>
+        <label class="alerta-campo">
+          <span class="etiqueta">Tu correo</span>
+          <input type="email" name="email" placeholder="tu@correo.com" required autocomplete="email" data-alerta-email />
+        </label>
+        <!-- Honeypot anti-bots (oculto para humanos) -->
+        <div class="alerta-hp" aria-hidden="true">
+          <label>No llenar<input type="text" name="sitio" tabindex="-1" autocomplete="off" data-alerta-hp /></label>
+        </div>
+        <button class="boton boton--tinta alerta-boton" type="submit" data-alerta-enviar>
+          <span data-alerta-txt>Avísame</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
+        </button>
+        <p class="alerta-estado" role="status" aria-live="polite" data-alerta-estado hidden></p>
+        <p class="alerta-letra">
+          Te pediremos confirmarla por correo. Dura 6 meses y la cancelas en un clic.
+          <a href="/privacidad">Aviso de privacidad</a>.
+        </p>
+      </form>
+    </div>
+  </section>
+)}
+
+<script>
+  const pesos = (n: number) =>
+    new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
+  const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
+
+  /** Lo que se le dice a la persona según lo que respondió el backend. */
+  function mensajeDeError(status: number, datos: any) {
+    const e = datos?.error;
+    if (e === 'email_invalido') return 'Revisa tu correo: parece que le falta algo.';
+    if (e === 'objetivo_invalido') return 'Escribe un precio en pesos, por ejemplo 1299.';
+    if (e === 'precio_alcanzado') {
+      return datos?.precio ? `Ya lo vimos a ${pesos(datos.precio)}: pon un precio menor.` : 'Pon un precio menor al de hoy.';
+    }
+    if (e === 'producto_desconocido') return 'Ya no seguimos este producto, así que no podemos avisarte.';
+    if (status === 429) return 'Demasiados intentos seguidos. Espera un minuto y vuelve a probar.';
+    if (status === 503) return 'Las alertas no están disponibles en este momento. Inténtalo más tarde.';
+    return 'No pudimos enviarlo. Inténtalo de nuevo en un momento.';
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-alerta]').forEach((caja) => {
+    const form = caja.querySelector<HTMLFormElement>('[data-alerta-form]');
+    if (!form) return;
+    const precio = Number(caja.dataset.precio);
+    const objetivo = form.querySelector<HTMLInputElement>('[data-alerta-objetivo]')!;
+    const email = form.querySelector<HTMLInputElement>('[data-alerta-email]')!;
+    const hp = form.querySelector<HTMLInputElement>('[data-alerta-hp]');
+    const boton = form.querySelector<HTMLButtonElement>('[data-alerta-enviar]')!;
+    const txt = form.querySelector<HTMLElement>('[data-alerta-txt]')!;
+    const estado = form.querySelector<HTMLElement>('[data-alerta-estado]')!;
+    const decir = (m: string, tipo: 'ok' | 'error') => {
+      estado.textContent = m;
+      estado.dataset.tipo = tipo;
+      estado.hidden = !m;
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const meta = Number(objetivo.value.replace(/[^\d.]/g, ''));
+      if (!(meta >= 1)) return decir('Escribe un precio en pesos, por ejemplo 1299.', 'error');
+      if (precio && meta >= precio) return decir(`Pon un precio menor a ${pesos(precio)}: a ese ya lo vimos.`, 'error');
+      if (!emailOk(email.value)) return decir('Revisa tu correo: parece que le falta algo.', 'error');
+
+      boton.disabled = true;
+      txt.textContent = 'Enviando…';
+      decir('', 'ok');
+      try {
+        const res = await fetch('/api/alertas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email.value.trim(),
+            producto: (form.elements.namedItem('producto') as HTMLInputElement).value,
+            objetivo: meta,
+            honeypot: hp ? hp.value : '',
+          }),
+        });
+        const datos = await res.json().catch(() => ({}));
+        if (res.ok && datos.ok) {
+          decir(`Listo. Te mandamos un correo para confirmar la alerta de ${pesos(meta)} (el enlace dura 48 horas). Si no llega, revisa el spam.`, 'ok');
+          txt.textContent = 'Enviado';
+          objetivo.disabled = true;
+          email.disabled = true;
+          document.dispatchEvent(new CustomEvent('kp:evento', {
+            detail: { nombre: 'alerta-pedida', datos: { producto: (form.elements.namedItem('producto') as HTMLInputElement).value } },
+          }));
+        } else {
+          decir(mensajeDeError(res.status, datos), 'error');
+          txt.textContent = 'Avísame';
+          boton.disabled = false;
+        }
+      } catch {
+        decir('Hubo un problema de conexión. Inténtalo de nuevo.', 'error');
+        txt.textContent = 'Avísame';
+        boton.disabled = false;
+      }
+    });
+  });
+</script>
+
+<style>
+  .alerta { margin-top: clamp(3rem, 7vw, 4.5rem); scroll-margin-top: 1.5rem; }
+  .alerta-hoja {
+    --giro: -0.6deg;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(1.4rem, 4vw, 3rem);
+    align-items: start;
+    padding: clamp(1.6rem, 4vw, 2.4rem);
+  }
+  .alerta-texto .etiqueta { color: var(--tinta); }
+  .alerta-h { font-size: clamp(2.1rem, 5vw, 3.2rem); text-transform: uppercase; margin: 0.4rem 0 0.9rem; }
+  .alerta-mano { display: inline-block; text-transform: none; font-size: 0.8em; transform: rotate(-3deg); }
+  .alerta-honesto { font-size: 0.9rem; margin-top: 0.6rem; }
+
+  .alerta-form {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1.2rem;
+    background: var(--cartulina);
+    border: 2px solid var(--tinta);
+    box-shadow: 5px 5px 0 var(--tinta);
+  }
+  .alerta-campo { display: grid; gap: 0.3rem; }
+  .alerta-campo input {
+    width: 100%;
+    font: 400 1.05rem/1.4 var(--f-texto);
+    color: var(--tinta);
+    background: #fff;
+    border: 2px solid var(--tinta);
+    border-radius: 2px;
+    padding: 0.65rem 0.8rem;
+  }
+  .alerta-monto { display: flex; align-items: center; gap: 0.4rem; font: 400 2rem/1 var(--f-plumon); }
+  .alerta-monto input { font: 400 1.9rem/1.1 var(--f-plumon); padding: 0.35rem 0.7rem; }
+  .alerta-campo input:focus { outline: none; background: #fffde0; box-shadow: 4px 4px 0 var(--fosfo); }
+  .alerta-campo input:disabled { opacity: 0.6; }
+  .alerta-sug { margin: -0.3rem 0 0.2rem; font: 600 0.68rem/1.4 var(--f-ticket); letter-spacing: 0.04em; text-transform: uppercase; color: var(--tinta-2); }
+  .alerta-boton { justify-self: start; }
+  .alerta-boton:disabled { opacity: 0.65; cursor: default; }
+  .alerta-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .alerta-estado { margin: 0; padding: 0.6rem 0.8rem; font-weight: 700; font-size: 0.95rem; border: 2px solid currentColor; }
+  .alerta-estado[data-tipo='ok'] { color: var(--sello-verde); }
+  .alerta-estado[data-tipo='error'] { color: var(--sello-rojo); }
+  .alerta-letra { margin: 0; font-size: 0.78rem; color: var(--tinta-2); }
+  .alerta-letra a { font-weight: 700; }
+
+  @media (max-width: 760px) {
+    .alerta-hoja { grid-template-columns: 1fr; }
+  }
+</style>

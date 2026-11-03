@@ -19,6 +19,7 @@ src/data/ids_curados.json
 src/data/secciones-feed.json
 public/data/relampago.json
 public/data/feed.json
+public/data/precios.json
 public/promos/
 src/data/observaciones.json
 # Bitácora del observador diario (npm run observar-diario en tu computadora)

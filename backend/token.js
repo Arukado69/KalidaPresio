@@ -1,8 +1,8 @@
 // backend/token.js
-// Token firmado STATELESS para el doble opt-in y la baja del boletín: un
-// payload {email, uso, exp} firmado con HMAC-SHA256 usando SUBSCRIBE_SECRET.
-// Si la firma valida y no expiró, la intención está probada — sin guardar nada
-// intermedio en la base.
+// Token firmado STATELESS para el doble opt-in y las bajas (boletín y alertas
+// de precio): un payload {email, uso, exp, …datos} firmado con HMAC-SHA256
+// usando SUBSCRIBE_SECRET. Si la firma valida y no expiró, la intención está
+// probada — sin guardar nada intermedio en la base.
 //
 // Port del original de functions/_lib/token.js (Web Crypto) a node:crypto,
 // para que el backend que SÍ se despliega tenga el mismo doble opt-in que
@@ -21,12 +21,16 @@ const firmar = (secreto, datos) =>
  * Crea un token firmado para `email`.
  * @param {string} email
  * @param {string} secreto  SUBSCRIBE_SECRET
- * @param {'alta'|'baja'} uso  para qué sirve (un token de baja no confirma altas)
+ * @param {'alta'|'baja'|'alerta'|'alerta-baja'} uso  para qué sirve (un token de
+ *   baja no confirma altas, uno del boletín no toca alertas)
  * @param {number} ttlMs  vigencia; las bajas viven mucho más (van en cada correo)
+ * @param {Record<string, unknown>} [datos]  lo que la acción necesita (p. ej. el
+ *   producto y el precio de una alerta). Firmado: no se puede alterar.
  * @returns {string} `<payloadB64url>.<firmaB64url>`
  */
-export function crearToken(email, secreto, uso = 'alta', ttlMs = 24 * 60 * 60 * 1000) {
+export function crearToken(email, secreto, uso = 'alta', ttlMs = 24 * 60 * 60 * 1000, datos = {}) {
   const payload = JSON.stringify({
+    ...datos,
     email: String(email).toLowerCase().trim(),
     uso,
     exp: Date.now() + ttlMs,
@@ -37,7 +41,7 @@ export function crearToken(email, secreto, uso = 'alta', ttlMs = 24 * 60 * 60 * 
 
 /**
  * Verifica firma, uso y expiración. Nunca lanza.
- * @returns {{ok: true, email: string} | {ok: false, error: string}}
+ * @returns {{ok: true, email: string, datos: Record<string, unknown>} | {ok: false, error: string}}
  */
 export function verificarToken(token, secreto, usoEsperado = 'alta') {
   if (!token || typeof token !== 'string' || !token.includes('.')) {
@@ -67,7 +71,7 @@ export function verificarToken(token, secreto, usoEsperado = 'alta') {
   if (payload.uso !== usoEsperado) return { ok: false, error: 'uso_incorrecto' };
   if (!payload.exp || Date.now() > payload.exp) return { ok: false, error: 'expirado' };
 
-  return { ok: true, email: payload.email };
+  return { ok: true, email: payload.email, datos: payload };
 }
 
 /** Comparación de secretos en tiempo constante, tolerante a longitudes distintas. */
