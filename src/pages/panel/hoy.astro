@@ -25,14 +25,17 @@ import { VITRINA } from '../../data/ofertas.js';
 import { ordenParaPublicar } from '../../utils/vitrina.js';
 import { entradasPara, resumirHistorico, veredictoPrecio, NIVELES_NO_DISTRIBUIBLES } from '../../utils/historico.js';
 import { FORMATOS, HORARIOS_SUGERIDOS } from '../../utils/publicacion.js';
+import { formatoCodigo } from '../../utils/codigos.js';
 
 const SITIO = String(Astro.site ?? 'https://kalidapresio.albis-labs.xyz').replace(/\/+$/, '');
 const productosHist = historicoCrudo?.productos ?? {};
 
-// El MISMO orden y numeración que /hoy y feed.json.
+// El MISMO orden que /hoy y feed.json. Lo que se dice en historias y videos
+// es el CÓDIGO FIJO («K-17»), que no cambia con la vitrina; la posición solo
+// queda de respaldo para una entrada escrita a mano sin código.
 const ordenados = ordenParaPublicar(VITRINA).map((p, i) => {
   const v = veredictoPrecio(p.precio_actual, resumirHistorico(entradasPara(productosHist, p.claves_historico ?? p.id)), { descuento: p.descuento });
-  return { ...p, numero: i + 1, nivel: v.nivel, veredicto: v.texto };
+  return { ...p, numero: i + 1, etiqueta: formatoCodigo(p.codigo) ?? `#${i + 1}`, nivel: v.nivel, veredicto: v.texto };
 });
 
 // El corte que da la credibilidad: 'alto' = ha estado más barato; el
@@ -144,7 +147,7 @@ const datos = JSON.stringify({ sitio: SITIO, productos: publicables }).replace(/
         <h2>Horario sugerido</h2>
         <div class="caja horarios">
           {HORARIOS_SUGERIDOS.slice(0, publicables.length).map((hora, i) => (
-            <span><b>{hora}</b>#{publicables[i].numero} {publicables[i].titulo}</span>
+            <span><b>{hora}</b>{publicables[i].etiqueta} {publicables[i].titulo}</span>
           ))}
           <span class="consejo" style="margin:6px 0 0">Una a la vez, repartidas: la ventana para que una compra cuente después del clic es corta, así que varias publicaciones a lo largo del día rinden más que un bloque.</span>
         </div>
@@ -155,7 +158,7 @@ const datos = JSON.stringify({ sitio: SITIO, productos: publicables }).replace(/
             <article class="tarjeta" data-id={p.id} data-caduca={p.caduca ?? ''}>
               <div class="media">
                 {p.imagen ? <img src={p.imagen} alt="" loading="lazy" width="84" height="84" /> : <div></div>}
-                <span class="numero">#{p.numero}</span>
+                <span class="numero">{p.etiqueta}</span>
               </div>
               <div>
                 <p class="t-titulo">{p.titulo}</p>
@@ -172,7 +175,7 @@ const datos = JSON.stringify({ sitio: SITIO, productos: publicables }).replace(/
                 <div class="acciones">
                   <button class="btn btn-principal" type="button" data-copiar-texto={p.id}>Copiar texto</button>
                   <button class="btn" type="button" data-copiar-link={p.id}>Solo el link</button>
-                  <a class="btn" data-imagen={p.id} href={`/promos/${p.id}.jpg`} download={`kalidapresio-${p.numero}.jpg`}>Descargar imagen</a>
+                  <a class="btn" data-imagen={p.id} href={`/promos/${p.id}.jpg`} download={`kalidapresio-${p.codigo ? `K${p.codigo}` : p.numero}.jpg`}>Descargar imagen</a>
                   <button class="btn" type="button" data-idea={p.id} hidden>Idea de video</button>
                 </div>
                 <p class="idea" data-idea-texto={p.id} hidden></p>
@@ -239,8 +242,8 @@ const datos = JSON.stringify({ sitio: SITIO, productos: publicables }).replace(/
       estado: '<b>Estado:</b> sube la imagen vertical y pega el texto encima. El link sí se puede tocar en los estados.',
       tg: '<b>Telegram:</b> los **dobles asteriscos** salen en negritas al enviar. Si tienes el bot de n8n, no publiques aquí lo mismo a mano.',
       fb: '<b>Facebook:</b> pega el texto y espera a que cargue la vista previa del link antes de publicar. En grupos, revisa sus reglas.',
-      ig: '<b>Instagram no deja links en el texto.</b> Pon en tu perfil: <code data-bio></code> <button class="btn" type="button" data-copiar-bio>Copiar</button> y di el número del producto.',
-      tt: '<b>TikTok no deja links en el texto.</b> Pon en tu perfil: <code data-bio></code> <button class="btn" type="button" data-copiar-bio>Copiar</button> y di el número en el video.',
+      ig: '<b>Instagram no deja links en el texto.</b> Pon en tu perfil: <code data-bio></code> <button class="btn" type="button" data-copiar-bio>Copiar</button> y di el código del producto (K-17): no cambia aunque cambie la vitrina.',
+      tt: '<b>TikTok no deja links en el texto.</b> Pon en tu perfil: <code data-bio></code> <button class="btn" type="button" data-copiar-bio>Copiar</button> y di el código en el video (K-17), o la dirección corta /k/17.',
       pn: '<b>Pinterest:</b> crea un pin con la imagen 4:5, el título y pega el link en «Destino».',
       cr: '<b>Correo:</b> la primera línea es el asunto.',
     };
@@ -316,7 +319,7 @@ const datos = JSON.stringify({ sitio: SITIO, productos: publicables }).replace(/
       const btnTexto = t.closest('[data-copiar-texto]') as HTMLElement | null;
       if (btnTexto) {
         const p = porId.get(btnTexto.getAttribute('data-copiar-texto'));
-        if (p) copiar(btnTexto, textoProducto(formato, p, { numero: (p as any).numero, sitio: SITIO }));
+        if (p) copiar(btnTexto, textoProducto(formato, p, { sitio: SITIO }));
         return;
       }
       const btnLink = t.closest('[data-copiar-link]') as HTMLElement | null;
@@ -330,7 +333,7 @@ const datos = JSON.stringify({ sitio: SITIO, productos: publicables }).replace(/
         const id = btnIdea.getAttribute('data-idea');
         const p: any = porId.get(id);
         const caja = document.querySelector(`[data-idea-texto="${id}"]`) as HTMLElement | null;
-        if (p && caja) { caja.textContent = ideaVideo(p, p.numero); caja.hidden = !caja.hidden; }
+        if (p && caja) { caja.textContent = ideaVideo(p); caja.hidden = !caja.hidden; }
         return;
       }
       const btnPaquete = t.closest('[data-copiar-paquete]') as HTMLElement | null;

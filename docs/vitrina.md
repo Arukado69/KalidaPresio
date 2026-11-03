@@ -112,6 +112,11 @@ oficial, título y precio bastan.
 | `destacado` | Lleva un moño en su tarjeta (tu texto, o «Elegido» si pones `true`) y sale antes que el resto en `/hoy`. Puede ser `true` o un texto («Más vendido»). |
 | `nota` | Por qué lo recomiendas. Sale en el sitio, en `/hoy` y en las publicaciones. Es lo que ningún otro canal de ofertas puede escribir. |
 | `enlaces` | Links oficiales por canal (ver abajo). |
+| `codigo` | El **código fijo** del producto: `17` se muestra como **K-17**. Lo pone el panel al guardar; no lo escribas a mano. No cambia nunca, ni al editar, ni al retirar el producto (ver abajo). |
+
+En la raíz del archivo, junto a `productos`, el panel guarda **`ultimo_codigo`**:
+el código más alto que se ha usado. Así, aunque borres un producto del todo, su
+código no se le vuelve a dar a otro.
 
 Además de `productos`, el archivo puede tener **`retirados`**: lo que quitaste
 de la vitrina y ya tenía link oficial. No se publica en la portada, el feed ni
@@ -250,10 +255,15 @@ con los números reales.
   Pinterest, correo), el link del canal y la imagen del tamaño correcto (4:5
   para feed, 9:16 para estados/historias/TikTok). Arriba está el **paquete
   relámpago** (un mensaje con lo mejor del día) y un horario sugerido.
-- **`/hoy`** — tu «link en bio». Productos numerados (#1, #2…), los mismos
-  números del panel y de las imágenes verticales. Pon
+- **`/hoy`** — tu «link en bio». Cada producto lleva su **código fijo**
+  (K-17), el mismo del panel, de los textos y de las imágenes verticales. Pon
   `kalidapresio.albis-labs.xyz/hoy?c=ig` en Instagram y `…/hoy?c=tt` en TikTok.
-  Los números cambian cuando actualizas la vitrina: úsalos en contenido del día.
+  El código **no cambia** cuando actualizas la vitrina: un video de hace un mes
+  que dice «busca el K-17» sigue apuntando al producto correcto. Antes se
+  numeraba por posición y «el #3» terminaba en otro producto.
+- **`/k/<n>`** — la dirección corta de cada producto: `…/k/17` lleva directo a
+  su página (`/p/<slug>`), aunque ya lo hayas retirado. Sirve para decirla en
+  un video o ponerla en una imagen.
 - **Telegram automático** — el flujo de n8n (`n8n/telegram-tecnologia.json`)
   lee `feed.json` y publica solo. Si ya lo tenías importado, **vuelve a
   importarlo**: el anterior espera el esquema 1 y se detiene con un error

@@ -19,8 +19,9 @@ un canal sin etiqueta propia se mezcla con el resto.
 | `vitrina.json` | Tus productos, cada uno con su link oficial (y los de cada canal). La fuente de todo. | `src/data/vitrina.json` |
 | `/panel/agregar` | Agrega productos desde la ficha de ML con un marcador del navegador. | el propio sitio |
 | `/panel/hoy` | Publicaciones ya escritas para cada red, con el link del canal y la imagen del tamaño correcto. | el propio sitio |
-| `/hoy` | Tu «link en bio» numerado para Instagram y TikTok. | el propio sitio |
-| `feed.json` | Feed público (esquema 2) con el link oficial y el número de cada producto. Lo consume n8n. | `<sitio>/data/feed.json` |
+| `/hoy` | Tu «link en bio» para Instagram y TikTok, con el código fijo (K-17) de cada producto. | el propio sitio |
+| `/k/<n>` | La dirección corta de cada producto: `/k/17` lleva a su página. | el propio sitio |
+| `feed.json` | Feed público (esquema 2) con el link oficial y el código fijo (`codigo`) de cada producto. Lo consume n8n. | `<sitio>/data/feed.json` |
 | Workflow de n8n | Publica en Telegram cada 3 h. | `n8n/telegram-tecnologia.json` |
 
 ### Códigos de canal
@@ -200,8 +201,10 @@ el link oficial del canal, la imagen del tamaño correcto (4:5 o 9:16) y, para
 Instagram y TikTok, una idea de video de 15 segundos. Arriba está el **paquete
 relámpago**: un solo mensaje con lo mejor del día.
 
-Instagram y TikTok no dejan links en el texto: el texto apunta a `/hoy` con el
-número del producto («link en mi perfil, el #3»).
+Instagram y TikTok no dejan links en el texto: el texto apunta a tu perfil con
+el **código fijo** del producto («link en mi perfil, busca el K-17») y a su
+dirección corta (`/k/17`). El código no cambia aunque cambie la vitrina, así
+que un video viejo nunca manda a otro producto.
 
 Abajo aparece **«No publicar hoy»** con las ofertas cuyo descuento es contra un
 precio inflado, y el porqué. Esa lista es tan importante como la otra.

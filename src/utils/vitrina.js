@@ -27,6 +27,7 @@
  *     "rating": 4.8, "vendidos": 250000, "envio_gratis": true,
  *     "relampago": true, "termina": "2026-10-26T23:00:00-06:00",
  *     "destacado": true,                          ← moño en su tarjeta
+ *     "codigo": 17,                               ← «K-17»: lo pone el panel, no cambia nunca
  *     "nota": "Lo uso para lavar el coche",
  *     "enlaces": { "wa": "https://meli.la/…", "tg": "https://meli.la/…" }
  *   }
@@ -38,6 +39,7 @@
  */
 import { calcularScorePorSeccion, fraccionVolumen } from './scoreSecciones.js';
 import { esCanal } from './canales.js';
+import { normalizarCodigo } from './codigos.js';
 
 const HORA = 3_600_000;
 const DIA = 24 * HORA;
@@ -336,6 +338,9 @@ export function normalizarProducto(entrada, ahora = Date.now(), { exigirVigencia
       relampago_fin: termina,
       caduca,
       destacado,
+      // «K-17»: el número que se dice en historias y videos. Fijo; lo pone el
+      // panel al guardar (src/utils/codigos.js). null si la entrada no lo trae.
+      codigo: normalizarCodigo(e.codigo),
       nota: texto(e.nota),
       revisado: new Date(revisadoMs).toISOString(),
       score_kalidad_presio: calcularScorePorSeccion({ rating, descuento, vendidos }, 'default'),
@@ -362,6 +367,7 @@ export function cargarVitrina(crudo, ahora = Date.now()) {
   const descartes = [];
   const avisos = [];
   const vistos = new Set();
+  const codigos = new Set();
 
   lista.forEach((entrada, indice) => {
     const r = normalizarProducto(entrada, ahora);
@@ -375,6 +381,14 @@ export function cargarVitrina(crudo, ahora = Date.now()) {
       return;
     }
     vistos.add(r.producto.id);
+    // Dos productos con el mismo «K-17» confundirían a quien lo busca: el
+    // segundo se queda sin código hasta que el panel lo corrija al guardar.
+    if (r.producto.codigo && codigos.has(r.producto.codigo)) {
+      avisos.push(`${titulo}: el código K-${r.producto.codigo} ya lo tiene otro producto (el panel lo corrige al guardar)`);
+      r.producto.codigo = null;
+    }
+    if (r.producto.codigo) codigos.add(r.producto.codigo);
+    else avisos.push(`${titulo}: no tiene código fijo (K-…); el panel se lo pone al guardar`);
     productos.push(r.producto);
     for (const a of r.avisos) avisos.push(`${titulo}: ${a}`);
   });

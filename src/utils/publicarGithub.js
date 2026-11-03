@@ -53,7 +53,8 @@ export function deBase64(b64) {
  * @param {any} b — vitrina (objeto) o su texto
  */
 export function mismaVitrina(a, b) {
-  // Productos y retirados: retirar un producto también es cambiar la vitrina.
+  // Productos, retirados y el último código usado: retirar un producto, o
+  // borrarlo del todo (que deja ultimo_codigo más alto), también es cambiarla.
   const firma = (v) => {
     let o = v;
     if (typeof v === 'string') {
@@ -63,9 +64,13 @@ export function mismaVitrina(a, b) {
         return null;
       }
     }
-    if (Array.isArray(o)) return JSON.stringify({ productos: o, retirados: [] });
+    if (Array.isArray(o)) return JSON.stringify({ productos: o, retirados: [], ultimo: null });
     if (!o || !Array.isArray(o.productos)) return null;
-    return JSON.stringify({ productos: o.productos, retirados: Array.isArray(o.retirados) ? o.retirados : [] });
+    return JSON.stringify({
+      productos: o.productos,
+      retirados: Array.isArray(o.retirados) ? o.retirados : [],
+      ultimo: o.ultimo_codigo ?? null,
+    });
   };
   const fa = firma(a);
   return fa !== null && fa === firma(b);

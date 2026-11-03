@@ -12,7 +12,9 @@
  *
  *     enlace   → el link general, tal cual lo generaste
  *     enlaces  → { wa, tg, … } los que generaste con la etiqueta de un canal
- *     numero   → la posición en /hoy («el #3 está en mi perfil»)
+ *     codigo   → el código fijo («K-17» → 17): «busca el K-17 en mi perfil»,
+ *                y /k/17 lleva a su página. No cambia con la vitrina.
+ *     numero   → la posición de hoy en /hoy (cambia; mejor usa `codigo`)
  *
  * Desaparece `ruta_corta` (/r/<canal>/<id>): el sitio ya no redirige a
  * Mercado Libre desde su propio dominio ni le pega etiquetas a los links.
@@ -66,6 +68,7 @@ const items = ordenParaPublicar(productos).map((o, i) => {
   const v = veredictoPrecio(o.precio_actual, resumirHistorico(entradasPara(productosHist, o.claves_historico ?? o.id)), { descuento: o.descuento });
   return {
     id: o.id,
+    codigo: o.codigo ?? null,
     numero: i + 1,
     titulo: o.titulo,
     categoria: categorizar(o.titulo),
