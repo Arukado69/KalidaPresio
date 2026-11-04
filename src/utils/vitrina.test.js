@@ -254,6 +254,12 @@ describe('cargarVitrina', () => {
     expect(cargarVitrina(null, AHORA).productos).toEqual([]);
   });
 
+  it('sin calificación ni ventas queda «sin calificar» (el 0 es falta de datos)', () => {
+    const pegado = cargarVitrina([base({ rating: undefined, vendidos: undefined })], AHORA).productos[0];
+    expect(pegado.calificado).toBe(false);
+    expect(cargarVitrina([base()], AHORA).productos[0].calificado).toBe(true);
+  });
+
   it('lleva el código fijo y avisa si falta', () => {
     const con = cargarVitrina([base({ codigo: 'K-17' })], AHORA);
     expect(con.productos[0].codigo).toBe(17);

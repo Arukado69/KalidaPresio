@@ -103,6 +103,14 @@ const datos = JSON.stringify({
     .contadores { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
     .contador { background: var(--panel); border: 1px solid var(--linea); border-radius: 999px; padding: 4px 12px; font-size: .82rem; color: var(--tinta-2); }
     .contador b { color: var(--tinta); }
+    .pegar { background: var(--panel); border: 1px solid var(--acento); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+    .pegar h2 { font-size: 1.05rem; margin: 0 0 6px; }
+    .pegar-texto { width: 100%; margin: 10px 0 8px; background: var(--fondo); border: 1px solid var(--linea); color: var(--tinta); border-radius: 8px; padding: 10px 12px; font: inherit; font-size: .88rem; resize: vertical; }
+    .pegar-texto:focus { outline: 2px solid var(--acento); outline-offset: 1px; }
+    .pegar-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+    .pegar-acciones input[type=date] { background: var(--fondo); border: 1px solid var(--linea); color: var(--tinta); border-radius: 6px; padding: 5px 8px; font: inherit; font-size: .82rem; }
+    .pegar-resultado { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; font-size: .88rem; background: rgba(87, 198, 142, .12); border: 1px solid var(--bien); }
+    .pegar-resultado[data-tipo='error'] { background: rgba(240, 119, 108, .12); border-color: var(--mal); }
     details.guia { background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
     details.guia summary { cursor: pointer; font-weight: 600; }
     .guia ol { padding-left: 20px; margin: 12px 0 0; color: var(--tinta-2); font-size: .92rem; }
@@ -164,6 +172,24 @@ const datos = JSON.stringify({
       <div class="contadores" data-contadores></div>
       <p class="nota-ok" data-nota role="status" hidden></p>
     </header>
+
+    <!-- La forma rápida: lo que da «Compartir para ganar una comisión» en la
+         app de Mercado Libre ya trae título, precio y tu link oficial. -->
+    <section class="pegar" aria-labelledby="pegar-h">
+      <h2 id="pegar-h">La forma rápida: pega lo que te da la app</h2>
+      <p class="ayuda">
+        En la app de Mercado Libre toca <b>«Compartir para ganar una comisión»</b> y copia el mensaje
+        (o mándatelo por WhatsApp). Pega aquí uno o muchos, de una vez: cada uno trae el título, el precio y tu link.
+      </p>
+      <textarea class="pegar-texto" rows="5" data-pegar-texto placeholder="¡Mira lo que encontré! Playera Polo Hombre … - $ 99,59 en Mercado Libre. Entra aquí: https://meli.la/…"></textarea>
+      <div class="pegar-acciones">
+        <label class="ayuda">Los precios los viste el <input type="date" data-pegar-fecha /></label>
+        <button class="btn" type="button" data-pegar-portapapeles>Pegar del portapapeles</button>
+        <button class="btn btn-principal" type="button" data-pegar-agregar>Agregar a mi vitrina</button>
+      </div>
+      <p class="pegar-resultado" data-pegar-resultado role="status" hidden></p>
+      <p class="ayuda">Sin foto ni calificación el producto se publica igual (sale «sin calificar»). Puedes completarlo cuando quieras con el marcador: se reconoce por su link y no se duplica.</p>
+    </section>
 
     <details class="guia" data-guia>
       <summary>Cómo agregar un producto (2 minutos)</summary>
@@ -309,6 +335,8 @@ const datos = JSON.stringify({
     import { leerEnvioMarcador } from '../../utils/marcador.js';
     import { publicarVitrina } from '../../utils/publicarGithub.js';
     import { asignarCodigos, formatoCodigo } from '../../utils/codigos.js';
+    import { leerMensajesCompartidos, mezclarCompartidos } from '../../utils/compartir.js';
+    import { pesos } from '../../utils/pesos.js';
 
     const DATOS = JSON.parse(document.getElementById('kp-datos')?.textContent || '{}');
     const ARCHIVO = DATOS.archivo || { productos: [] };
@@ -405,7 +433,6 @@ const datos = JSON.stringify({
     }
 
     // ── Pintar ──────────────────────────────────────────────────────────────
-    const pesos = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
     const esc = (s: any) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
     const yaSubidos = () => new Set([...(BASE.productos || []), ...(BASE.retirados || [])].map((p: any) => JSON.stringify(p)));
     let enArchivo = yaSubidos();
@@ -622,7 +649,11 @@ const datos = JSON.stringify({
       error.hidden = true;
       // Mismo producto ya en la lista → se actualiza en vez de duplicarlo.
       const clave = claveProducto(entrada.url_producto);
-      const otro = editando ?? (clave ? productos.findIndex((p) => claveProducto(p.url_producto) === clave) : -1);
+      // Se reconoce por la ficha de Mercado Libre o, si no la tenía (lo pegaste
+      // desde la app), por su link oficial: completarlo no lo duplica.
+      const porLink = (l: string) => productos.findIndex((p) => String(p.link ?? '').trim() === String(l ?? '').trim());
+      let otro = editando ?? (clave ? productos.findIndex((p) => claveProducto(p.url_producto) === clave) : -1);
+      if (otro === -1 && entrada.link) otro = porLink(entrada.link);
       // El código es del producto, no del formulario: editar no lo cambia, y
       // un producto retirado que vuelve recupera el suyo.
       const retiradoPrevio = clave ? retirados.find((x) => claveProducto(x.url_producto) === clave) : null;
@@ -746,12 +777,68 @@ const datos = JSON.stringify({
     // Un clic en el marcador desde ESTA página no hace nada útil: avisarlo.
     $('.marcador')!.addEventListener('click', (e) => { e.preventDefault(); alert('Arrástrame a tu barra de marcadores y úsame en la página de un producto de Mercado Libre.'); });
 
+    // ── Pegar lo que da «Compartir para ganar una comisión» ────────────────
+    const fechaPegar = $('[data-pegar-fecha]') as HTMLInputElement;
+    const hoyLocal = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    fechaPegar.value = hoyLocal();
+    fechaPegar.max = hoyLocal();
+    const resultadoPegar = $('[data-pegar-resultado]') as HTMLElement;
+    const decirPegar = (texto: string, tipo: 'ok' | 'error') => {
+      resultadoPegar.textContent = texto;
+      resultadoPegar.dataset.tipo = tipo;
+      resultadoPegar.hidden = false;
+    };
+    /** El instante de «revisado»: ahora si es hoy; si elegiste otro día, ese día a mediodía. */
+    function revisadoPegado(): string {
+      const v = fechaPegar.value;
+      if (!v || v >= hoyLocal()) return new Date().toISOString();
+      return new Date(`${v}T12:00:00`).toISOString();
+    }
+    $('[data-pegar-portapapeles]')!.addEventListener('click', async () => {
+      try {
+        const t = await navigator.clipboard.readText();
+        const caja = $('[data-pegar-texto]') as HTMLTextAreaElement;
+        caja.value = caja.value ? `${caja.value}\n${t}` : t;
+      } catch {
+        decirPegar('Tu navegador no dejó leer el portapapeles: mantén presionado el cuadro y elige «Pegar».', 'error');
+      }
+    });
+    $('[data-pegar-agregar]')!.addEventListener('click', () => {
+      const caja = $('[data-pegar-texto]') as HTMLTextAreaElement;
+      const leidos = leerMensajesCompartidos(caja.value);
+      if (!leidos.length) {
+        decirPegar('No encontré ningún link oficial (https://meli.la/… o mercadolibre.com/sec/…). Copia el mensaje completo que te da «Compartir para ganar una comisión».', 'error');
+        return;
+      }
+      const r = mezclarCompartidos(productos, leidos, revisadoPegado());
+      productos = r.productos;
+      if (editando !== null) { form.reset(); editar(null); }
+      guardarBorrador();
+      pintar();
+      caja.value = '';
+      const partes = [];
+      if (r.nuevos) partes.push(`${r.nuevos} nuevo${r.nuevos === 1 ? '' : 's'}`);
+      if (r.actualizados) partes.push(`${r.actualizados} actualizado${r.actualizados === 1 ? '' : 's'}`);
+      decirPegar(
+        `✓ ${partes.join(' y ')}.`
+          + (r.incompletos ? ` ${r.incompletos} sin título o precio: complétalo${r.incompletos === 1 ? '' : 's'} en la lista con «Editar».` : '')
+          + ' Cuando termines, toca «Publicar ahora» abajo.',
+        'ok',
+      );
+      $('[data-lista]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
     // ── Lo que manda el marcador ───────────────────────────────────────────
     const enviado = leerEnvioMarcador(location.hash);
     if (enviado) {
       history.replaceState(null, '', location.pathname);
       const clave = claveProducto(enviado.url_producto);
-      const i = clave ? productos.findIndex((p) => claveProducto(p.url_producto) === clave) : -1;
+      let i = clave ? productos.findIndex((p) => claveProducto(p.url_producto) === clave) : -1;
+      // Un producto que pegaste desde la app no tiene ficha: se reconoce por el link.
+      if (i < 0 && enviado.link) i = productos.findIndex((p) => String(p.link ?? '').trim() === String(enviado.link).trim());
       if (i >= 0) {
         // Ya estaba: se actualiza el precio y se conserva lo tuyo (link, nota,
         // links por canal) si el marcador no trajo uno nuevo.

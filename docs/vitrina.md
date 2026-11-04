@@ -28,6 +28,50 @@ cada uno cobra.
 
 ---
 
+## La forma rápida: pegar lo que te da la app (celular o computadora)
+
+El botón **«Compartir para ganar una comisión»** de la app de Mercado Libre ya
+te da casi todo lo que el sitio necesita:
+
+```
+¡Mira lo que encontré! Playera Polo Hombre … - $ 99,59 en Mercado Libre.
+Entra aquí: https://meli.la/2Gyywqc
+```
+
+Título, precio y **tu link oficial**. Entonces:
+
+1. En la app, toca «Compartir para ganar una comisión» en cada producto que
+   quieras y **copia el mensaje** (o mándatelo por WhatsApp a ti mismo). Puedes
+   juntar varios.
+2. Abre `/panel/agregar` y **pégalos todos** en «La forma rápida: pega lo que
+   te da la app». Toca **«Agregar a mi vitrina»**.
+3. Toca **«Publicar ahora»**. En unos minutos están en el sitio, con su código
+   fijo (K-17) y su página.
+
+- El precio queda como **visto hoy** (o el día que elijas, si pegas mensajes
+  viejos). A los 7 días sin revisar se esconde solo, como todo.
+- Pegar otra vez el mismo mensaje con otro precio **actualiza** ese producto;
+  no lo duplica.
+- Sin foto, el sitio muestra la categoría en grande; sin calificación ni
+  ventas, dice **«sin calificar»** en vez de un Sello K-P de 0.
+- **Completarlo después** (foto, calificación, ventas, precio anterior): abre
+  la ficha en Mercado Libre en la computadora y usa el marcador; pega el mismo
+  link cuando te lo pida. El panel lo reconoce por el link y lo completa.
+- El bot de Telegram (n8n) solo publica productos con foto.
+
+### ¿Cómo sabe Mercado Libre que la venta es tuya?
+
+Por el link: `meli.la/…` lleva tu identificador de afiliado. Al tocarlo, la
+persona pasa por tu perfil de afiliado en Mercado Libre y de ahí al producto,
+y Mercado Libre registra el clic a tu nombre. Si compra dentro de la ventana
+de atribución (las páginas oficiales de Chile y Argentina dicen **24 horas
+desde el clic**, y que tu link sea el **último clic** antes de comprar), la
+comisión es tuya. Por eso el sitio publica el link **tal cual**, sin
+modificarlo. Las ventas las ves en tu panel de afiliados; los clics que salen
+del sitio, en Umami (ver `docs/analitica.md`).
+
+---
+
 ## Agregar un producto (2 minutos, en la computadora)
 
 ### Una sola vez: instala el marcador

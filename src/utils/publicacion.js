@@ -18,6 +18,7 @@
  *     Libre y la PROFECO, y tu marca entera es decir la verdad sobre precios.
  */
 import { formatoCodigo, normalizarCodigo } from './codigos.js';
+import { pesos } from './pesos.js';
 import { enlacePara } from './vitrina.js';
 
 /**
@@ -49,8 +50,6 @@ export const AVISO_AFILIADO = 'Enlace de afiliado: si compras, recibo una comisi
 
 const ZONA = 'America/Mexico_City';
 
-const pesos = (n) =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
 
 const diaMx = (t) => new Intl.DateTimeFormat('es-MX', { timeZone: ZONA, year: 'numeric', month: '2-digit', day: '2-digit' }).format(t);
 const horaMx = (t) => new Intl.DateTimeFormat('es-MX', { timeZone: ZONA, hour: '2-digit', minute: '2-digit', hour12: false }).format(t);

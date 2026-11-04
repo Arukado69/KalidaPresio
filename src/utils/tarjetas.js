@@ -34,6 +34,7 @@
  * en tu computadora que en el contenedor del VPS, que no trae fuentes.
  */
 import { formatoCodigo, normalizarCodigo } from './codigos.js';
+import { pesos } from './pesos.js';
 
 // ── Lienzo ─────────────────────────────────────────────────────────────────
 // 4:5 es el formato que más alto ocupa en un feed sin que lo recorten, y es
@@ -48,6 +49,8 @@ const PAPEL = '#f3ede0';
 const HOJA = '#fffcf4';
 const TINTA = '#17140f';
 const TINTA_2 = '#4a443a';
+const TINTA_3 = '#857c6c';
+const PAPEL_2 = '#e8e0cd';
 const FOSFO = '#e6ff2a';
 const NARANJA = '#ff8b2c';
 const ROJO = '#c21f2a';
@@ -85,10 +88,8 @@ export const esc = (s) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-export const pesos = (n) =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(
-    Number(n) || 0,
-  );
+// Con centavos si los tiene: $99.59 nunca sale como «$100» (src/utils/pesos.js).
+export { pesos };
 
 /**
  * Parte un texto en líneas por ancho aproximado.
@@ -135,6 +136,18 @@ function estrella(cx, cy, r, color) {
     puntos.push(`${(cx + radio * Math.cos(ang)).toFixed(1)},${(cy + radio * Math.sin(ang)).toFixed(1)}`);
   }
   return `<polygon points="${puntos.join(' ')}" fill="${color}"/>`;
+}
+
+/**
+ * Sin foto (un producto pegado desde «Compartir» todavía no la tiene): un
+ * letrero con la categoría sobre rayas, como en el sitio, no un hueco.
+ */
+function sinFoto(o, x, y, ancho, alto, tamano) {
+  const cat = String(o.categoria && o.categoria !== 'Otros' ? o.categoria : 'Oferta').toUpperCase();
+  return `<defs><pattern id="rayas" width="44" height="44" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="22" height="44" fill="${PAPEL_2}"/></pattern></defs>
+  <rect x="${x}" y="${y}" width="${ancho}" height="${alto}" fill="${PAPEL}"/>
+  <rect x="${x}" y="${y}" width="${ancho}" height="${alto}" fill="url(#rayas)"/>
+  <text x="${x + ancho / 2}" y="${y + alto / 2 + tamano * 0.35}" ${ROTULO} font-size="${tamano}" fill="${TINTA_3}" text-anchor="middle" transform="rotate(-6 ${x + ancho / 2} ${y + alto / 2})">${esc(cat)}</text>`;
 }
 
 /** Ancho aproximado de un texto (sin medir: el SVG aún no se rasteriza). */
@@ -188,6 +201,7 @@ export function svgTarjeta(o, esMentira) {
   const alturaSello = lineasVer.length > 1 ? 128 : 84;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${ANCHO}" height="${ALTO}" viewBox="0 0 ${ANCHO} ${ALTO}">
+  ${o.imagen ? '' : sinFoto(o, 0, BANDA_ALTO, ANCHO, FOTO_ALTO, 150)}
   <!-- Banda de tinta: la marca, de qué va y el código fijo -->
   <rect width="${ANCHO}" height="${BANDA_ALTO}" fill="${TINTA}"/>
   <text x="56" y="76" ${ROTULO} font-size="62" fill="${PAPEL}">KALIDA<tspan fill="${FOSFO}">PRESIO</tspan></text>
@@ -221,7 +235,7 @@ export function svgTarjeta(o, esMentira) {
   </g>` : ''}
 
   <!-- Pie: el sello K-P y la prueba social -->
-  <text x="56" y="${ALTO - 74}" ${TEXTO(700)} font-size="27" fill="${TINTA}">SELLO K-P ${esc(o.score ?? '—')}</text>
+  <text x="56" y="${ALTO - 74}" ${TEXTO(700)} font-size="27" fill="${TINTA}">${o.calificado === false ? 'SIN CALIFICAR TODAVÍA' : `SELLO K-P ${esc(o.score ?? '—')}`}</text>
   ${Number(o.rating) > 0 ? `${estrella(262, ALTO - 83, 14, TINTA)}
   <text x="282" y="${ALTO - 74}" ${TEXTO(600)} font-size="27" fill="${TINTA_2}">${esc(Number(o.rating).toFixed(1))}  ·  ${esc(vendidosTexto(o.vendidos))}</text>` : ''}
   <text x="56" y="${ALTO - 34}" ${TEXTO(400)} font-size="25" fill="${TINTA_2}">kalidapresio.albis-labs.xyz${codigo ? `/k/${esc(normalizarCodigo(o.codigo))}` : ''} · enlace de afiliado</text>
@@ -282,7 +296,8 @@ export function svgHistoria(o) {
   ${codigo ? `<rect x="${ANCHO - 56 - anchoCodigo}" y="88" width="${anchoCodigo}" height="118" rx="59" fill="${acento}" stroke="${TINTA}" stroke-width="4"/>
   <text x="${ANCHO - 56 - anchoCodigo / 2}" y="176" ${ROTULO} font-size="84" fill="${TINTA}" text-anchor="middle">${esc(codigo)}</text>` : ''}
 
-  <!-- Marco de la foto -->
+  <!-- Marco de la foto (con letrero si no hay foto) -->
+  ${o.imagen ? '' : sinFoto(o, 40, HISTORIA_FOTO_Y, ANCHO - 80, HISTORIA_FOTO_ALTO, 170)}
   <rect x="40" y="${HISTORIA_FOTO_Y}" width="${ANCHO - 80}" height="${HISTORIA_FOTO_ALTO}" fill="none" stroke="${TINTA}" stroke-width="6"/>
   ${Number(o.descuento) > 0 ? `<g transform="rotate(6 ${ANCHO - 190} ${HISTORIA_FOTO_Y + 84})">
     <rect x="${ANCHO - 310}" y="${HISTORIA_FOTO_Y + 30}" width="240" height="108" rx="6" fill="${TINTA}"/>

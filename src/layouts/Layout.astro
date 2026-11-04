@@ -163,6 +163,7 @@ const datosSitio = {
     </footer>
 
     <script>
+      import { pesos } from '../utils/pesos.js';
       // ── Lo único que hace falta en el navegador ─────────────────────────────
       // 1) Cuentas regresivas de relámpago ([data-countdown][data-fin]).
       // 2) Relámpagos en vivo: el carrusel lee /data/relampago.json al abrir,
@@ -171,8 +172,6 @@ const datosSitio = {
 
       const esc = (s: unknown) =>
         String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
-      const pesos = (n: number) =>
-        new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
 
       function restante(ms: number) {
         if (ms <= 0) return 'terminó';

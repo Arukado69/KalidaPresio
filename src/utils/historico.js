@@ -23,6 +23,7 @@
  *
  * Funciones PURAS: se les pasa el historial y el instante. Sin disco, sin DOM.
  */
+import { pesos } from './pesos.js';
 
 /** Días mínimos de observación para afirmar algo sobre el rango de precios. */
 export const DIAS_MINIMOS = 3;
@@ -69,8 +70,7 @@ export const MARGEN_PLANO = 0.02;
 /** Fracción de la ventana que debe estar observada para hablar de ella. */
 export const DENSIDAD_MINIMA = 0.7;
 
-const fmt = (n) =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
+const fmt = pesos;
 
 /**
  * Días de CALENDARIO entre dos fechas 'YYYY-MM-DD', ambos extremos incluidos.

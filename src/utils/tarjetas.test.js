@@ -77,9 +77,10 @@ describe('esc', () => {
 });
 
 describe('pesos', () => {
-  it('formatea en pesos mexicanos sin centavos', () => {
-    expect(pesos(337.5)).toMatch(/^\$33[78]$/);
-    expect(pesos(1981)).toContain('1,981');
+  it('formatea en pesos mexicanos, con centavos solo si los hay (nunca redondea)', () => {
+    expect(pesos(337.5)).toBe('$337.50');
+    expect(pesos(99.59)).toBe('$99.59');
+    expect(pesos(1981)).toBe('$1,981');
   });
 
   it('un precio ilegible no imprime NaN en la tarjeta', () => {
@@ -133,6 +134,12 @@ describe('svgTarjeta (post 4:5)', () => {
     const svg = svgTarjeta(o, false);
     expect(svg).toContain('K-17');
     expect(svg).toContain('/k/17');
+  });
+
+  it('sin calificación dice «sin calificar», no «Sello K-P 0»', () => {
+    const svg = svgTarjeta({ ...o, score: 0, rating: 0, vendidos: 0, calificado: false }, false);
+    expect(svg).toContain('SIN CALIFICAR');
+    expect(svg).not.toContain('SELLO K-P 0');
   });
 
   it('la variante de mentira lo dice con un sello', () => {
