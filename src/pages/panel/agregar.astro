@@ -112,6 +112,8 @@ const datos = JSON.stringify({
     .pegar-acciones input[type=date] { background: var(--fondo); border: 1px solid var(--linea); color: var(--tinta); border-radius: 6px; padding: 5px 8px; font: inherit; font-size: .82rem; }
     .pegar-resultado { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; font-size: .88rem; background: rgba(87, 198, 142, .12); border: 1px solid var(--bien); }
     .pegar-resultado[data-tipo='error'] { background: rgba(240, 119, 108, .12); border-color: var(--mal); }
+    .instalar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: rgba(255, 138, 61, .1); border: 1px dashed var(--acento); font-size: .88rem; }
+    .instalar p { margin: 0; flex: 1 1 260px; }
     details.guia { background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
     details.guia summary { cursor: pointer; font-weight: 600; }
     .guia ol { padding-left: 20px; margin: 12px 0 0; color: var(--tinta-2); font-size: .92rem; }
@@ -178,6 +180,10 @@ const datos = JSON.stringify({
          app de Mercado Libre ya trae título, precio y tu link oficial. -->
     <section class="pegar" aria-labelledby="pegar-h">
       <h2 id="pegar-h">La forma rápida: pega lo que te da la app</h2>
+      <div class="instalar" data-instalar hidden>
+        <p><b>Aún más rápido en Android:</b> instala este panel como app y aparecerá en el menú «Compartir» de Mercado Libre. Compartes un producto y entra solo, sin copiar ni pegar.</p>
+        <button class="btn btn-principal" type="button" data-instalar-boton>Instalar como app</button>
+      </div>
       <p class="ayuda">
         En la app de Mercado Libre toca <b>«Compartir para ganar una comisión»</b> y copia el mensaje
         (o mándatelo por WhatsApp). Pega aquí uno o muchos, de una vez: cada uno trae el título, el precio y tu link.
@@ -191,6 +197,18 @@ const datos = JSON.stringify({
       <p class="pegar-resultado" data-pegar-resultado role="status" hidden></p>
       <p class="ayuda">Sin foto ni calificación el producto se publica igual (sale «sin calificar»). Puedes completarlo cuando quieras con el marcador: se reconoce por su link y no se duplica.</p>
     </section>
+
+    <details class="guia" data-guia-android>
+      <summary>En Android: comparte directo desde Mercado Libre, sin copiar ni pegar</summary>
+      <ol>
+        <li><b>Abre esta página en Chrome</b>, en tu celular.</li>
+        <li><b>Instálala como app:</b> toca «Instalar como app» (arriba) o, en Chrome, el menú <b>⋮</b> → <b>«Instalar app»</b> (en algunos celulares dice «Agregar a la pantalla principal» → «Instalar»).</li>
+        <li><b>En la app de Mercado Libre</b>, en un producto: <b>«Compartir para ganar una comisión»</b> → elige <b>KalidaPresio</b> en la lista. Si no la ves, búscala en «Más». Recién instalada puede tardar unos minutos en aparecer.</li>
+        <li><b>Se abre este panel con el producto ya agregado:</b> título, precio de hoy y tu link. Regresa a Mercado Libre y repite con los que quieras.</li>
+        <li>Al terminar, toca <b>«Publicar ahora»</b> (abajo). La foto y la calificación se pueden completar después, con el marcador.</li>
+      </ol>
+      <p class="ayuda">En iPhone no se puede: Apple no deja que una página web aparezca en «Compartir». Ahí copia el mensaje y pégalo arriba.</p>
+    </details>
 
     <details class="guia" data-guia>
       <summary>Cómo agregar un producto (2 minutos)</summary>
@@ -336,7 +354,7 @@ const datos = JSON.stringify({
     import { leerEnvioMarcador } from '../../utils/marcador.js';
     import { publicarVitrina } from '../../utils/publicarGithub.js';
     import { asignarCodigos, formatoCodigo } from '../../utils/codigos.js';
-    import { leerMensajesCompartidos, mezclarCompartidos } from '../../utils/compartir.js';
+    import { leerMensajesCompartidos, leerCompartido, traeLinkSinComision, mezclarCompartidos } from '../../utils/compartir.js';
     import { pesos } from '../../utils/pesos.js';
 
     const DATOS = JSON.parse(document.getElementById('kp-datos')?.textContent || '{}');
@@ -807,19 +825,33 @@ const datos = JSON.stringify({
         decirPegar('Tu navegador no dejó leer el portapapeles: mantén presionado el cuadro y elige «Pegar».', 'error');
       }
     });
-    $('[data-pegar-agregar]')!.addEventListener('click', () => {
-      const caja = $('[data-pegar-texto]') as HTMLTextAreaElement;
-      const leidos = leerMensajesCompartidos(caja.value);
-      if (!leidos.length) {
-        decirPegar('No encontré ningún link oficial (https://meli.la/… o mercadolibre.com/sec/…). Copia el mensaje completo que te da «Compartir para ganar una comisión».', 'error');
-        return;
-      }
+    const SIN_COMISION = 'Ese link es del «Compartir» normal y no lleva tu comisión. En la app de Mercado Libre usa «Compartir para ganar una comisión».';
+    const recortar = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t);
+
+    /** Agrega a la vitrina lo leído (pegado o compartido) y dice qué pasó. */
+    function agregarLeidos(leidos: ReturnType<typeof leerMensajesCompartidos>, compartido = false) {
       const r = mezclarCompartidos(productos, leidos, revisadoPegado());
       productos = r.productos;
       if (editando !== null) { form.reset(); editar(null); }
       guardarBorrador();
       pintar();
-      caja.value = '';
+
+      // Llegó uno solo desde «Compartir»: se dice cuál, con su código.
+      if (compartido && leidos.length === 1) {
+        const p = productos.find((x) => String(x?.link ?? '').trim() === leidos[0].link);
+        if (!p?.titulo || !p?.precio) {
+          decirPegar('✓ Llegó tu link, pero sin título o precio: complétalo en tu lista con «Editar». Después toca «Publicar ahora».', 'ok');
+          return;
+        }
+        const codigo = p.codigo ? ` (${formatoCodigo(p.codigo)})` : '';
+        decirPegar(
+          `✓ ${r.nuevos ? 'Agregado' : 'Actualizado'}: «${recortar(p.titulo, 70)}» a ${pesos(p.precio)}${codigo}. `
+            + 'Regresa a Mercado Libre y comparte el siguiente, o toca «Publicar ahora» cuando termines.',
+          'ok',
+        );
+        return;
+      }
+
       const partes = [];
       if (r.nuevos) partes.push(`${r.nuevos} nuevo${r.nuevos === 1 ? '' : 's'}`);
       if (r.actualizados) partes.push(`${r.actualizados} actualizado${r.actualizados === 1 ? '' : 's'}`);
@@ -829,7 +861,71 @@ const datos = JSON.stringify({
           + ' Cuando termines, toca «Publicar ahora» abajo.',
         'ok',
       );
+    }
+
+    $('[data-pegar-agregar]')!.addEventListener('click', () => {
+      const caja = $('[data-pegar-texto]') as HTMLTextAreaElement;
+      const leidos = leerMensajesCompartidos(caja.value);
+      if (!leidos.length) {
+        decirPegar(
+          traeLinkSinComision(caja.value)
+            ? SIN_COMISION
+            : 'No encontré ningún link oficial (https://meli.la/… o mercadolibre.com/sec/…). Copia el mensaje completo que te da «Compartir para ganar una comisión».',
+          'error',
+        );
+        return;
+      }
+      agregarLeidos(leidos);
+      caja.value = '';
       $('[data-lista]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    // ── Lo que llega del menú «Compartir» del celular ──────────────────────
+    // El panel instalado como app recibe ?titulo=&texto=&enlace= (ver
+    // public/panel/manifest.json). Se lee una vez y se limpia la dirección,
+    // para que recargar no lo vuelva a agregar.
+    const recibido = new URLSearchParams(location.search);
+    if (['titulo', 'texto', 'enlace'].some((k) => recibido.has(k))) {
+      const partes = { titulo: recibido.get('titulo'), texto: recibido.get('texto'), enlace: recibido.get('enlace') };
+      history.replaceState(null, '', location.pathname);
+      const leidos = leerCompartido(partes);
+      if (leidos.length) {
+        agregarLeidos(leidos, true);
+      } else {
+        // No traía tu link: se deja a la vista lo que llegó, para que se entienda por qué.
+        const caja = $('[data-pegar-texto]') as HTMLTextAreaElement;
+        caja.value = [partes.titulo, partes.texto, partes.enlace].filter(Boolean).join('\n');
+        decirPegar(
+          traeLinkSinComision(caja.value)
+            ? SIN_COMISION
+            : 'Lo que compartiste no trae un link de afiliado (meli.la/… o mercadolibre.com/sec/…). Arriba está lo que llegó.',
+          'error',
+        );
+      }
+      resultadoPegar.scrollIntoView({ block: 'center' });
+    }
+
+    // ── Instalar como app (Chrome en Android y en computadora) ─────────────
+    // Chrome avisa que se puede instalar con «beforeinstallprompt»; dentro de
+    // la app ya instalada no tiene caso ofrecerlo.
+    const cajaInstalar = $('[data-instalar]') as HTMLElement;
+    const enLaApp = matchMedia('(display-mode: standalone)').matches;
+    let pedirInstalar: any = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      pedirInstalar = e;
+      cajaInstalar.hidden = enLaApp;
+    });
+    $('[data-instalar-boton]')!.addEventListener('click', async () => {
+      if (!pedirInstalar) return;
+      pedirInstalar.prompt();
+      const { outcome } = await pedirInstalar.userChoice;
+      pedirInstalar = null;
+      if (outcome === 'accepted') cajaInstalar.hidden = true;
+    });
+    window.addEventListener('appinstalled', () => {
+      cajaInstalar.hidden = true;
+      avisar('✓ Listo: el panel ya está en tu celular. En la app de Mercado Libre toca «Compartir para ganar una comisión» y elige KalidaPresio.');
     });
 
     // ── Lo que manda el marcador ───────────────────────────────────────────

@@ -59,6 +59,31 @@ Título, precio y **tu link oficial**. Entonces:
   link cuando te lo pida. El panel lo reconoce por el link y lo completa.
 - El bot de Telegram (n8n) solo publica productos con foto.
 
+### En Android: compartir directo, sin copiar ni pegar
+
+El panel se instala como app y aparece en el menú «Compartir» del celular,
+así que el mensaje entra solo:
+
+1. **Una vez:** abre `/panel/agregar` en Chrome, en el celular, y toca
+   **«Instalar como app»** (o el menú ⋮ de Chrome → «Instalar app»).
+2. En la app de Mercado Libre, en un producto: **«Compartir para ganar una
+   comisión»** → elige **KalidaPresio** (si no aparece, búscala en «Más»;
+   recién instalada puede tardar unos minutos).
+3. Se abre el panel con el producto agregado y te dice cuál entró, a qué
+   precio y con qué código. Regresa a Mercado Libre y repite.
+4. Al terminar, **«Publicar ahora»**.
+
+- Si compartes con el «Compartir» normal (no el de comisión), el panel te
+  avisa: ese link no lleva tu identificador y no se publica.
+- El borrador se guarda en el celular aunque cierres la app; nada se publica
+  hasta que tocas «Publicar ahora».
+- En iPhone no se puede (Apple no deja que una página aparezca en
+  «Compartir»): ahí copia y pega.
+- Cómo funciona: `public/panel/manifest.json` (su `share_target` manda a
+  `/panel/agregar/?titulo=…&texto=…&enlace=…`), `public/panel/sw.js` (sin
+  caché, a propósito) y `leerCompartido()` en `src/utils/compartir.js`. Los
+  íconos salen de `npm run generar-identidad`.
+
 ### ¿Cómo sabe Mercado Libre que la venta es tuya?
 
 Por el link: `meli.la/…` lleva tu identificador de afiliado. Al tocarlo, la

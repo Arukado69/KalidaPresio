@@ -32,7 +32,7 @@ npm run dev               # http://localhost:4321
 
 | Qué | Dónde |
 | :--- | :--- |
-| Agregar productos rápido | `/panel/agregar` → pega los mensajes de «Compartir para ganar una comisión» de la app (ver [`docs/vitrina.md`](docs/vitrina.md#la-forma-rápida-pegar-lo-que-te-da-la-app-celular-o-computadora)) |
+| Agregar productos rápido | `/panel/agregar` → pega los mensajes de «Compartir para ganar una comisión» de la app; en Android, instala el panel como app y comparte directo a «KalidaPresio» (ver [`docs/vitrina.md`](docs/vitrina.md#la-forma-rápida-pegar-lo-que-te-da-la-app-celular-o-computadora)) |
 | Completar o actualizar un producto | `/panel/agregar` (con el marcador del navegador) |
 | La página de un producto (precio, historial, Sello K-P) | `/p/<slug>`: se crea sola y no desaparece al retirarlo (ver [`docs/vitrina.md`](docs/vitrina.md#la-página-de-cada-producto-p)) |
 | Publicar en WhatsApp, Telegram, Facebook, Instagram, TikTok… | `/panel/hoy` |
