@@ -76,6 +76,8 @@ const items = ordenParaPublicar(productos).map((o, i) => {
     precio_previo: o.precio_previo ?? null,
     descuento: o.descuento ?? null,
     score: o.score_kalidad_presio ?? null,
+    // false = sin calificación ni ventas: el score 0 es falta de datos.
+    calificado: o.calificado !== false,
     rating: o.rating ?? null,
     vendidos: o.vendidos ?? null,
     envio_gratis: Boolean(o.envio_gratis),

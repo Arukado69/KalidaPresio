@@ -26,6 +26,7 @@
  * exactas. Se guarda como `vendidos` y se muestra como «+5 mil vendidos»: decir
  * "5.000 opiniones" sería inventar un dato que ML ya no publica.
  */
+import { pesos } from './pesos.js';
 
 /** Busca un componente de la tarjeta por tipo. */
 const comp = (card, tipo) => card?.components?.find((c) => c.type === tipo);
@@ -33,9 +34,6 @@ const comp = (card, tipo) => card?.components?.find((c) => c.type === tipo);
 /** Limpia tokens de icono tipo "{icon_cockade}" y espacios sobrantes. */
 export const limpiar = (s) => String(s ?? '').replace(/\{[^}]*\}/g, '').replace(/\s+/g, ' ').trim();
 
-/** Formatea un importe como lo escribe ML en México. */
-const pesos = (v) =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(v) || 0);
 
 /**
  * Resuelve el patrón `text` + `values` que ML usa en TODOS sus bloques:

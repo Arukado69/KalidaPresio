@@ -1,0 +1,24 @@
+---
+/**
+ * PanelApp — Lo que hace que el panel se instale como app y aparezca en el
+ * menú «Compartir» de Android (y por lo tanto en el de la app de Mercado
+ * Libre). Va dentro del <head> de cada página de /panel/.
+ *
+ * Ver public/panel/manifest.json (share_target → /panel/agregar/?texto=…)
+ * y public/panel/sw.js.
+ */
+---
+
+<link rel="manifest" href="/panel/manifest.json" />
+<meta name="theme-color" content="#140b21" />
+<link rel="icon" href="/favicon.ico" sizes="32x32" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="KalidaPresio" />
+
+<script>
+  // Sin service worker el panel funciona igual: solo no se ofrece instalarlo.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/panel/sw.js', { scope: '/panel/' }).catch(() => {});
+  }
+</script>

@@ -14,6 +14,7 @@ import SelloKP from './SelloKP.astro';
 import BotonCTA from './BotonCTA.astro';
 import { formatearVendidos } from '../utils/mlPayload.js';
 import { veredictoDe } from '../data/historico.js';
+import { pesos } from '../utils/pesos.js';
 
 export interface Oferta {
   id: string;
@@ -39,6 +40,8 @@ export interface Oferta {
   /** Qué tan respaldada está la compra, 0..100 (ventas + reputación del vendedor). */
   confianza?: number;
   vendedor_confiable?: boolean;
+  /** false = sin calificación ni ventas: no se muestra un Sello K-P de 0. */
+  calificado?: boolean;
   [extra: string]: unknown;
 }
 
@@ -58,8 +61,6 @@ export interface Props {
 
 const { oferta, score, indice = 0, categoria, variant = 'grid', campana } = Astro.props;
 
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
 
 const vistoEl = oferta.revisado
   ? new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' }).format(new Date(oferta.revisado))
@@ -111,7 +112,7 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
   <a class="oferta-foto" href={pagina ?? oferta.link_afiliado} {...(pagina ? {} : { target: '_blank', rel: 'nofollow sponsored noopener noreferrer' })} tabindex="-1" aria-hidden="true">
     {oferta.imagen
       ? <img src={oferta.imagen} alt="" width="300" height="300" loading={indice < 4 ? 'eager' : 'lazy'} decoding="async" />
-      : <span class="oferta-sinfoto"></span>}
+      : <span class="oferta-sinfoto"><span class="oferta-sinfoto-cat">{categoria && categoria !== 'Otros' ? categoria : 'Oferta'}</span></span>}
   </a>
 
   <div class:list={['oferta-precio', 'cartulina', 'con-cinta', colorEtiqueta]} style={`--giro:${giro}deg`}>
@@ -140,7 +141,9 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
     {variant === 'deal' && oferta.nota && <p class="oferta-nota">«{oferta.nota}»</p>}
 
     <div class="oferta-sellos">
-      <SelloKP score={score100} size={variant === 'deal' ? 84 : 66} />
+      {oferta.calificado === false
+        ? <span class="sello oferta-sincalificar" title="Todavía no tiene calificaciones ni ventas: con eso se calcula el Sello K-P">Sin calificar</span>
+        : <SelloKP score={score100} size={variant === 'deal' ? 84 : 66} />}
       {sello && <span class:list={['sello', 'oferta-veredicto', 'anima-sellar', `sello--${sello.tono}`]} style={`--giro:${indice % 2 ? 4 : -5}deg`}>{sello.texto}</span>}
     </div>
 
@@ -204,7 +207,16 @@ const urlWhatsApp = `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp)}`
   .oferta-foto { display: block; aspect-ratio: 1; background: #fff; border-radius: 2px; overflow: hidden; }
   .oferta-foto img { width: 100%; height: 100%; object-fit: contain; padding: 6%; transition: transform 0.3s ease; }
   .oferta:hover .oferta-foto img { transform: scale(1.04); }
-  .oferta-sinfoto { display: block; width: 100%; height: 100%; background: var(--papel-2); }
+  /* Sin foto: un letrero con la categoría, no un hueco. */
+  .oferta-sinfoto {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(-45deg, var(--papel-2) 0 14px, var(--papel) 14px 28px);
+  }
+  .oferta-sinfoto-cat { font: 900 clamp(1.4rem, 4vw, 2.2rem)/1 var(--f-rotulo); text-transform: uppercase; color: var(--tinta-3); transform: rotate(-6deg); }
+  .oferta-sincalificar { --giro: -4deg; color: var(--tinta-3); font-size: 0.9rem; }
 
   /* La etiqueta de precio: cartulina fosforescente encimada sobre la foto */
   .oferta-precio {

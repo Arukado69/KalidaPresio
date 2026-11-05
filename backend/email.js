@@ -67,9 +67,19 @@ export function escapeHtml(s) {
   );
 }
 
-/** «$1,349» — pesos sin centavos, como en el sitio. */
+/**
+ * «$1,349», o con centavos si los tiene: «$99.59». Nunca redondea (un «$100»
+ * por $99.59 sería un precio más alto que el real). Igual que src/utils/pesos.js.
+ */
 export function pesos(n) {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
+  const v = Number(n) || 0;
+  const conCentavos = Math.round(Math.abs(v) * 100) % 100 !== 0;
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: conCentavos ? 2 : 0,
+    maximumFractionDigits: conCentavos ? 2 : 0,
+  }).format(v);
 }
 
 /** «3 de noviembre», en la hora de la Ciudad de México. */

@@ -26,6 +26,7 @@ import { ordenParaPublicar } from '../../utils/vitrina.js';
 import { entradasPara, resumirHistorico, veredictoPrecio, NIVELES_NO_DISTRIBUIBLES } from '../../utils/historico.js';
 import { FORMATOS, HORARIOS_SUGERIDOS } from '../../utils/publicacion.js';
 import { formatoCodigo } from '../../utils/codigos.js';
+import PanelApp from '../../components/PanelApp.astro';
 
 const SITIO = String(Astro.site ?? 'https://kalidapresio.albis-labs.xyz').replace(/\/+$/, '');
 const productosHist = historicoCrudo?.productos ?? {};
@@ -55,7 +56,7 @@ const datos = JSON.stringify({ sitio: SITIO, productos: publicables }).replace(/
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Publicar hoy — KalidaPresio</title>
-  <link rel="icon" href="/favicon.svg" />
+  <PanelApp />
   <!-- Global: parte del contenido se pinta desde el script (filas, consejos)
        y no lleva la marca de los estilos con alcance de Astro. -->
   <style is:global>

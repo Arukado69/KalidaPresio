@@ -26,6 +26,8 @@ import { entradasDe, veredictoDe } from '../../data/historico.js';
 import { formatearVendidos } from '../../utils/mlPayload.js';
 import { recortar } from '../../utils/publicacion.js';
 import { ANCHO as PROMO_ANCHO, ALTO as PROMO_ALTO } from '../../utils/tarjetas.js';
+import { categorizar } from '../../utils/categorias.js';
+import { pesos } from '../../utils/pesos.js';
 
 export function getStaticPaths() {
   return paginasDeVitrina(crudo).map((pagina) => ({ params: { slug: pagina.slug }, props: { pagina } }));
@@ -34,9 +36,8 @@ export function getStaticPaths() {
 const { pagina } = Astro.props;
 const p = pagina.producto;
 const vigente = pagina.estado === 'vigente';
+const categoria = categorizar(p.titulo);
 
-const pesos = (n) =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
 const fechaMx = (iso) =>
   new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', day: 'numeric', month: 'long' }).format(new Date(iso));
 /** Días 'YYYY-MM-DD' del histórico, sin que la zona horaria los mueva. */
@@ -101,8 +102,12 @@ const migas = JSON.stringify({
       <figure class="pp-foto cartulina cartulina--blanca con-cinta">
         {p.imagen
           ? <img src={p.imagen} alt={p.titulo} width="420" height="420" loading="eager" fetchpriority="high" />
-          : <span class="pp-sinfoto etiqueta" aria-hidden="true">sin foto</span>}
-        <span class="pp-foto-sello"><SelloKP score={p.score_kalidad_presio} size={108} /></span>
+          : <span class="pp-sinfoto" aria-hidden="true"><span class="pp-sinfoto-cat">{categoria !== 'Otros' ? categoria : 'Oferta'}</span></span>}
+        <span class="pp-foto-sello">
+          {p.calificado === false
+            ? <span class="sello pp-sincalificar" title="Todavía no tiene calificaciones ni ventas: con eso se calcula el Sello K-P">Sin calificar</span>
+            : <SelloKP score={p.score_kalidad_presio} size={108} />}
+        </span>
       </figure>
 
       <div class="pp-datos">
@@ -159,7 +164,7 @@ const migas = JSON.stringify({
         {p.envio_gratis && <p class="renglon"><span>Envío</span><span>Gratis</span></p>}
         {serie.length > 0 && <p class="renglon"><span>Días observado</span><span>{serie.length}</span></p>}
         <hr />
-        <p class="renglon pp-ficha-total"><span>Sello K-P</span><span>{p.score_kalidad_presio}/100</span></p>
+        <p class="renglon pp-ficha-total"><span>Sello K-P</span><span>{p.calificado === false ? 'Sin calificar' : `${p.score_kalidad_presio}/100`}</span></p>
       </section>
 
       <section class="pp-historial" aria-labelledby="pp-hist-h">
@@ -249,7 +254,9 @@ const migas = JSON.stringify({
   .pp-foto { --giro: -1.4deg; margin: 0; padding: 1rem; }
   .pp-foto img,
   .pp-sinfoto { width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; display: block; background: #fff; }
-  .pp-sinfoto { display: grid; place-items: center; background: var(--papel-2); color: var(--tinta-3); }
+  .pp-sinfoto { display: grid; place-items: center; background: repeating-linear-gradient(-45deg, var(--papel-2) 0 16px, var(--papel) 16px 32px); }
+  .pp-sinfoto-cat { font: 900 clamp(2rem, 6vw, 3.4rem)/1 var(--f-rotulo); text-transform: uppercase; color: var(--tinta-3); transform: rotate(-6deg); }
+  .pp-sincalificar { --giro: -6deg; color: var(--tinta-3); font-size: 1.2rem; background: rgba(255, 252, 244, 0.85); }
   .pp-foto-sello { position: absolute; right: -14px; bottom: -22px; z-index: 3; }
 
   .pp-titulo { font-size: clamp(2.1rem, 4.6vw, 3.6rem); text-transform: uppercase; margin: 0 0 1.6rem; }

@@ -32,7 +32,8 @@ npm run dev               # http://localhost:4321
 
 | Qué | Dónde |
 | :--- | :--- |
-| Agregar o actualizar un producto | `/panel/agregar` (con el marcador del navegador) |
+| Agregar productos rápido | `/panel/agregar` → pega los mensajes de «Compartir para ganar una comisión» de la app; en Android, instala el panel como app y comparte directo a «KalidaPresio» (ver [`docs/vitrina.md`](docs/vitrina.md#la-forma-rápida-pegar-lo-que-te-da-la-app-celular-o-computadora)) |
+| Completar o actualizar un producto | `/panel/agregar` (con el marcador del navegador) |
 | La página de un producto (precio, historial, Sello K-P) | `/p/<slug>`: se crea sola y no desaparece al retirarlo (ver [`docs/vitrina.md`](docs/vitrina.md#la-página-de-cada-producto-p)) |
 | Publicar en WhatsApp, Telegram, Facebook, Instagram, TikTok… | `/panel/hoy` |
 | Tu «link en bio», con el código fijo de cada producto (K-17) | `/hoy` (`/hoy?c=ig`, `/hoy?c=tt`) y la dirección corta `/k/17` |
@@ -52,7 +53,7 @@ npm run dev               # http://localhost:4321
 | `npm run observar-diario` | Foto diaria de precios para el histórico, en tu computadora (`-- --subir` la sube). Ver [`docs/vitrina.md`](docs/vitrina.md#el-observador-diario-el-reloj-del-buen-fin) |
 | `npm run generar-feed` | Regenera `public/data/feed.json` (el que consume n8n) |
 | `npm run generar-tarjetas` | Regenera las imágenes 4:5 y 9:16 de `public/promos/` |
-| `npm run generar-og` | Regenera `public/og-default.png` (solo si cambia la identidad) |
+| `npm run generar-identidad` | Regenera los íconos (favicon, app del panel) y `public/og-default.png` (solo si cambia la identidad) |
 | `npm run preview` | Sirve `dist/` localmente |
 
 Herramientas del modelo anterior, solo para uso manual desde tu computadora

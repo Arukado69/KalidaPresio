@@ -11,6 +11,7 @@
  * si lo hubo, o un 10 % menos redondeado. Nunca uno más alto que el actual.
  */
 import { sugerirObjetivo } from '../utils/alertas.js';
+import { pesos } from '../utils/pesos.js';
 
 export interface Props {
   productoId: string;
@@ -23,8 +24,6 @@ export interface Props {
 }
 
 const { productoId, precio, minimo = null, vigente } = Astro.props;
-const pesos = (n: number) =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
 const sugerencia = sugerirObjetivo(precio, minimo);
 ---
 
@@ -78,8 +77,7 @@ const sugerencia = sugerirObjetivo(precio, minimo);
 )}
 
 <script>
-  const pesos = (n: number) =>
-    new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
+  import { pesos } from '../utils/pesos.js';
   const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
 
   /** Lo que se le dice a la persona según lo que respondió el backend. */

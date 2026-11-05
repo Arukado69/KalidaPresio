@@ -26,6 +26,7 @@ import { ordenParaPublicar } from '../utils/vitrina.js';
 import { categorizar } from '../utils/categorias.js';
 import { CODIGOS_CANAL } from '../utils/canales.js';
 import { formatoCodigo, anclaCodigo } from '../utils/codigos.js';
+import { pesos } from '../utils/pesos.js';
 
 // Cada producto se busca por su CÓDIGO FIJO («K-17», src/utils/codigos.js): no
 // cambia cuando cambia la vitrina, así que un video viejo sigue apuntando al
@@ -37,7 +38,6 @@ const productos = ordenParaPublicar(VITRINA).map((p, i) => ({
   etiqueta: formatoCodigo(p.codigo) ?? `#${i + 1}`,
   ancla: anclaCodigo(p.codigo) ?? `n${i + 1}`,
 }));
-const pesos = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
 const visto = (iso) => new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', timeZone: 'America/Mexico_City' }).format(new Date(iso));
 ---
 
@@ -71,7 +71,7 @@ const visto = (iso) => new Intl.DateTimeFormat('es-MX', { day: 'numeric', month:
           <li class="hoy-item anima-pegar" id={p.ancla} data-caduca={p.caduca ?? ''} style={`--i:${Math.min(p.numero, 8)}`}>
             <span class="hoy-num" aria-label={`Código ${p.etiqueta}`}>{p.etiqueta}</span>
             <div class="hoy-foto">
-              {p.imagen ? <img src={p.imagen} alt={p.titulo} loading={p.numero <= 3 ? 'eager' : 'lazy'} /> : <span class="hoy-sin-foto" aria-hidden="true"></span>}
+              {p.imagen ? <img src={p.imagen} alt={p.titulo} loading={p.numero <= 3 ? 'eager' : 'lazy'} /> : <span class="hoy-sin-foto" aria-hidden="true">{categorizar(p.titulo) !== 'Otros' ? categorizar(p.titulo) : 'Oferta'}</span>}
             </div>
             <div class="hoy-info">
               {p.oferta_relampago && (
@@ -229,7 +229,7 @@ const visto = (iso) => new Intl.DateTimeFormat('es-MX', { day: 'numeric', month:
 
   .hoy-foto { aspect-ratio: 1; background: #fff; border: 1.5px solid var(--linea); }
   .hoy-foto img { width: 100%; height: 100%; object-fit: contain; padding: 8px; }
-  .hoy-sin-foto { display: block; height: 100%; background: var(--papel-2); }
+  .hoy-sin-foto { display: grid; place-items: center; height: 100%; background: repeating-linear-gradient(-45deg, var(--papel-2) 0 10px, var(--papel) 10px 20px); font: 900 1.05rem/1 var(--f-rotulo); text-transform: uppercase; color: var(--tinta-3); }
 
   .hoy-info { display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; }
   .hoy-relampago { align-self: flex-start; background: var(--fosfo-naranja); color: var(--tinta); padding: 0.2rem 0.5rem; }

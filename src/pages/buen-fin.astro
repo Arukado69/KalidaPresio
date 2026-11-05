@@ -19,6 +19,7 @@
  */
 import Layout from '../layouts/Layout.astro';
 import { BUEN_FIN } from '../data/buenFin.js';
+import { pesos } from '../utils/pesos.js';
 import { DETECTOR, OBSERVACION, HOY } from '../data/detector.js';
 import { DIAS_EN_OFERTA } from '../utils/detector.js';
 import {
@@ -33,8 +34,6 @@ import {
 /** Fechas 'YYYY-MM-DD' sin que la zona horaria las mueva de día. */
 const fecha = (iso, opciones = { day: 'numeric', month: 'long' }) =>
   new Intl.DateTimeFormat('es-MX', { timeZone: 'UTC', ...opciones }).format(new Date(`${iso}T12:00:00Z`));
-const pesos = (n) =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
 const pct = (x) => `${Math.round(x * 100)} %`;
 
 // «viernes 13» y «martes 17 de noviembre»: armado a mano porque Intl pone

@@ -28,6 +28,75 @@ cada uno cobra.
 
 ---
 
+## La forma rápida: pegar lo que te da la app (celular o computadora)
+
+El botón **«Compartir para ganar una comisión»** de la app de Mercado Libre ya
+te da casi todo lo que el sitio necesita:
+
+```
+¡Mira lo que encontré! Playera Polo Hombre … - $ 99,59 en Mercado Libre.
+Entra aquí: https://meli.la/2Gyywqc
+```
+
+Título, precio y **tu link oficial**. Entonces:
+
+1. En la app, toca «Compartir para ganar una comisión» en cada producto que
+   quieras y **copia el mensaje** (o mándatelo por WhatsApp a ti mismo). Puedes
+   juntar varios.
+2. Abre `/panel/agregar` y **pégalos todos** en «La forma rápida: pega lo que
+   te da la app». Toca **«Agregar a mi vitrina»**.
+3. Toca **«Publicar ahora»**. En unos minutos están en el sitio, con su código
+   fijo (K-17) y su página.
+
+- El precio queda como **visto hoy** (o el día que elijas, si pegas mensajes
+  viejos). A los 7 días sin revisar se esconde solo, como todo.
+- Pegar otra vez el mismo mensaje con otro precio **actualiza** ese producto;
+  no lo duplica.
+- Sin foto, el sitio muestra la categoría en grande; sin calificación ni
+  ventas, dice **«sin calificar»** en vez de un Sello K-P de 0.
+- **Completarlo después** (foto, calificación, ventas, precio anterior): abre
+  la ficha en Mercado Libre en la computadora y usa el marcador; pega el mismo
+  link cuando te lo pida. El panel lo reconoce por el link y lo completa.
+- El bot de Telegram (n8n) solo publica productos con foto.
+
+### En Android: compartir directo, sin copiar ni pegar
+
+El panel se instala como app y aparece en el menú «Compartir» del celular,
+así que el mensaje entra solo:
+
+1. **Una vez:** abre `/panel/agregar` en Chrome, en el celular, y toca
+   **«Instalar como app»** (o el menú ⋮ de Chrome → «Instalar app»).
+2. En la app de Mercado Libre, en un producto: **«Compartir para ganar una
+   comisión»** → elige **KalidaPresio** (si no aparece, búscala en «Más»;
+   recién instalada puede tardar unos minutos).
+3. Se abre el panel con el producto agregado y te dice cuál entró, a qué
+   precio y con qué código. Regresa a Mercado Libre y repite.
+4. Al terminar, **«Publicar ahora»**.
+
+- Si compartes con el «Compartir» normal (no el de comisión), el panel te
+  avisa: ese link no lleva tu identificador y no se publica.
+- El borrador se guarda en el celular aunque cierres la app; nada se publica
+  hasta que tocas «Publicar ahora».
+- En iPhone no se puede (Apple no deja que una página aparezca en
+  «Compartir»): ahí copia y pega.
+- Cómo funciona: `public/panel/manifest.json` (su `share_target` manda a
+  `/panel/agregar/?titulo=…&texto=…&enlace=…`), `public/panel/sw.js` (sin
+  caché, a propósito) y `leerCompartido()` en `src/utils/compartir.js`. Los
+  íconos salen de `npm run generar-identidad`.
+
+### ¿Cómo sabe Mercado Libre que la venta es tuya?
+
+Por el link: `meli.la/…` lleva tu identificador de afiliado. Al tocarlo, la
+persona pasa por tu perfil de afiliado en Mercado Libre y de ahí al producto,
+y Mercado Libre registra el clic a tu nombre. Si compra dentro de la ventana
+de atribución (las páginas oficiales de Chile y Argentina dicen **24 horas
+desde el clic**, y que tu link sea el **último clic** antes de comprar), la
+comisión es tuya. Por eso el sitio publica el link **tal cual**, sin
+modificarlo. Las ventas las ves en tu panel de afiliados; los clics que salen
+del sitio, en Umami (ver `docs/analitica.md`).
+
+---
+
 ## Agregar un producto (2 minutos, en la computadora)
 
 ### Una sola vez: instala el marcador

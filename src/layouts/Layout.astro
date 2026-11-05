@@ -67,7 +67,7 @@ const datosSitio = {
       '@id': `${Astro.site}#org`,
       name: 'KalidaPresio',
       url: Astro.site?.href,
-      logo: new URL('/favicon.svg', Astro.site).href,
+      logo: new URL('/iconos/kp-512.png', Astro.site).href,
     },
   ],
 };
@@ -79,7 +79,9 @@ const datosSitio = {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f3ede0" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="generator" content={Astro.generator} />
 
     <!-- Cuatro voces: rótulo, plumón, texto y ticket (ver global.css).
@@ -163,6 +165,7 @@ const datosSitio = {
     </footer>
 
     <script>
+      import { pesos } from '../utils/pesos.js';
       // ── Lo único que hace falta en el navegador ─────────────────────────────
       // 1) Cuentas regresivas de relámpago ([data-countdown][data-fin]).
       // 2) Relámpagos en vivo: el carrusel lee /data/relampago.json al abrir,
@@ -171,8 +174,6 @@ const datosSitio = {
 
       const esc = (s: unknown) =>
         String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
-      const pesos = (n: number) =>
-        new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0);
 
       function restante(ms: number) {
         if (ms <= 0) return 'terminó';

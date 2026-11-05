@@ -344,6 +344,10 @@ export function normalizarProducto(entrada, ahora = Date.now(), { exigirVigencia
       nota: texto(e.nota),
       revisado: new Date(revisadoMs).toISOString(),
       score_kalidad_presio: calcularScorePorSeccion({ rating, descuento, vendidos }, 'default'),
+      // Sin calificación ni ventas (p. ej. pegado desde «Compartir» de la app)
+      // el Sello K-P sale en 0 por falta de datos, no por malo: el sitio dice
+      // «sin calificar» en vez de un sello rojo que acusaría sin pruebas.
+      calificado: rating > 0 || vendidos > 0,
       // Misma receta que importarOfertas.js: volumen 60 % · vendedor reputado 40 %.
       confianza: Math.round(Math.min(fraccionVolumen(vendidos) * 60 + (vendedorConfiable ? 40 : 0), 100)),
     },
