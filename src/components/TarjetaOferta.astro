@@ -13,7 +13,7 @@
 import SelloKP from './SelloKP.astro';
 import BotonCTA from './BotonCTA.astro';
 import { formatearVendidos } from '../utils/mlPayload.js';
-import { veredictoDe } from '../data/historico.js';
+import { veredictoDeProducto } from '../data/historico.js';
 import { pesos } from '../utils/pesos.js';
 
 export interface Oferta {
@@ -67,11 +67,15 @@ const vistoEl = oferta.revisado
   : null;
 
 // Histórico de precios: solo se afirma lo OBSERVADO (src/utils/historico.js).
-const precio = veredictoDe(oferta.claves_historico ?? oferta.id, oferta.precio_actual, oferta.descuento);
+// Con lo que viste tú al compartirlo (`vistos`), no solo con lo que vio el bot.
+const precio = veredictoDeProducto(oferta);
 const sello =
   precio.nivel === 'minimo' || precio.nivel === 'bajo' ? { tono: 'verde', texto: precio.texto }
   : precio.nivel === 'alto' ? { tono: 'azul', texto: precio.texto }
   : precio.nivel === 'descuento-falso' ? { tono: 'rojo', texto: precio.texto }
+  // «Mismo precio desde el 5 nov»: sin juicio, pero en el Buen Fin es justo lo
+  // que hay que saber de un «descuento». Con una sola vista no hay nada que decir.
+  : precio.nivel === 'siguiendo' && precio.dias >= 2 ? { tono: 'tinta', texto: precio.texto }
   : null;
 
 const score100 = Math.round(score ?? oferta.score_kalidad_presio ?? 0);

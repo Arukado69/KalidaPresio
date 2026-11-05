@@ -92,7 +92,7 @@ export function seriePrecios(entradas, { hasta, dias = 90 } = {}) {
  * @param {{ancho?: number, alto?: number, margen?: number}} [opciones]
  * @returns {null | {
  *   ancho: number, alto: number, ruta: string,
- *   puntos: {fecha: string, min: number, max: number, x: number, yMin: number, yMax: number}[],
+ *   puntos: {fecha: string, min: number, max: number, x: number, yMin: number, yMax: number, suelto: boolean}[],
  *   minimo: number, maximo: number, yMinimo: number, desde: string, hasta: string,
  * }}
  */
@@ -110,12 +110,21 @@ export function graficaPrecios(serie, { ancho = 600, alto = 180, margen = 10 } =
   const x = (fecha) => r1(margen + ((Date.parse(fecha) - t0) / (t1 - t0 || 1)) * (ancho - 2 * margen));
   const y = (v) => r1(alto - margen - ((v - bajo) / (alto_ - bajo)) * (alto - 2 * margen));
 
-  const puntos = serie.map((p) => ({ ...p, x: x(p.fecha), yMin: y(p.min), yMax: y(p.max) }));
+  // ¿Hay hueco entre este punto y el anterior? Ahí la línea se corta.
+  const hueco = (i) => i <= 0 || i >= serie.length
+    || (Date.parse(serie[i].fecha) - Date.parse(serie[i - 1].fecha)) / DIA > HUECO_MAXIMO_DIAS;
+  const puntos = serie.map((p, i) => ({
+    ...p,
+    x: x(p.fecha),
+    yMin: y(p.min),
+    yMax: y(p.max),
+    // Sin vecino a ningún lado: ninguna línea lo dibuja. Pasa con las
+    // revisiones sueltas (los precios que viste al compartir): sin un punto
+    // propio, el precio de ese día ni siquiera se vería.
+    suelto: hueco(i) && hueco(i + 1),
+  }));
   const ruta = puntos
-    .map((p, i) => {
-      const hueco = i > 0 && (Date.parse(p.fecha) - Date.parse(puntos[i - 1].fecha)) / DIA > HUECO_MAXIMO_DIAS;
-      return `${i === 0 || hueco ? 'M' : 'L'}${p.x},${p.yMin}`;
-    })
+    .map((p, i) => `${hueco(i) ? 'M' : 'L'}${p.x},${p.yMin}`)
     .join(' ');
 
   return {

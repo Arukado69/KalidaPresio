@@ -22,7 +22,7 @@ import BotonCTA from '../../components/BotonCTA.astro';
 import AlertaPrecio from '../../components/AlertaPrecio.astro';
 import crudo from '../../data/vitrina.json';
 import { paginasDeVitrina, seriePrecios, graficaPrecios } from '../../utils/paginaProducto.js';
-import { entradasDe, veredictoDe } from '../../data/historico.js';
+import { entradasDeProducto, veredictoDeProducto } from '../../data/historico.js';
 import { formatearVendidos } from '../../utils/mlPayload.js';
 import { recortar } from '../../utils/publicacion.js';
 import { ANCHO as PROMO_ANCHO, ALTO as PROMO_ALTO } from '../../utils/tarjetas.js';
@@ -43,13 +43,13 @@ const fechaMx = (iso) =>
 /** Días 'YYYY-MM-DD' del histórico, sin que la zona horaria los mueva. */
 const dia = (ymd) => new Intl.DateTimeFormat('es-MX', { timeZone: 'UTC', day: 'numeric', month: 'short' }).format(new Date(`${ymd}T12:00:00Z`));
 
-const claves = p.claves_historico ?? [p.id];
 const hoy = new Date().toISOString().slice(0, 10);
-const serie = seriePrecios(entradasDe(claves), { hasta: hoy, dias: 90 });
+// Lo que vio el bot más lo que viste tú al compartirlo o guardarlo (`vistos`).
+const serie = seriePrecios(entradasDeProducto(p), { hasta: hoy, dias: 90 });
 const g = graficaPrecios(serie);
 const ultimo = g?.puntos.at(-1);
 // El veredicto habla del precio de HOY: con un precio vencido sería adivinar.
-const v = vigente ? veredictoDe(claves, p.precio_actual, p.descuento) : null;
+const v = vigente ? veredictoDeProducto(p) : null;
 // El color del sello del veredicto: verde afirma, azul advierte, rojo acusa.
 const TONO_VEREDICTO = { minimo: 'verde', bajo: 'verde', alto: 'azul' };
 
@@ -188,6 +188,9 @@ const migas = JSON.stringify({
                     <line class="g-rango" x1={pt.x} x2={pt.x} y1={pt.yMax} y2={pt.yMin} />
                   ))}
                   <path class="g-linea" d={g.ruta} />
+                  {g.puntos.filter((pt) => pt.suelto && pt !== ultimo).map((pt) => (
+                    <circle class="g-punto" cx={pt.x} cy={pt.yMin} r="5" />
+                  ))}
                   {ultimo && <circle class="g-ultimo" cx={ultimo.x} cy={ultimo.yMin} r="6" />}
                 </svg>
                 <span class="g-nota-min plumon" style={`top:${((g.yMinimo / g.alto) * 100).toFixed(1)}%`} aria-hidden="true">
@@ -198,7 +201,7 @@ const migas = JSON.stringify({
             </figure>
             <p class="pp-resumen">
               Lo vimos {serie.length} días: el más bajo, {pesos(g.minimo)}; el más alto, {pesos(g.maximo)}.
-              La línea punteada es su mínimo, y donde la línea se corta, no lo observamos.
+              La línea punteada es su mínimo. Donde la línea se corta no lo observamos, y cada punto suelto es un día en que lo revisamos.
             </p>
           </>
         ) : (
@@ -329,6 +332,7 @@ const migas = JSON.stringify({
   .g-rango { stroke: var(--fosfo-rosa); stroke-width: 7; stroke-linecap: round; opacity: 0.75; }
   .g-minimo { stroke: var(--sello-rojo); stroke-width: 2; stroke-dasharray: 6 7; }
   .g-ultimo { fill: var(--fosfo); stroke: var(--tinta); stroke-width: 3; }
+  .g-punto { fill: var(--cartulina); stroke: var(--tinta); stroke-width: 3; }
   /* La anotación a mano junto a la línea del mínimo. */
   .g-nota-min {
     position: absolute;
