@@ -9,7 +9,7 @@
     "dev": "astro dev",
     "obtener-ofertas": "node src/scripts/importarOfertas.js",
     "obtener-secciones": "node src/scripts/extraer-secciones.mjs",
-    "generar-og": "node src/scripts/generarOgImage.js",
+    "generar-identidad": "node src/scripts/generarIdentidad.js",
     "detectar-nichos": "node src/scripts/detectarNichos.js",
     "verificar-frescura": "node src/scripts/verificarFrescura.js",
     "revisar-vitrina": "node src/scripts/revisarVitrina.js",

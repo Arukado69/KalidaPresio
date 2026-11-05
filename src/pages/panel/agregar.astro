@@ -23,6 +23,7 @@ import { claveProducto, urlProductoLimpia } from '../../utils/vitrina.js';
 import { enlaceMarcador } from '../../utils/marcador.js';
 import { CANALES } from '../../utils/canales.js';
 import { repoDesdeUrlEditor } from '../../utils/publicarGithub.js';
+import PanelApp from '../../components/PanelApp.astro';
 
 const SITIO = String(Astro.site ?? 'https://kalidapresio.albis-labs.xyz').replace(/\/+$/, '');
 const EDITAR_EN_GITHUB = import.meta.env.PUBLIC_EDITAR_VITRINA_URL
@@ -81,7 +82,7 @@ const datos = JSON.stringify({
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Agregar productos — KalidaPresio</title>
-  <link rel="icon" href="/favicon.svg" />
+  <PanelApp />
   <!-- Global: parte del contenido se pinta desde el script (filas, consejos)
        y no lleva la marca de los estilos con alcance de Astro. -->
   <style is:global>

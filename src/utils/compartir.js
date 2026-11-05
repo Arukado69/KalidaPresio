@@ -97,6 +97,50 @@ export function leerMensajesCompartidos(texto) {
 }
 
 /**
+ * Lo que llega cuando eliges «KalidaPresio» en el menú «Compartir» del
+ * celular (el panel instalado como app; ver public/panel/manifest.json).
+ *
+ * Android lo entrega en tres partes que cada app llena a su manera: `texto`
+ * (el mensaje completo, lo normal), `titulo` (a veces el título del producto,
+ * a veces nada) y `enlace` (casi nunca; a veces el link viene solo aquí).
+ * Se lee el texto con el link; el título solo se usa si al producto le falta
+ * título o precio, porque pegarlo siempre al frente ensuciaría el título.
+ *
+ * @param {{titulo?: unknown, texto?: unknown, enlace?: unknown}} recibido
+ * @returns {ReturnType<typeof leerMensajesCompartidos>}
+ */
+export function leerCompartido({ titulo, texto, enlace } = {}) {
+  const limpio = (v) => String(v ?? '').trim();
+  const t = limpio(titulo);
+  const enlaceSolo = limpio(enlace);
+  let cuerpo = limpio(texto);
+  if (enlaceSolo && !cuerpo.includes(enlaceSolo)) cuerpo = cuerpo ? `${cuerpo}\n${enlaceSolo}` : enlaceSolo;
+
+  let leidos = leerMensajesCompartidos(cuerpo);
+  if (!leidos.length && t) return leerMensajesCompartidos(`${t}\n${cuerpo}`);
+  if (leidos.length === 1 && t && (!leidos[0].titulo || !leidos[0].precio)) {
+    const [con] = leerMensajesCompartidos(`${t}\n${cuerpo}`);
+    if (con && con.link === leidos[0].link) {
+      leidos = [{ ...leidos[0], titulo: leidos[0].titulo || con.titulo, precio: leidos[0].precio || con.precio }];
+    }
+  }
+  return leidos;
+}
+
+/**
+ * ¿Trae un link de Mercado Libre que NO es de afiliado? Pasa cuando se usa el
+ * «Compartir» normal de la app en vez de «Compartir para ganar una comisión»:
+ * ese link no lleva tu identificador y no puede publicarse.
+ *
+ * @param {unknown} texto
+ * @returns {boolean}
+ */
+export function traeLinkSinComision(texto) {
+  const s = String(texto ?? '');
+  return /https?:\/\/[^\s]*mercadoli(?:b|v)re\.com/i.test(s) && leerMensajesCompartidos(s).length === 0;
+}
+
+/**
  * Mezcla lo pegado con la vitrina del panel: lo nuevo entra arriba; lo que ya
  * estaba (mismo link) actualiza su título, precio y fecha sin perder lo demás
  * (foto, nota, código, links por canal).

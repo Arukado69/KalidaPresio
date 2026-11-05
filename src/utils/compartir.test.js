@@ -7,7 +7,7 @@
  * salga producto por producto sin mezclar títulos.
  */
 import { describe, it, expect } from 'vitest';
-import { precioDeTexto, leerMensajesCompartidos, mezclarCompartidos } from './compartir.js';
+import { precioDeTexto, leerMensajesCompartidos, leerCompartido, traeLinkSinComision, mezclarCompartidos } from './compartir.js';
 
 const MENSAJE = '¡Mira lo que encontré! Playera Polo Hombre Manga Corta Moda Casual Camisa Calidad - $ 99,59 en Mercado Libre. Entra aquí:  https://meli.la/2Gyywqc';
 
@@ -65,6 +65,50 @@ describe('leerMensajesCompartidos', () => {
 
   it('el mismo link dos veces cuenta una vez', () => {
     expect(leerMensajesCompartidos(`${MENSAJE}\n${MENSAJE}`)).toHaveLength(1);
+  });
+});
+
+describe('leerCompartido (lo que llega del menú «Compartir» del celular)', () => {
+  const PLAYERA = { link: 'https://meli.la/2Gyywqc', titulo: 'Playera Polo Hombre Manga Corta Moda Casual Camisa Calidad', precio: 99.59 };
+
+  it('el mensaje completo en «texto» (lo normal)', () => {
+    expect(leerCompartido({ texto: MENSAJE })).toEqual([PLAYERA]);
+  });
+
+  it('un título aparte no ensucia el que ya trae el mensaje', () => {
+    expect(leerCompartido({ titulo: 'Mercado Libre', texto: MENSAJE, enlace: '' })).toEqual([PLAYERA]);
+  });
+
+  it('el link que llega aparte, en «enlace», se usa una sola vez', () => {
+    const sinLink = MENSAJE.replace('https://meli.la/2Gyywqc', '');
+    expect(leerCompartido({ texto: sinLink, enlace: 'https://meli.la/2Gyywqc' })).toEqual([PLAYERA]);
+    expect(leerCompartido({ texto: MENSAJE, enlace: 'https://meli.la/2Gyywqc' })).toEqual([PLAYERA]);
+  });
+
+  it('si el texto es solo el link, el título y el precio salen del «titulo»', () => {
+    const r = leerCompartido({ titulo: 'Playera Polo Hombre Manga Corta Moda Casual Camisa Calidad - $ 99,59 en Mercado Libre', texto: 'https://meli.la/2Gyywqc' });
+    expect(r).toEqual([PLAYERA]);
+  });
+
+  it('solo el link: entra igual, para completarlo después', () => {
+    expect(leerCompartido({ enlace: 'https://meli.la/2Gyywqc' })).toEqual([{ link: 'https://meli.la/2Gyywqc', titulo: null, precio: null }]);
+  });
+
+  it('nada que leer → lista vacía', () => {
+    expect(leerCompartido({})).toEqual([]);
+    expect(leerCompartido({ titulo: 'Hola', texto: 'sin links' })).toEqual([]);
+  });
+});
+
+describe('traeLinkSinComision', () => {
+  it('detecta el «Compartir» normal (link de producto, sin tu identificador)', () => {
+    expect(traeLinkSinComision('Mira esto https://articulo.mercadolibre.com.mx/MLM-5074744490-playera-_JM')).toBe(true);
+  });
+
+  it('no se queja de un link oficial ni de un texto sin links', () => {
+    expect(traeLinkSinComision(MENSAJE)).toBe(false);
+    expect(traeLinkSinComision('https://mercadolibre.com/sec/1AbCdE')).toBe(false);
+    expect(traeLinkSinComision('hola')).toBe(false);
   });
 });
 
