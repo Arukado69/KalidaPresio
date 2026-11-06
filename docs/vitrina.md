@@ -78,7 +78,13 @@ así que el mensaje entra solo:
 - Si compartes con el «Compartir» normal (no el de comisión), el panel te
   avisa: ese link no lleva tu identificador y no se publica.
 - El borrador se guarda en el celular aunque cierres la app; nada se publica
-  hasta que tocas «Publicar ahora».
+  hasta que tocas «Publicar ahora»… salvo que actives **«Publicar solo cada
+  vez que compartes desde la app»** (en «La forma rápida»). Con esa casilla,
+  cada producto que compartes queda en el sitio en unos minutos sin tocar nada
+  más. Usa tu token de GitHub (te lo pide al activarla). Si la vitrina cambió
+  en GitHub por otro lado, o el token venció, no fuerza nada: te avisa y lo
+  deja guardado para «Publicar ahora». Compartir varios seguidos no amontona
+  despliegues: GitHub deja solo uno en cola.
 - En iPhone no se puede (Apple no deja que una página aparezca en
   «Compartir»): ahí copia y pega.
 - Cómo funciona: `public/panel/manifest.json` (su `share_target` manda a
