@@ -57,7 +57,9 @@ Título, precio y **tu link oficial**. Entonces:
 - **Completarlo después** (foto, calificación, ventas, precio anterior): abre
   la ficha en Mercado Libre en la computadora y usa el marcador; pega el mismo
   link cuando te lo pida. El panel lo reconoce por el link y lo completa.
-- El bot de Telegram (n8n) solo publica productos con foto.
+- El bot de Telegram (n8n) publica la tarjeta de la marca, así que también
+  salen los productos sin foto (si lo importaste antes de noviembre de 2026,
+  vuelve a importarlo: ver `docs/reparto.md`).
 
 ### En Android: compartir directo, sin copiar ni pegar
 
