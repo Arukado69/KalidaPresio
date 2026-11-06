@@ -58,8 +58,8 @@ npm run dev               # http://localhost:4321
 
 Herramientas del modelo anterior, solo para uso manual desde tu computadora
 (Mercado Libre bloquea a los servidores): `npm run obtener-ofertas`,
-`obtener-secciones`, `registrar-historico`, `detectar-nichos`,
-`verificar-frescura`. Ninguna arma links de afiliado.
+`obtener-secciones`, `registrar-historico`, `detectar-nichos`. Ninguna arma
+links de afiliado.
 
 `SITE_URL` **no es opcional**: alimenta `rel="canonical"`, `og:url`, `og:image`
 y el sitemap. El build de Docker falla a propósito si falta.

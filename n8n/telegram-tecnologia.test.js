@@ -95,6 +95,40 @@ describe('n8n — lo que publica', () => {
     expect(salida[0].mensaje.toLowerCase()).toContain('afiliado');
   });
 
+  it('publica también los productos SIN foto (los que llegan desde la app), con la tarjeta de la marca', () => {
+    const { salida } = ejecutar({ esquema: 2, sitio: 'https://kp.mx', items: [item({ imagen: null })] });
+    expect(salida).toHaveLength(1);
+    expect(salida[0].imagen).toBe('https://kp.mx/promos/MLM53177027.jpg');
+  });
+
+  it('con una sola vista va tu nota, no «Lo seguimos desde…»; con dos o más, el veredicto con fecha', () => {
+    const una = ejecutar({ esquema: 2, sitio: 'https://kp.mx', items: [item({
+      nota: 'La mejor para el jardín',
+      historico: { nivel: 'siguiendo', texto: 'Lo seguimos desde el 5 nov', dias: 1 },
+    })] }).salida[0].mensaje;
+    expect(una).toContain('La mejor para el jardín');
+    expect(una).not.toContain('Lo seguimos');
+
+    const dos = ejecutar({ esquema: 2, sitio: 'https://kp.mx', items: [item({
+      historico: { nivel: 'siguiendo', texto: 'Mismo precio desde el 5 nov', dias: 2 },
+    })] }).salida[0].mensaje;
+    expect(dos).toContain('Mismo precio desde el 5 nov');
+
+    const bajo = ejecutar({ esquema: 2, sitio: 'https://kp.mx', items: [item({
+      historico: { nivel: 'minimo', texto: 'Bajó: el 5 nov estaba a $1,299', dias: 2 },
+    })] }).salida[0].mensaje;
+    expect(bajo).toContain('Bajó: el 5 nov estaba a $1,299');
+  });
+
+  it('NUNCA redondea un precio: $89.90 no es «$90»', () => {
+    const { salida } = ejecutar({ esquema: 2, sitio: 'https://kp.mx', items: [item({ precio_actual: 89.9, precio_previo: 129.5 })] });
+    expect(salida[0].mensaje).toContain('$89.90');
+    expect(salida[0].mensaje).toContain('$129.50');
+    expect(salida[0].mensaje).not.toMatch(/\$90\b/);
+    const entero = ejecutar({ esquema: 2, sitio: 'https://kp.mx', items: [item({ precio_actual: 1299, precio_previo: null })] });
+    expect(entero.salida[0].mensaje).toContain('$1,299</b>');
+  });
+
   it('NO publica un link que no sea oficial, aunque llegue en el feed', () => {
     const { salida } = ejecutar({ esquema: 2, sitio: 'https://kp.mx', items: [
       item({ enlace: 'https://www.mercadolibre.com.mx/x/p/MLM1?matt_tool=1&matt_word=2' }),

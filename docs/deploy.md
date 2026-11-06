@@ -234,11 +234,12 @@ docker compose --env-file .env.production up -d --build
   a `main` dispara `deploy.yml` → tests + build en CI → SSH → rebuild en el VPS.
 - Un precio con más de 7 días sin revisar se esconde solo; una relámpago se
   retira al llegar a su hora de fin. El panel te marca lo que hay que revisar.
-- `actualizar-ofertas.yml` (el scraper de cada 3 h) **está pausado**: desde el
-  8 de octubre de 2026 Mercado Libre responde a los servidores con una pantalla
-  de «verifica tu cuenta». Queda la ejecución manual en la pestaña *Actions*.
-  Si sigue abierto el issue «🔴 El feed de ofertas dejó de refrescarse», ya se
-  puede cerrar: el sitio no depende de ese feed.
+- El scraper de cada 3 h (`actualizar-ofertas.yml`) **se retiró** en noviembre
+  de 2026: desde el 8 de octubre Mercado Libre responde a los servidores con
+  una pantalla de «verifica tu cuenta», así que ni a mano podía correr en
+  *Actions*. El historial de precios ahora crece con lo que compartes desde el
+  panel (`vistos`, ver `docs/vitrina.md`) y, si quieres, con el observador de
+  tu computadora (`npm run observar-diario`).
 
 ## 9. Operación diaria
 

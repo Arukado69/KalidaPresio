@@ -171,18 +171,24 @@ publicaciones en el canal y podrás borrarlas. Recién entonces actívalo.
 Lee `feed.json`, **descarta lo que no tenga link oficial**, las relámpago ya
 terminadas y las que han estado más baratas hace poco, quita las que ya
 publicó, toma 3 en el orden de `/hoy` y las manda con la tarjeta 4:5 y el link
-oficial (el de la etiqueta de Telegram si lo generaste).
+oficial (el de la etiqueta de Telegram si lo generaste). La tarjeta existe para
+todo producto, con o sin foto: los que agregas desde «Compartir» de la app
+también salen. Si el producto lleva una sola vista de precio, en vez del
+veredicto va tu nota.
 
-Si ya tenías importada la versión anterior, **vuelve a importarla**: la vieja
-espera el esquema 1 y se detiene con un error en vez de publicar links viejos.
+Si ya tenías importada una versión anterior, **vuelve a importarla**: la de
+septiembre espera el esquema 1 y se detiene con un error en vez de publicar
+links viejos, y la de octubre se salta los productos sin foto.
 
 ### Cosas que conviene saber
 
 - **La memoria de lo publicado** vive en el estado del workflow. Si lo borras y
   lo vuelves a importar, empieza de cero y republica. No pasa nada grave, pero
   no lo hagas con el canal ya lleno de gente.
-- **El feed manda.** Si el sitio lleva horas sin reconstruirse, n8n publica
-  precios viejos. `npm run verificar-frescura` es la alarma que ya tienes.
+- **El feed manda.** n8n publica lo que dice `feed.json`. Un precio con más de
+  7 días sin revisar ni siquiera entra al feed, y la alarma de la vitrina
+  (`alarma-vitrina.yml`) te avisa si el sitio deja de publicar o si hay precios
+  por esconderse.
 - **Si cambia `feed.json`** de forma, sube `ESQUEMA` en
   `generarFeedPublico.js`. El workflow se detiene con un error claro en vez de
   publicar mensajes con huecos.
