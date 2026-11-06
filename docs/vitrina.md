@@ -335,7 +335,30 @@ Con `--subir`, el observador hace `git pull`, observa, registra y sube **solo**
 
 ### El Detector del Buen Fin (`/buen-fin`)
 
-Publica el veredicto de cada producto que el observador vio en oferta en los
+**Con tu selección (lo que funciona hoy).** La página arranca con «Nuestra
+selección», hecha con los precios que tú viste (`vistos`):
+
+- **Antes del 13:** «Así están antes del Buen Fin». Cada producto con el precio
+  que viste y cuándo: la referencia.
+- **Del 13 en adelante:** «¿Bajaron de verdad?». El precio **más bajo** que le
+  viste en los 30 días antes del Buen Fin contra el más bajo que le veas
+  durante el Buen Fin. Se separa en **bajó de verdad**, **mismo precio que
+  antes** (menos de 2 % de diferencia) y **más caro que antes**. Se compara
+  contra el más bajo, no contra el último, porque el truco es justo subirlo
+  unos días antes para «bajarlo» en el Buen Fin.
+- Un producto que no revisaste durante el Buen Fin, o sin precio de antes, no
+  se compara; la página dice cuántos son. **Comparte tus productos antes del
+  13 y otra vez durante el Buen Fin.**
+- La lógica vive en `src/utils/vitrinaBuenFin.js` (con tests). La fase cambia
+  sola, porque el sitio se reconstruye a diario y con cada publicación.
+
+Abajo va **«Tus derechos en el Buen Fin»**: lo que dice la Ley Federal de
+Protección al Consumidor vigente (última reforma DOF 12-12-2025), con su
+artículo, y cómo quejarse ante PROFECO (Teléfono del Consumidor y Concilianet).
+Si la ley cambia, se actualiza en `src/pages/buen-fin.astro`.
+
+**Con el observador diario (cuando corre).** Además publica el veredicto de cada
+producto que el observador vio en oferta en los
 últimos 3 días, en tres grupos: **descuento falso**, **ha estado más barato** y
 **precio realmente bajo**. Usa exactamente las mismas reglas que el histórico
 (14 días para acusar, 20 % de descuento mínimo, etc.), y la página las explica

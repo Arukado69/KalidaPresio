@@ -22,6 +22,10 @@ import { BUEN_FIN } from '../data/buenFin.js';
 import { pesos } from '../utils/pesos.js';
 import { DETECTOR, OBSERVACION, HOY } from '../data/detector.js';
 import { DIAS_EN_OFERTA } from '../utils/detector.js';
+import { FASE, VIGENTES, RESUMEN, ULTIMA_REVISION } from '../data/seleccionBuenFin.js';
+import { DIAS_REFERENCIA } from '../utils/vitrinaBuenFin.js';
+import { fechaDeRevision } from '../utils/vistos.js';
+import { formatoCodigo } from '../utils/codigos.js';
 import {
   DIAS_DESCUENTO_FALSO,
   DESCUENTO_SOSPECHOSO,
@@ -75,11 +79,52 @@ const grupos = [
     items: DETECTOR.reales,
   },
 ].filter((g) => g.items.length > 0);
+
+// ── Nuestra selección (la vitrina) ────────────────────────────────────────
+// El detector de arriba necesita observación diaria del mercado, que hoy no
+// corre. La vitrina sí tiene historia: lo que viste al compartir o guardar
+// cada producto (src/utils/vitrinaBuenFin.js).
+const comparados = RESUMEN.bajaron.length + RESUMEN.iguales.length + RESUMEN.subieron.length;
+// Antes del 13, y el 13 mientras no se haya revisado nada: los precios de antes.
+const verPrecios = VIGENTES.length > 0 && (FASE === 'antes' || (FASE === 'durante' && comparados === 0));
+const verResultados = FASE !== 'antes' && comparados > 0;
+const haySeleccion = verPrecios || verResultados;
+const diaVisto = (iso) => fecha(fechaDeRevision(iso));
+const porcentaje = (c) => `${Math.abs(Math.round(c * 100))} %`;
+const gruposSeleccion = [
+  {
+    id: 'bajaron',
+    clase: 'g-real',
+    sello: 'sello--verde',
+    titulo: 'Bajó de verdad',
+    desc: `Más barato que el precio más bajo que le vimos en los ${DIAS_REFERENCIA} días antes del Buen Fin.`,
+    items: RESUMEN.bajaron,
+    texto: (x) => `${porcentaje(x.cambio)} menos que el ${fecha(x.antes.fecha)} (${pesos(x.antes.precio)})`,
+  },
+  {
+    id: 'iguales',
+    clase: 'g-igual',
+    sello: 'sello--tinta',
+    titulo: 'Mismo precio que antes',
+    desc: 'Cuesta lo mismo que antes del Buen Fin (menos de 2 % de diferencia): si anuncia descuento, no lo abarató.',
+    items: RESUMEN.iguales,
+    texto: (x) => `Mismo precio que el ${fecha(x.antes.fecha)} (${pesos(x.antes.precio)})`,
+  },
+  {
+    id: 'subieron',
+    clase: 'g-inflado',
+    sello: 'sello--azul',
+    titulo: 'Más caro que antes',
+    desc: 'Antes del Buen Fin lo vimos más barato. Si anuncia descuento, es contra un precio que subió.',
+    items: RESUMEN.subieron,
+    texto: (x) => `El ${fecha(x.antes.fecha)} estaba a ${pesos(x.antes.precio)}: ${porcentaje(x.cambio)} más caro`,
+  },
+].filter((g) => g.items.length > 0);
 ---
 
 <Layout
   title={`Descuentos falsos del Buen Fin ${BUEN_FIN.edicion} — KalidaPresio`}
-  description={`Del ${BUEN_FIN.inicio.slice(8)} al ${BUEN_FIN.fin.slice(8)} de noviembre: qué descuentos de Mercado Libre son reales y cuáles no, según los precios que observamos cada día. Con fecha y sin adivinar.`}
+  description={`Del ${BUEN_FIN.inicio.slice(8)} al ${BUEN_FIN.fin.slice(8)} de noviembre: qué descuentos de Mercado Libre son reales y cuáles no, según los precios que vimos antes y durante el Buen Fin. Con fecha y sin adivinar, y tus derechos como consumidor.`}
 >
   <article class="bf">
     <header class="bf-portada hoja">
@@ -88,14 +133,16 @@ const grupos = [
         <h1 class="bf-titulo">Detector de descuentos <span class="bf-falsos">falsos</span></h1>
         <p class="bf-sub">
           En el Buen Fin hay rebajas de verdad y precios que suben antes para «bajar» después.
-          Observamos los precios de Mercado Libre día con día y te decimos cuál es cuál, <span class="resalta">con fecha y sin adivinar</span>.
+          Seguimos los precios de Mercado Libre y te decimos cuál es cuál, <span class="resalta">con fecha y sin adivinar</span>.
         </p>
-        <p class="bf-estado etiqueta" data-nivel={fresca ? 'fresco' : 'viejo'}>
-          {OBSERVACION.dias === 0
-            ? 'Todavía no tenemos precios observados.'
-            : fresca
-              ? `Llevamos ${OBSERVACION.dias} días de observación (desde el ${fecha(OBSERVACION.desde)}). Hoy seguimos ${DETECTOR.enOferta} productos en oferta; ${conVeredicto} ya tienen veredicto.`
-              : `Última observación de precios: ${fecha(OBSERVACION.hasta)}. Aquí solo se publica lo visto en los últimos ${DIAS_EN_OFERTA} días.`}
+        <p class="bf-estado etiqueta" data-nivel={fresca || ULTIMA_REVISION ? 'fresco' : 'viejo'}>
+          {fresca
+            ? `Llevamos ${OBSERVACION.dias} días de observación (desde el ${fecha(OBSERVACION.desde)}). Hoy seguimos ${DETECTOR.enOferta} productos en oferta; ${conVeredicto} ya tienen veredicto.`
+            : ULTIMA_REVISION
+              ? `Seguimos ${VIGENTES.length} ${VIGENTES.length === 1 ? 'producto' : 'productos'} de nuestra selección, revisados a mano. La revisión más reciente: el ${diaVisto(ULTIMA_REVISION)}.`
+              : OBSERVACION.dias === 0
+                ? 'Todavía no tenemos precios observados.'
+                : `Última observación de precios: ${fecha(OBSERVACION.hasta)}. Aquí solo se publica lo visto en los últimos ${DIAS_EN_OFERTA} días.`}
         </p>
       </div>
       <!-- Los tres sellos del detector: lo que la página puede decirte. -->
@@ -107,11 +154,87 @@ const grupos = [
     </header>
 
     <div class="hoja">
+      {haySeleccion && (
+        <section class="bf-sel" id="nuestra-seleccion" aria-labelledby="bf-sel-h">
+          <header class="bf-sel-cabeza">
+            <p class="etiqueta">Nuestra selección · {verResultados ? 'antes contra durante' : 'precios de antes'}</p>
+            <h2 id="bf-sel-h" class="bf-sel-h">
+              {verResultados
+                ? <>¿Bajaron <span class="plumon">de verdad</span>?</>
+                : <>Así están <span class="plumon">antes</span> del Buen Fin</>}
+            </h2>
+            <p class="bf-grupo-desc">
+              {verResultados
+                ? `Los productos que recomendamos: el precio más bajo que les vimos en los ${DIAS_REFERENCIA} días antes del Buen Fin contra el más bajo durante el Buen Fin. Solo comparamos lo que vimos en los dos momentos.`
+                : FASE === 'antes'
+                  ? `Los productos que recomendamos, con el precio que vimos y cuándo. Del ${inicio} al ${fin} los revisamos otra vez y aquí te decimos cuáles bajaron de verdad, cuáles siguen igual y cuáles subieron.`
+                  : 'Ya empezó el Buen Fin y los estamos revisando. En cuanto veamos su precio de hoy, aquí te decimos si bajó de verdad.'}
+            </p>
+          </header>
+
+          {verPrecios && (
+            <ul class="bf-lista g-ref">
+              {VIGENTES.slice(0, MAX).map((p) => (
+                <li class="bf-item">
+                  {p.imagen
+                    ? <img src={p.imagen} alt="" width="84" height="84" loading="lazy" />
+                    : <span class="bf-sinfoto" aria-hidden="true"></span>}
+                  <div class="bf-info">
+                    <h3 class="bf-nombre"><a href={`/p/${p.slug}`}>{p.titulo}</a></h3>
+                    <p class="bf-precios"><strong class="plumon">{pesos(p.precio_actual)}</strong></p>
+                    <p class="bf-meta etiqueta">
+                      {formatoCodigo(p.codigo) && <>{formatoCodigo(p.codigo)} · </>}Visto el {diaVisto(p.revisado)} ·
+                      <a href={`/p/${p.slug}`}>su historial</a>
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {verResultados && gruposSeleccion.map((g) => (
+            <section class={`bf-grupo ${g.clase}`} id={`sel-${g.id}`} aria-labelledby={`sel-${g.id}-h`}>
+              <header class="bf-grupo-cabeza">
+                <h3 id={`sel-${g.id}-h`} class={`bf-grupo-titulo sello ${g.sello}`}>{g.titulo} · {g.items.length}</h3>
+                <p class="bf-grupo-desc">{g.desc}</p>
+              </header>
+              <ul class="bf-lista">
+                {g.items.slice(0, MAX).map((x) => (
+                  <li class="bf-item">
+                    {x.producto.imagen
+                      ? <img src={x.producto.imagen} alt="" width="84" height="84" loading="lazy" />
+                      : <span class="bf-sinfoto" aria-hidden="true"></span>}
+                    <div class="bf-info">
+                      <h4 class="bf-nombre"><a href={`/p/${x.producto.slug}`}>{x.producto.titulo}</a></h4>
+                      <p class="bf-precios"><strong class="plumon">{pesos(x.durante.precio)}</strong></p>
+                      <p class="bf-veredicto">{g.texto(x)}</p>
+                      <p class="bf-meta etiqueta">
+                        {formatoCodigo(x.producto.codigo) && <>{formatoCodigo(x.producto.codigo)} · </>}En el Buen Fin, visto el {fecha(x.durante.fecha)} ·
+                        <a href={`/p/${x.producto.slug}`}>su historial</a>
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+
+          {verResultados && (RESUMEN.sinRevisar > 0 || RESUMEN.sinReferencia > 0) && (
+            <p class="bf-mas etiqueta">
+              {RESUMEN.sinRevisar > 0 && (FASE === 'durante'
+                ? `Falta revisar ${RESUMEN.sinRevisar} ${RESUMEN.sinRevisar === 1 ? 'producto' : 'productos'} en el Buen Fin. `
+                : `${RESUMEN.sinRevisar} ${RESUMEN.sinRevisar === 1 ? 'producto no se revisó' : 'productos no se revisaron'} durante el Buen Fin. `)}
+              {RESUMEN.sinReferencia > 0 && `${RESUMEN.sinReferencia} no ${RESUMEN.sinReferencia === 1 ? 'tiene' : 'tienen'} un precio de antes del Buen Fin para comparar.`}
+            </p>
+          )}
+        </section>
+      )}
+
       {grupos.length > 0 ? (
         <nav class="bf-indice" aria-label="Veredictos">
           {grupos.map((g) => <a class={`chip ${g.clase}`} href={`#${g.id}`}>{g.titulo} <b>{g.items.length}</b></a>)}
         </nav>
-      ) : (
+      ) : haySeleccion ? null : (
         <section class="bf-vacio cartulina cartulina--blanca con-cinta">
           <h2 class="bf-vacio-h">Todavía no hay veredictos</h2>
           <p>
@@ -164,7 +287,12 @@ const grupos = [
           <h2 id="bf-decidimos-h" class="bf-ticket-h">Cómo lo decidimos</h2>
           <hr />
           <ul>
-            <li>Cada día miramos el precio de los productos en oferta de Mercado Libre y guardamos el más bajo y el más alto del día.</li>
+            <li>
+              <b>Nuestra selección:</b> el precio de cada producto lo revisamos a mano y cada revisión queda guardada con
+              su fecha. Comparamos el más bajo que le vimos en los {DIAS_REFERENCIA} días antes del Buen Fin con el más
+              bajo durante el Buen Fin; menos de {pct(MARGEN_PLANO)} de diferencia es el mismo precio.
+            </li>
+            <li>Cuando podemos observar el mercado día con día, guardamos el precio más bajo y el más alto de cada día. Con eso decidimos:</li>
             <li>
               <b>Descuento falso:</b> anuncia {DESCUENTO_SOSPECHOSO} % o más de descuento y, en al menos
               {DIAS_DESCUENTO_FALSO} días de calendario (con el {pct(DENSIDAD_MINIMA)} de esos días observados),
@@ -196,6 +324,57 @@ const grupos = [
           </ol>
         </section>
       </div>
+
+      <section class="bf-derechos" id="tus-derechos" aria-labelledby="bf-derechos-h">
+        <header class="bf-derechos-cabeza">
+          <h2 id="bf-derechos-h" class="bf-tu-h">Tus <span class="plumon">derechos</span> en el Buen Fin</h2>
+          <p class="bf-grupo-desc">
+            Lo que dice la <a href="https://www.diputados.gob.mx/LeyesBiblio/pdf/LFPC.pdf" target="_blank" rel="noopener noreferrer">Ley Federal de Protección al Consumidor</a>
+            (texto vigente, última reforma del 12 de diciembre de 2025). Es información general, no asesoría legal.
+          </p>
+        </header>
+        <ul class="bf-derechos-lista">
+          <li class="cartulina">
+            <h3>Un descuento es contra el precio de siempre</h3>
+            <p>«Descuento», «oferta» o «barata» quiere decir precios rebajados o menores a los normales de la tienda. Subir el precio para luego «rebajarlo» no es un descuento.</p>
+            <p class="etiqueta">Art. 46</p>
+          </li>
+          <li class="cartulina">
+            <h3>El precio que ves es el total</h3>
+            <p>Tiene que incluir impuestos, comisiones, intereses, seguros y cualquier cargo extra, de contado o a crédito.</p>
+            <p class="etiqueta">Art. 7 Bis</p>
+          </li>
+          <li class="cartulina">
+            <h3>Te tienen que respetar lo anunciado</h3>
+            <p>El precio, la garantía, los plazos y las condiciones con que te lo ofrecieron. Guarda capturas del anuncio y de tu compra.</p>
+            <p class="etiqueta">Art. 7</p>
+          </li>
+          <li class="cartulina">
+            <h3>Compraste en línea: 5 días hábiles para arrepentirte</h3>
+            <p>Desde que lo recibes puedes cancelar sin penalización y te deben regresar lo que pagaste. El envío de regreso corre por tu cuenta.</p>
+            <p class="etiqueta">Arts. 51 y 56</p>
+          </li>
+          <li class="cartulina">
+            <h3>Garantía de al menos 90 días</h3>
+            <p>Contados desde que te entregan el producto.</p>
+            <p class="etiqueta">Art. 77</p>
+          </li>
+          <li class="cartulina">
+            <h3>Si no es lo que te ofrecieron</h3>
+            <p>Puedes pedir que te lo cambien o que te devuelvan tu dinero, y además una bonificación de al menos el 20 % del precio.</p>
+            <p class="etiqueta">Arts. 92 y 92 Ter</p>
+          </li>
+        </ul>
+        <div class="bf-profeco ticket">
+          <h3 class="bf-ticket-h">¿Algo salió mal? PROFECO</h3>
+          <hr />
+          <ul>
+            <li><b>Teléfono del Consumidor:</b> <a href="tel:+525555688722">55 5568 8722</a> (Ciudad de México y área metropolitana) · <a href="tel:+528004688722">800 468 8722</a> (resto del país).</li>
+            <li><b>Queja en línea:</b> <a href="https://concilianet.profeco.gob.mx/" target="_blank" rel="noopener noreferrer">Concilianet</a>, si la tienda está registrada ahí. Si no, por teléfono o en una oficina de PROFECO.</li>
+            <li><b>Precios de referencia de PROFECO:</b> <a href="https://elbuenfin.profeco.gob.mx/" target="_blank" rel="noopener noreferrer">elbuenfin.profeco.gob.mx</a>.</li>
+          </ul>
+        </div>
+      </section>
 
       <p class="bf-nota">
         Los enlaces de esta página llevan a la ficha del producto, sin comisión, salvo los de «Precio realmente
@@ -302,6 +481,35 @@ const grupos = [
     border-radius: 50%;
     transform: rotate(-8deg);
   }
+
+  /* Nuestra selección */
+  .bf-sel { margin-bottom: clamp(2.5rem, 6vw, 4rem); scroll-margin-top: 1rem; }
+  .bf-sel-cabeza { display: grid; gap: 0.6rem; margin-bottom: 1.6rem; }
+  .bf-sel-h { font-size: clamp(2rem, 5.5vw, 3.4rem); text-transform: uppercase; margin: 0; }
+  .bf-sel-h .plumon { text-transform: none; color: var(--sello-rojo); }
+  .bf-sel .bf-grupo { margin-bottom: clamp(1.8rem, 4vw, 2.6rem); }
+  .bf-nombre a { color: inherit; text-decoration: none; }
+  .bf-nombre a:hover { text-decoration: underline; }
+  .g-ref .bf-item { border-left-color: var(--fosfo-naranja); }
+  .g-igual .bf-item { border-left-color: var(--tinta-3); }
+  .g-igual .bf-veredicto { color: var(--tinta-2); }
+
+  /* Tus derechos */
+  .bf-derechos { margin-top: clamp(2.5rem, 6vw, 4rem); padding-top: clamp(2rem, 5vw, 3rem); border-top: 2px solid var(--tinta); }
+  .bf-derechos-cabeza { display: grid; gap: 0.4rem; margin-bottom: 1.6rem; }
+  .bf-derechos-cabeza .bf-tu-h { margin-bottom: 0; }
+  .bf-derechos-lista { list-style: none; margin: 0 0 2rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 1.1rem; }
+  .bf-derechos-lista li { --giro: 0deg; padding: 1.1rem 1.2rem 0.9rem; display: grid; gap: 0.45rem; align-content: start; }
+  .bf-derechos-lista li:nth-child(3n + 1) { --giro: -0.6deg; }
+  .bf-derechos-lista li:nth-child(3n + 2) { --giro: 0.5deg; }
+  .bf-derechos-lista h3 { font: 800 1.08rem/1.25 var(--f-texto); margin: 0; }
+  .bf-derechos-lista p { margin: 0; font-size: 0.93rem; }
+  .bf-derechos-lista .etiqueta { font-size: 0.62rem; color: var(--tinta-2); }
+  .bf-profeco { --giro: 0.6deg; transform: rotate(var(--giro)); max-width: 640px; font-size: 0.82rem; line-height: 1.65; }
+  .bf-profeco ul { margin: 0; padding-left: 1.1rem; }
+  .bf-profeco li { margin-bottom: 0.55rem; }
+  .bf-profeco li::marker { content: "→ "; }
+  .bf-profeco a { color: var(--tinta); font-weight: 700; }
 
   .bf-nota { max-width: 68ch; margin: clamp(2.5rem, 6vw, 3.5rem) 0 0; color: var(--tinta-2); font-size: 0.86rem; }
 
