@@ -109,7 +109,9 @@ describe('detectar — el veredicto que se publica', () => {
     const historico = { MLM50000001: [...serie(5, 999), ['2026-11-01', 700, 700]] };
     const r = detectar({ catalogo: { A: ficha() }, historico, hoy: HOY });
     expect(r.inflados).toHaveLength(1);
-    expect(r.inflados[0].texto).toMatch(/Ha estado a \$700/);
+    // Seis vistas repartidas en 14 días son revisiones sueltas: se dice la
+    // fecha en que lo vimos más barato, no «en 6 días».
+    expect(r.inflados[0].texto).toBe('Lo vimos a $700 el 1 nov');
   });
 
   it('«precio real bajo» cuando bajó de verdad hasta su mínimo', () => {

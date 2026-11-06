@@ -23,7 +23,7 @@
 import historicoCrudo from '../../data/historico-precios.json';
 import { VITRINA } from '../../data/ofertas.js';
 import { ordenParaPublicar } from '../../utils/vitrina.js';
-import { entradasPara, resumirHistorico, veredictoPrecio, NIVELES_NO_DISTRIBUIBLES } from '../../utils/historico.js';
+import { entradasDelProducto, resumirHistorico, veredictoPrecio, NIVELES_NO_DISTRIBUIBLES } from '../../utils/historico.js';
 import { FORMATOS, HORARIOS_SUGERIDOS } from '../../utils/publicacion.js';
 import { formatoCodigo } from '../../utils/codigos.js';
 import PanelApp from '../../components/PanelApp.astro';
@@ -35,7 +35,7 @@ const productosHist = historicoCrudo?.productos ?? {};
 // es el CÓDIGO FIJO («K-17»), que no cambia con la vitrina; la posición solo
 // queda de respaldo para una entrada escrita a mano sin código.
 const ordenados = ordenParaPublicar(VITRINA).map((p, i) => {
-  const v = veredictoPrecio(p.precio_actual, resumirHistorico(entradasPara(productosHist, p.claves_historico ?? p.id)), { descuento: p.descuento });
+  const v = veredictoPrecio(p.precio_actual, resumirHistorico(entradasDelProducto(productosHist, p)), { descuento: p.descuento });
   return { ...p, numero: i + 1, etiqueta: formatoCodigo(p.codigo) ?? `#${i + 1}`, nivel: v.nivel, veredicto: v.texto };
 });
 

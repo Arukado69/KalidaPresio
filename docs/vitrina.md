@@ -182,6 +182,7 @@ oficial, título y precio bastan.
 | `nota` | Por qué lo recomiendas. Sale en el sitio, en `/hoy` y en las publicaciones. Es lo que ningún otro canal de ofertas puede escribir. |
 | `enlaces` | Links oficiales por canal (ver abajo). |
 | `codigo` | El **código fijo** del producto: `17` se muestra como **K-17**. Lo pone el panel al guardar; no lo escribas a mano. No cambia nunca, ni al editar, ni al retirar el producto (ver abajo). |
+| `vistos` | **Su historial de precios**, lo llena el panel: cada vez que lo compartes, lo pegas, lo guardas o tocas «Ya revisé: sigue igual», anota `["2026-11-05", 1299, 1299]` (día en la Ciudad de México, mínimo y máximo de ese día). No lo escribas a mano. Ver «El historial que juntas tú» abajo. |
 
 En la raíz del archivo, junto a `productos`, el panel guarda **`ultimo_codigo`**:
 el código más alto que se ha usado. Así, aunque borres un producto del todo, su
@@ -193,6 +194,40 @@ de la vitrina y ya tenía link oficial. No se publica en la portada, el feed ni
 en `retirado`.
 
 ---
+
+## El historial que juntas tú
+
+El historial de `src/data/historico-precios.json` lo llenaba el bot que leía
+Mercado Libre cada 3 horas, y está **congelado desde el 8 de octubre de 2026**
+(ML bloquea a los servidores). Además, los productos que llegan desde
+«Compartir» de la app no traen id de Mercado Libre: nunca encontrarían su
+historia ahí.
+
+Por eso cada producto guarda **los precios que tú viste** (`vistos`). No hay
+nada extra que hacer: cada vez que lo **compartes desde la app**, lo **pegas**,
+lo **guardas** en el formulario o tocas **«Ya revisé: sigue igual»**, el precio de ese día
+se suma a su historial en vez de pisar al anterior. Al publicar, se sube con la
+vitrina.
+
+Con eso el sitio dice qué viste y cuándo, nunca un rango que no observó:
+
+| Lo que viste | Lo que dice el sitio |
+| :--- | :--- |
+| Hoy $1,199; el 5 nov $1,299 | **«Bajó: el 5 nov estaba a $1,299»** (sello verde) |
+| Hoy $1,499; el 5 nov $1,299 | **«Lo vimos a $1,299 el 5 nov»** (sello azul; no se reparte en Telegram ni en «Publicar hoy») |
+| Hoy $1,350; el 5 nov $1,299 | «Cerca del más bajo que le vimos: $1,299 el 5 nov» |
+| El mismo precio las dos veces | «Mismo precio desde el 5 nov» (sello neutro) |
+| Una sola vez | Nada en la tarjeta; en su página, «Lo seguimos desde el 5 nov» |
+
+«El precio más bajo en 30 días» solo se dice con seguimiento casi diario (como
+el del bot o el del observador de tu computadora): entre dos revisiones sueltas
+el precio pudo hacer cualquier cosa. La regla vive en `veredictoPrecio()`
+(`src/utils/historico.js`).
+
+**Para el Buen Fin (13 al 17 de noviembre):** comparte tus productos **antes**
+del 13 y **otra vez** durante el Buen Fin. Así cada uno dice si bajó de verdad,
+si subió antes de «rebajarse» o si sigue igual. El panel te lo dice en cuanto
+lo compartes: «Actualizado: … a $1,199 (K-4). Bajó: el 5 nov estaba a $1,299».
 
 ## La página de cada producto (`/p/…`)
 

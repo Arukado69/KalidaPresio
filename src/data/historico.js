@@ -9,7 +9,7 @@
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { entradasPara, resumirHistorico, veredictoPrecio } from '../utils/historico.js';
+import { entradasDelProducto, resumirHistorico, veredictoPrecio } from '../utils/historico.js';
 
 function cargar() {
   const candidatos = [
@@ -38,26 +38,22 @@ if (!datos) {
 }
 
 /**
- * El historial de un producto (todas sus claves juntas), para dibujarlo.
- * @param {string|string[]} claves
+ * El historial de un producto de la vitrina: el del bot más el que tú juntaste
+ * al compartirlo o guardarlo (`vistos`). Es el que usan las tarjetas y su
+ * página: los productos que llegan desde la app no tienen id de Mercado Libre,
+ * así que sin `vistos` nunca tendrían historia.
+ * @param {object} producto — normalizado (src/utils/vitrina.js)
  * @returns {Array<[string, number, number]>} más reciente primero
  */
-export function entradasDe(claves) {
-  return entradasPara(datos?.productos, claves);
+export function entradasDeProducto(producto) {
+  return entradasDelProducto(datos?.productos, producto);
 }
 
 /**
- * Qué se puede decir del precio de este producto, hoy.
- * @param {string|string[]} claves — id de Mercado Libre, o todas las claves
- *   del producto (`claves_historico`: catálogo y artículo)
- * @param {number} precioActual
- * @param {number} [descuento] — descuento anunciado, en % entero. Opcional:
- *   sin él, esta función se comporta exactamente igual que antes (ningún otro
- *   llamador se rompe), pero entonces `veredictoPrecio` nunca puede devolver
- *   `'descuento-falso'` para este producto.
+ * Qué se puede decir del precio de HOY de un producto de la vitrina.
+ * @param {object} producto — normalizado (src/utils/vitrina.js)
  * @returns {ReturnType<typeof veredictoPrecio>}
  */
-export function veredictoDe(claves, precioActual, descuento) {
-  const entradas = entradasPara(datos?.productos, claves);
-  return veredictoPrecio(precioActual, resumirHistorico(entradas), { descuento });
+export function veredictoDeProducto(producto) {
+  return veredictoPrecio(producto?.precio_actual, resumirHistorico(entradasDeProducto(producto)), { descuento: producto?.descuento });
 }

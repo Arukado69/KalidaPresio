@@ -18,6 +18,7 @@
  * Funciones PURAS.
  */
 import { esLinkOficial } from './vitrina.js';
+import { anotarVisto } from './vistos.js';
 
 /** Los links que el sitio acepta, dentro de un texto cualquiera. */
 const LINKS = /https?:\/\/(?:meli\.la\/[A-Za-z0-9_-]+|(?:www\.)?mercadolibre\.com(?:\.mx)?\/sec\/[A-Za-z0-9_-]+)/gi;
@@ -143,7 +144,8 @@ export function traeLinkSinComision(texto) {
 /**
  * Mezcla lo pegado con la vitrina del panel: lo nuevo entra arriba; lo que ya
  * estaba (mismo link) actualiza su título, precio y fecha sin perder lo demás
- * (foto, nota, código, links por canal).
+ * (foto, nota, código, links por canal). El precio anterior no se pierde:
+ * queda en `vistos`, su historial.
  *
  * @param {object[]} productos — la lista del borrador
  * @param {ReturnType<typeof leerMensajesCompartidos>} leidos
@@ -158,12 +160,14 @@ export function mezclarCompartidos(productos, leidos, revisado) {
   // Al revés: así el primero que pegaste queda hasta arriba, como lo pegaste.
   for (const l of [...leidos].reverse()) {
     if (!l.titulo || !l.precio) incompletos++;
+    const i = lista.findIndex((p) => String(p?.link ?? '').trim() === l.link);
+    // Cada precio que llega es uno que VISTE ese día: se anota en su historial
+    // (src/utils/vistos.js) en vez de pisar al anterior.
     const datos = {
       link: l.link,
       ...(l.titulo ? { titulo: l.titulo } : {}),
-      ...(l.precio ? { precio: l.precio, revisado } : {}),
+      ...(l.precio ? { precio: l.precio, revisado, vistos: anotarVisto(i >= 0 ? lista[i] : null, l.precio, revisado) } : {}),
     };
-    const i = lista.findIndex((p) => String(p?.link ?? '').trim() === l.link);
     if (i >= 0) {
       lista[i] = { ...lista[i], ...datos };
       actualizados++;

@@ -356,6 +356,8 @@ const datos = JSON.stringify({
     import { asignarCodigos, formatoCodigo } from '../../utils/codigos.js';
     import { leerMensajesCompartidos, leerCompartido, traeLinkSinComision, mezclarCompartidos } from '../../utils/compartir.js';
     import { pesos } from '../../utils/pesos.js';
+    import { anotarVisto, vistosValidos } from '../../utils/vistos.js';
+    import { resumirHistorico, veredictoPrecio } from '../../utils/historico.js';
 
     const DATOS = JSON.parse(document.getElementById('kp-datos')?.textContent || '{}');
     const ARCHIVO = DATOS.archivo || { productos: [] };
@@ -678,6 +680,8 @@ const datos = JSON.stringify({
       const retiradoPrevio = clave ? retirados.find((x) => claveProducto(x.url_producto) === clave) : null;
       const codigoPrevio = (otro !== null && otro >= 0 ? productos[otro]?.codigo : null) ?? retiradoPrevio?.codigo;
       if (codigoPrevio) entrada.codigo = codigoPrevio;
+      // Guardar marca el precio como visto hoy: se suma a su historial, no lo pisa.
+      entrada.vistos = anotarVisto((otro !== null && otro >= 0 ? productos[otro] : null) ?? retiradoPrevio, entrada.precio, entrada.revisado);
       if (otro !== null && otro >= 0) productos[otro] = entrada;
       else productos.unshift(entrada);
       // Si estaba retirado, vuelve: no puede estar en las dos listas.
@@ -705,7 +709,9 @@ const datos = JSON.stringify({
       const rev = t.closest('[data-revisado]');
       if (rev) {
         const i = Number(rev.getAttribute('data-revisado'));
-        productos[i] = { ...productos[i], revisado: new Date().toISOString() };
+        const ahora = new Date().toISOString();
+        // «Sigue igual» también es un precio visto hoy: va a su historial.
+        productos[i] = { ...productos[i], revisado: ahora, vistos: anotarVisto(productos[i], productos[i].precio, ahora) };
         guardarBorrador();
         pintar();
         return;
@@ -844,8 +850,11 @@ const datos = JSON.stringify({
           return;
         }
         const codigo = p.codigo ? ` (${formatoCodigo(p.codigo)})` : '';
+        // Si ya lo habías visto otro día, cómo cambió: lo mismo que dirá el sitio.
+        const v = veredictoPrecio(p.precio, resumirHistorico(vistosValidos(p.vistos)));
+        const cambio = v.dias >= 2 && v.texto ? ` ${v.texto}.` : '';
         decirPegar(
-          `✓ ${r.nuevos ? 'Agregado' : 'Actualizado'}: «${recortar(p.titulo, 70)}» a ${pesos(p.precio)}${codigo}. `
+          `✓ ${r.nuevos ? 'Agregado' : 'Actualizado'}: «${recortar(p.titulo, 70)}» a ${pesos(p.precio)}${codigo}.${cambio} `
             + 'Regresa a Mercado Libre y comparte el siguiente, o toca «Publicar ahora» cuando termines.',
           'ok',
         );

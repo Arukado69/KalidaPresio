@@ -100,6 +100,16 @@ describe('seriePrecios y graficaPrecios — sin inventar precios', () => {
     expect(seriePrecios(entradas, { hasta: '2026-10-30', dias: 3 }).map((p) => p.fecha)).toEqual(['2026-10-30']);
   });
 
+  it('un precio visto suelto (sin vecinos) se marca para dibujarlo como punto', () => {
+    // Dos revisiones sueltas: la línea no las une, así que cada una necesita su punto.
+    const g = graficaPrecios(seriePrecios([['2026-11-13', 1199, 1199], ['2026-11-05', 1299, 1299]]));
+    expect(g.puntos.map((p) => p.suelto)).toEqual([true, true]);
+    expect(g.ruta).not.toContain('L');
+    // Días seguidos: los une la línea, ninguno está suelto.
+    const seguidos = graficaPrecios(seriePrecios([['2026-11-06', 10, 10], ['2026-11-05', 11, 11], ['2026-11-01', 12, 12]]));
+    expect(seguidos.puntos.map((p) => p.suelto)).toEqual([true, false, false]);
+  });
+
   it('el eje X va por fecha: un hueco largo corta la línea en vez de unir los puntos', () => {
     const g = graficaPrecios(seriePrecios(entradas));
     expect(g.ruta.split(' ').map((s) => s[0])).toEqual(['M', 'L', 'L', 'M']);

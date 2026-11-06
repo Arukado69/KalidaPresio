@@ -40,6 +40,7 @@
 import { calcularScorePorSeccion, fraccionVolumen } from './scoreSecciones.js';
 import { esCanal } from './canales.js';
 import { normalizarCodigo } from './codigos.js';
+import { anotarVisto } from './vistos.js';
 
 const HORA = 3_600_000;
 const DIA = 24 * HORA;
@@ -343,6 +344,9 @@ export function normalizarProducto(entrada, ahora = Date.now(), { exigirVigencia
       codigo: normalizarCodigo(e.codigo),
       nota: texto(e.nota),
       revisado: new Date(revisadoMs).toISOString(),
+      // Su historial propio: los precios que viste al compartirlo, pegarlo o
+      // guardarlo (src/utils/vistos.js), con el de hoy siempre incluido.
+      vistos: anotarVisto({ vistos: e.vistos, precio, revisado: e.revisado }, precio, new Date(revisadoMs).toISOString()),
       score_kalidad_presio: calcularScorePorSeccion({ rating, descuento, vendidos }, 'default'),
       // Sin calificación ni ventas (p. ej. pegado desde «Compartir» de la app)
       // el Sello K-P sale en 0 por falta de datos, no por malo: el sitio dice

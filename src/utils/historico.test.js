@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import {
   resumirHistorico,
   entradasPara,
+  entradasDelProducto,
   veredictoPrecio,
   registrarPrecio,
   podar,
@@ -40,7 +41,9 @@ describe('resumirHistorico', () => {
       ['2026-08-19', 280, 320],
       ['2026-08-18', 400, 400],
     ]);
-    expect(r).toEqual({ dias: 3, minimo: 280, maximo: 400, desde: '2026-08-18', hasta: '2026-08-20' });
+    expect(r).toMatchObject({ dias: 3, minimo: 280, maximo: 400, desde: '2026-08-18', hasta: '2026-08-20' });
+    expect(r.fechaMinimo).toBe(r.entradas.find((e) => e[1] === 280)[0]);
+    expect(r.entradas.map((e) => e[0])).toEqual(['2026-08-20', '2026-08-19', '2026-08-18']);
   });
 
   it('ignora entradas corruptas en vez de tronar', () => {
@@ -51,7 +54,7 @@ describe('resumirHistorico', () => {
 
   it('sin historial, todo en cero/null', () => {
     for (const malo of [null, undefined, [], 'no', {}]) {
-      expect(resumirHistorico(malo)).toEqual({ dias: 0, minimo: null, maximo: null, desde: null, hasta: null });
+      expect(resumirHistorico(malo)).toEqual({ dias: 0, minimo: null, maximo: null, desde: null, hasta: null, fechaMinimo: null, entradas: [] });
     }
   });
 });
@@ -95,19 +98,48 @@ describe('entradasPara — un producto, varias claves', () => {
   });
 });
 
-describe('veredictoPrecio — solo se afirma lo observado', () => {
-  it('con menos de 3 días NO habla del rango: dice cuánto lleva mirándolo', () => {
-    // Esta es LA regla. Con dos días no existe «el más bajo del mes».
-    const v = veredictoPrecio(297, resumirHistorico(serie(2, 400)));
-    expect(v.nivel).toBe('siguiendo');
-    expect(v.texto).toContain('2 días');
-    expect(v.texto).not.toMatch(/más bajo|mínimo/i);
+describe('entradasDelProducto — lo que vio el bot más lo que viste tú', () => {
+  const hist = { MLM1: [['2026-10-08', 500, 500], ['2026-10-07', 510, 510]] };
+
+  it('junta las dos fuentes; un mismo día es UN día', () => {
+    const p = { claves_historico: ['MLM1'], vistos: [['2026-11-05', 450, 450], ['2026-10-08', 480, 480]] };
+    expect(entradasDelProducto(hist, p)).toEqual([
+      ['2026-11-05', 450, 450],
+      ['2026-10-08', 480, 500],
+      ['2026-10-07', 510, 510],
+    ]);
   });
 
-  it('el primer día lo dice en singular y sin prometer nada', () => {
+  it('un producto que llegó desde la app (sin id de ML) tiene historia por sus `vistos`', () => {
+    const p = { id: 'kp-2Gyywqc', claves_historico: ['kp-2Gyywqc'], vistos: [['2026-11-13', 89.9, 89.9], ['2026-11-05', 99.59, 99.59]] };
+    const v = veredictoPrecio(89.9, resumirHistorico(entradasDelProducto(hist, p)));
+    expect(v.texto).toBe('Bajó: el 5 nov estaba a $99.59');
+  });
+
+  it('se queda con los 90 días anteriores a la observación más reciente', () => {
+    const p = { vistos: [['2026-11-05', 1, 1], ['2026-08-08', 2, 2], ['2026-08-07', 3, 3]] };
+    expect(entradasDelProducto(null, p).map((e) => e[0])).toEqual(['2026-11-05', '2026-08-08']);
+  });
+
+  it('sin nada que mirar, vacío; y no truena con basura', () => {
+    expect(entradasDelProducto(hist, null)).toEqual([]);
+    expect(entradasDelProducto(null, { vistos: 'x' })).toEqual([]);
+  });
+});
+
+describe('veredictoPrecio — solo se afirma lo observado', () => {
+  it('con menos de 3 días NO habla del rango: dice qué vio y cuándo', () => {
+    // Esta es LA regla. Con dos días no existe «el más bajo del mes»; existe
+    // «el 20 ago estaba a $400», que es exactamente lo que se vio.
+    const v = veredictoPrecio(297, resumirHistorico(serie(2, 400)));
+    expect(v.texto).toBe('Bajó: el 20 ago estaba a $400');
+    expect(v.texto).not.toMatch(/más bajo|mínimo|\d+ días/i);
+  });
+
+  it('el primer día lo dice sin prometer nada', () => {
     const v = veredictoPrecio(297, resumirHistorico(serie(1, 297)));
     expect(v.nivel).toBe('siguiendo');
-    expect(v.texto).toBe('Seguimos su precio desde hoy');
+    expect(v.texto).toBe('Lo seguimos desde el 20 ago');
   });
 
   it('nunca dice «histórico» ni «siempre»: la ventana va SIEMPRE en el texto', () => {
@@ -153,6 +185,64 @@ describe('veredictoPrecio — solo se afirma lo observado', () => {
   it('DIAS_MINIMOS es el umbral real, no un número suelto en el texto', () => {
     expect(veredictoPrecio(100, resumirHistorico(serie(DIAS_MINIMOS - 1, 100))).nivel).toBe('siguiendo');
     expect(veredictoPrecio(100, resumirHistorico(serie(DIAS_MINIMOS, 100))).nivel).not.toBe('siguiendo');
+  });
+});
+
+describe('veredictoPrecio — revisiones sueltas (los precios que viste al compartir)', () => {
+  // Así queda el historial propio de un producto de la vitrina: el día que lo
+  // agregaste y el día que lo volviste a compartir, con días sin ver en medio.
+  const visto = (...pares) => resumirHistorico(pares.map(([f, precio]) => [f, precio, precio]));
+
+  it('si bajó, dice cuánto costaba y cuándo', () => {
+    const v = veredictoPrecio(1199, visto(['2026-11-13', 1199], ['2026-11-05', 1299]));
+    expect(v.nivel).toBe('minimo');
+    expect(v.texto).toBe('Bajó: el 5 nov estaba a $1,299');
+  });
+
+  it('si lo vimos más barato, lo dice con su fecha — y eso no se reparte', () => {
+    const v = veredictoPrecio(1499, visto(['2026-11-13', 1499], ['2026-11-05', 1299]));
+    expect(v.nivel).toBe('alto');
+    expect(v.texto).toBe('Lo vimos a $1,299 el 5 nov');
+    expect(NIVELES_NO_DISTRIBUIBLES).toContain(v.nivel);
+  });
+
+  it('cerca del más bajo: el precio y la fecha de ese mínimo', () => {
+    const v = veredictoPrecio(1350, visto(['2026-11-13', 1350], ['2026-11-05', 1299]));
+    expect(v.nivel).toBe('bajo');
+    expect(v.texto).toBe('Cerca del más bajo que le vimos: $1,299 el 5 nov');
+  });
+
+  it('un precio quieto NO es «el más bajo»: es el mismo precio', () => {
+    const v = veredictoPrecio(1299, visto(['2026-11-13', 1299], ['2026-11-05', 1299]));
+    expect(v.nivel).toBe('siguiendo');
+    expect(v.texto).toBe('Mismo precio desde el 5 nov');
+  });
+
+  it('compara con la vez MÁS RECIENTE que lo vimos más caro', () => {
+    const v = veredictoPrecio(900, visto(['2026-11-13', 900], ['2026-11-09', 950], ['2026-11-01', 1100]));
+    expect(v.texto).toBe('Bajó: el 9 nov estaba a $950');
+  });
+
+  it('nunca habla de «N días» con revisiones sueltas: entre una y otra pudo pasar cualquier cosa', () => {
+    const casos = [
+      veredictoPrecio(1199, visto(['2026-11-13', 1199], ['2026-11-10', 1250], ['2026-11-05', 1299])),
+      veredictoPrecio(1499, visto(['2026-11-13', 1499], ['2026-11-10', 1250], ['2026-11-05', 1299])),
+      veredictoPrecio(1300, visto(['2026-11-13', 1300], ['2026-11-10', 1250], ['2026-10-05', 1299])),
+    ];
+    for (const v of casos) expect(v.texto).not.toMatch(/\d+ d[ií]as/);
+  });
+
+  it('el historial del bot (congelado el 8 de octubre) más el precio de hoy ya es «suelto»', () => {
+    // 30 días seguidos hasta el 8 oct y luego nada hasta hoy: decir «el más bajo
+    // en 31 días» hablaría de septiembre como si fuera esta semana.
+    const h = [['2026-11-05', 450, 450], ...serie(30, 500, '2026-10-08')];
+    const v = veredictoPrecio(450, resumirHistorico(h));
+    expect(v.texto).toBe('Bajó: el 8 oct estaba a $500');
+  });
+
+  it('con seguimiento diario todo sigue como antes', () => {
+    const v = veredictoPrecio(297, resumirHistorico([...serie(5, 400), ['2026-08-15', 297, 297]]));
+    expect(v.texto).toBe('El precio más bajo en 6 días');
   });
 });
 

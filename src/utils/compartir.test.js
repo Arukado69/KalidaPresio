@@ -122,15 +122,25 @@ describe('mezclarCompartidos', () => {
     ];
     const r = mezclarCompartidos([{ link: 'https://meli.la/viejo', titulo: 'Viejo' }], leidos, HOY);
     expect(r.productos.map((p) => p.titulo)).toEqual(['Uno', 'Dos', 'Viejo']);
-    expect(r.productos[0]).toEqual({ link: 'https://meli.la/A', titulo: 'Uno', precio: 10, revisado: HOY });
+    expect(r.productos[0]).toEqual({ link: 'https://meli.la/A', titulo: 'Uno', precio: 10, revisado: HOY, vistos: [['2026-11-04', 10, 10]] });
     expect(r).toMatchObject({ nuevos: 2, actualizados: 0, incompletos: 0 });
   });
 
   it('el mismo link actualiza precio y fecha sin perder la foto, la nota ni el código', () => {
-    const antes = [{ link: 'https://meli.la/A', titulo: 'Uno', precio: 10, revisado: '2026-10-01T00:00:00Z', imagen: 'x.jpg', nota: 'buena', codigo: 7 }];
+    const antes = [{ link: 'https://meli.la/A', titulo: 'Uno', precio: 10, revisado: '2026-10-01T18:00:00Z', imagen: 'x.jpg', nota: 'buena', codigo: 7 }];
     const r = mezclarCompartidos(antes, [{ link: 'https://meli.la/A', titulo: 'Uno', precio: 8 }], HOY);
-    expect(r.productos).toEqual([{ link: 'https://meli.la/A', titulo: 'Uno', precio: 8, revisado: HOY, imagen: 'x.jpg', nota: 'buena', codigo: 7 }]);
+    expect(r.productos).toEqual([{
+      link: 'https://meli.la/A', titulo: 'Uno', precio: 8, revisado: HOY, imagen: 'x.jpg', nota: 'buena', codigo: 7,
+      // El precio de antes no se pierde: queda en su historial.
+      vistos: [['2026-11-04', 8, 8], ['2026-10-01', 10, 10]],
+    }]);
     expect(r).toMatchObject({ nuevos: 0, actualizados: 1 });
+  });
+
+  it('compartirlo otra vez suma al historial que ya tenía', () => {
+    const antes = [{ link: 'https://meli.la/A', titulo: 'Uno', precio: 9, revisado: '2026-10-20T18:00:00Z', vistos: [['2026-10-20', 9, 9], ['2026-10-10', 11, 11]] }];
+    const r = mezclarCompartidos(antes, [{ link: 'https://meli.la/A', titulo: 'Uno', precio: 8 }], HOY);
+    expect(r.productos[0].vistos).toEqual([['2026-11-04', 8, 8], ['2026-10-20', 9, 9], ['2026-10-10', 11, 11]]);
   });
 
   it('sin precio no pone fecha de revisión: no hay precio que hayas visto', () => {

@@ -17,7 +17,7 @@ export interface Props {
   productoId: string;
   /** El último precio que vimos. */
   precio: number;
-  /** El más bajo de la gráfica (90 días), si lo hay. */
+  /** El más bajo que le hemos visto (la gráfica: 90 días), si lo hay. */
   minimo?: number | null;
   /** ¿El precio es de hoy (vigente) o ya venció? Cambia el texto. */
   vigente: boolean;
@@ -51,7 +51,7 @@ const sugerencia = sugerirObjetivo(precio, minimo);
         </label>
         <p id="alerta-sug" class="alerta-sug">
           {sugerencia.razon === 'minimo'
-            ? `Sugerencia: su mínimo en 90 días, ${pesos(sugerencia.objetivo)}.`
+            ? `Sugerencia: el precio más bajo que le hemos visto, ${pesos(sugerencia.objetivo)}.`
             : 'Sugerencia: 10 % menos que el último precio.'}
         </p>
         <label class="alerta-campo">

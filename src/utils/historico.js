@@ -10,7 +10,9 @@
  *
  * ── LA REGLA QUE MANDA ─────────────────────────────────────────────────────
  * Solo se afirma lo observado. Con tres días de datos NO se dice «el más bajo
- * del mes»; se dice cuántos días llevamos mirando, o no se dice nada. El
+ * del mes»; se dice qué se vio y cuándo («Bajó: el 5 nov estaba a $1,299»), o
+ * no se dice nada. Lo mismo con revisiones sueltas (los precios que viste al
+ * compartir un producto): fechas, nunca un rango. El
  * proyecto ya se quitó de encima un aggregateRating inventado y unas fichas de
  * ejemplo: un mínimo histórico falso sería la misma mentira con otro traje, y
  * además la más cara, porque es la que empuja a comprar.
@@ -73,6 +75,25 @@ export const DENSIDAD_MINIMA = 0.7;
 const fmt = pesos;
 
 /**
+ * Hasta cuántos días atrás (contados desde la observación más reciente) se
+ * usa el historial: los mismos 90 de la gráfica de cada producto. Una
+ * observación de hace un año diría «el 20 nov» sin decir de qué año.
+ */
+export const DIAS_VENTANA = 90;
+
+const DIA_CORTO = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/**
+ * «5 nov»: el día de una entrada del historial, como lo diría una persona.
+ * @param {string} fecha — 'YYYY-MM-DD'
+ * @returns {string}
+ */
+export function fechaCorta(fecha) {
+  const t = Date.parse(`${fecha}T12:00:00Z`);
+  return Number.isFinite(t) ? DIA_CORTO.format(t) : '';
+}
+
+/**
  * Días de CALENDARIO entre dos fechas 'YYYY-MM-DD', ambos extremos incluidos.
  * Un único día observado es 1 día, no 0.
  *
@@ -123,19 +144,44 @@ export function entradasPara(productos, claves) {
 }
 
 /**
+ * Todo lo que sabemos del precio de un producto de la vitrina: lo que vio el
+ * bot (por sus claves de Mercado Libre, en historico-precios.json) más lo que
+ * viste tú al compartirlo, pegarlo o guardarlo (`vistos`, ver
+ * src/utils/vistos.js). Un mismo día en las dos fuentes es UN día.
+ *
+ * Se queda con los DIAS_VENTANA días anteriores a la observación más reciente,
+ * los mismos que enseña la gráfica de su página.
+ *
+ * @param {Record<string, Array<[string, number, number]>>|null|undefined} productosHist
+ * @param {{claves_historico?: string[], id?: string, vistos?: unknown}|null|undefined} producto
+ * @param {{dias?: number}} [opciones]
+ * @returns {Array<[string, number, number]>} más reciente primero
+ */
+export function entradasDelProducto(productosHist, producto, { dias = DIAS_VENTANA } = {}) {
+  const delBot = entradasPara(productosHist, producto?.claves_historico ?? producto?.id);
+  const tuyas = Array.isArray(producto?.vistos) ? producto.vistos : [];
+  const todas = entradasPara({ bot: delBot, tuyas }, ['bot', 'tuyas']);
+  if (todas.length === 0) return todas;
+  const ultima = todas[0][0];
+  return todas.filter((e) => diasEntre(e[0], ultima) <= dias);
+}
+
+/**
  * Resume las entradas de un producto.
  *
  * `desde` y `hasta` son los extremos observados: con los dos se mide la ventana
  * de calendario, que NO es lo mismo que `dias` (cuántas veces miramos).
  *
  * @param {Array<[string, number, number]>} entradas — [fechaISO, min, max], en cualquier orden
- * @returns {{dias: number, minimo: number|null, maximo: number|null, desde: string|null, hasta: string|null}}
+ * @returns {{dias: number, minimo: number|null, maximo: number|null, desde: string|null, hasta: string|null, fechaMinimo: string|null, entradas: Array<[string, number, number]>}}
  */
 export function resumirHistorico(entradas) {
   const validas = (Array.isArray(entradas) ? entradas : []).filter(
     (e) => Array.isArray(e) && typeof e[0] === 'string' && Number.isFinite(e[1]) && Number.isFinite(e[2]) && e[1] > 0,
   );
-  if (validas.length === 0) return { dias: 0, minimo: null, maximo: null, desde: null, hasta: null };
+  if (validas.length === 0) {
+    return { dias: 0, minimo: null, maximo: null, desde: null, hasta: null, fechaMinimo: null, entradas: [] };
+  }
 
   let minimo = Infinity;
   let maximo = 0;
@@ -147,7 +193,13 @@ export function resumirHistorico(entradas) {
     if (fecha < desde) desde = fecha;
     if (fecha > hasta) hasta = fecha;
   }
-  return { dias: validas.length, minimo, maximo, desde, hasta };
+  // Copias, de la más reciente a la más vieja: el veredicto de revisiones
+  // sueltas cita fechas concretas («el 5 nov estaba a…»).
+  const ordenadas = validas
+    .map((e) => [e[0], e[1], e[2]])
+    .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0));
+  const fechaMinimo = ordenadas.find((e) => e[1] === minimo)?.[0] ?? null;
+  return { dias: validas.length, minimo, maximo, desde, hasta, fechaMinimo, entradas: ordenadas };
 }
 
 /**
@@ -170,17 +222,6 @@ export function veredictoPrecio(precioActual, resumen, opciones) {
   // que se colaran aquí tienen que degradar igual que un null.
   if (!p || !r.dias || !Number.isFinite(r.minimo)) {
     return { nivel: 'sin-datos', texto: '', dias: 0, minimo: null };
-  }
-
-  // Aún no hay base para hablar del rango: se dice lo único cierto, que
-  // llevamos poco mirándolo. Nunca se insinúa una historia que no existe.
-  if (r.dias < DIAS_MINIMOS) {
-    return {
-      nivel: 'siguiendo',
-      texto: r.dias === 1 ? 'Seguimos su precio desde hoy' : `Seguimos su precio desde hace ${r.dias} días`,
-      dias: r.dias,
-      minimo: r.minimo,
-    };
   }
 
   const diasTexto = `${r.dias} ${r.dias === 1 ? 'día' : 'días'}`;
@@ -229,6 +270,14 @@ export function veredictoPrecio(precioActual, resumen, opciones) {
     };
   }
 
+  // ── ¿Seguimiento diario o revisiones sueltas? ──────────────────────────
+  // «El más bajo en 20 días» solo lo puede decir quien miró casi todos esos
+  // días (el bot que leía Mercado Libre cada 3 horas). Los precios que tú vas
+  // viendo al compartir son revisiones sueltas: de esas se dicen FECHAS, nunca
+  // un rango. Ver veredictoSuelto().
+  const diario = r.dias >= DIAS_MINIMOS && r.dias >= ventana * DENSIDAD_MINIMA;
+  if (!diario) return veredictoSuelto(p, r);
+
   if (p <= r.minimo * (1 + MARGEN_MINIMO)) {
     return { nivel: 'minimo', texto: `El precio más bajo en ${diasTexto}`, dias: r.dias, minimo: r.minimo };
   }
@@ -246,6 +295,48 @@ export function veredictoPrecio(precioActual, resumen, opciones) {
     dias: r.dias,
     minimo: r.minimo,
   };
+}
+
+/**
+ * El veredicto cuando lo que hay son revisiones sueltas: los precios que viste
+ * al compartir o guardar un producto, o un historial con huecos grandes (como
+ * el del bot, congelado desde el 8 de octubre, más el precio de hoy).
+ *
+ * Solo dice lo que se vio y cuándo: «Bajó: el 5 nov estaba a $1,299», «Lo
+ * vimos a $999 el 2 nov», «Mismo precio desde el 5 nov». Nada de «en N días»:
+ * entre una revisión y otra el precio pudo hacer cualquier cosa.
+ *
+ * Los niveles son los mismos de siempre, así que todo lo que ya se cuida
+ * sigue cuidándose: 'alto' (lo vimos más barato) no se reparte en el feed ni
+ * en el panel de publicar. Un precio que no se movió es 'siguiendo', no
+ * 'minimo': decir «el más bajo» de un precio quieto sugiere una rebaja que no
+ * existe.
+ *
+ * @param {number} p — precio actual (> 0)
+ * @param {ReturnType<typeof resumirHistorico>} r — con al menos una entrada
+ * @returns {ReturnType<typeof veredictoPrecio>}
+ */
+function veredictoSuelto(p, r) {
+  const base = { dias: r.dias, minimo: r.minimo };
+  const entradas = Array.isArray(r.entradas) ? r.entradas : [];
+
+  if (p <= r.minimo * (1 + MARGEN_MINIMO)) {
+    // La comparación honesta es con la vez más reciente que lo vimos más caro.
+    const antes = entradas.find((e) => e[2] > p * (1 + MARGEN_MINIMO));
+    if (antes) return { nivel: 'minimo', texto: `Bajó: el ${fechaCorta(antes[0])} estaba a ${fmt(antes[2])}`, ...base };
+    const desde = fechaCorta(r.desde);
+    return {
+      nivel: 'siguiendo',
+      texto: r.dias === 1 ? `Lo seguimos desde el ${desde}` : `Mismo precio desde el ${desde}`,
+      ...base,
+    };
+  }
+
+  const cuando = r.fechaMinimo ? ` el ${fechaCorta(r.fechaMinimo)}` : '';
+  if (p <= r.minimo * (1 + MARGEN_BAJO)) {
+    return { nivel: 'bajo', texto: `Cerca del más bajo que le vimos: ${fmt(r.minimo)}${cuando}`, ...base };
+  }
+  return { nivel: 'alto', texto: `Lo vimos a ${fmt(r.minimo)}${cuando}`, ...base };
 }
 
 /**

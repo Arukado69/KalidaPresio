@@ -188,6 +188,13 @@ describe('normalizarProducto', () => {
     const { producto } = normalizarProducto(base({ url_producto: undefined }), AHORA);
     expect(producto.id).toBe('kp-1AbCdE');
   });
+
+  it('lleva su historial propio, siempre con el precio de hoy incluido', () => {
+    const solo = normalizarProducto(base(), AHORA).producto;
+    expect(solo.vistos).toEqual([['2026-10-26', 869, 869]]);
+    const conHistoria = normalizarProducto(base({ vistos: [['2026-10-20', 999, 999], ['roto', 1, 1]] }), AHORA).producto;
+    expect(conHistoria.vistos).toEqual([['2026-10-26', 869, 869], ['2026-10-20', 999, 999]]);
+  });
 });
 
 describe('relámpago', () => {
