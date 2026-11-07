@@ -78,7 +78,13 @@ así que el mensaje entra solo:
 - Si compartes con el «Compartir» normal (no el de comisión), el panel te
   avisa: ese link no lleva tu identificador y no se publica.
 - El borrador se guarda en el celular aunque cierres la app; nada se publica
-  hasta que tocas «Publicar ahora».
+  hasta que tocas «Publicar ahora»… salvo que actives **«Publicar solo cada
+  vez que agregas un producto»** (en «La forma rápida»). Con esa casilla,
+  cada producto que compartes queda en el sitio en unos minutos sin tocar nada
+  más. Usa tu token de GitHub (te lo pide al activarla). Si la vitrina cambió
+  en GitHub por otro lado, o el token venció, no fuerza nada: te avisa y lo
+  deja guardado para «Publicar ahora». Compartir varios seguidos no amontona
+  despliegues: GitHub deja solo uno en cola.
 - En iPhone no se puede (Apple no deja que una página aparezca en
   «Compartir»): ahí copia y pega.
 - Cómo funciona: `public/panel/manifest.json` (su `share_target` manda a
@@ -99,23 +105,45 @@ del sitio, en Umami (ver `docs/analitica.md`).
 
 ---
 
-## Agregar un producto (2 minutos, en la computadora)
+## En la computadora: el marcador (dos clics por producto)
 
 ### Una sola vez: instala el marcador
 
 1. Abre `https://kalidapresio.albis-labs.xyz/panel/agregar`.
 2. Arrastra el botón **«➕ Agregar a KalidaPresio»** a tu barra de marcadores
    (si no la ves: `Ctrl/Cmd + Shift + B`).
+3. **Si ya tenías un marcador de antes de noviembre de 2026, bórralo e
+   instala este**: un marcador guarda su código, y el viejo te pedía pegar el
+   link.
+4. Opcional: marca **«Publicar solo cada vez que agregas un producto»** en «La
+   forma rápida» (te pide tu token de GitHub, ver abajo).
 
 ### Cada producto
 
 1. En Mercado Libre, **con tu sesión iniciada**, abre la página del producto.
-2. Genera tu link con **«Compartir»** en la barra azul de afiliados y cópialo.
-3. Toca el marcador. Te pide el link (si dejaste abierto el cuadro de
-   «Compartir», ya viene puesto). Acepta.
-4. Se abre el panel con **todo lleno**: título, precio, precio anterior, foto,
-   calificación, vendidos, envío gratis y, si es relámpago, su hora de fin.
-   Revísalo, agrega tu nota si quieres y toca **«Guardar en la lista»**.
+2. Toca **«Compartir»** en la barra azul de afiliados y **deja abierta** la
+   ventanita con tu link.
+3. Toca el marcador. Listo: el producto se guarda solo en la pestaña del
+   panel, con título, precio, precio anterior, foto, calificación, vendidos,
+   envío gratis y, si es relámpago, su hora de fin. Con «Publicar solo», además
+   se publica.
+4. Regresa a Mercado Libre y sigue con el siguiente. El marcador usa **siempre
+   la misma pestaña** del panel: no se juntan pestañas.
+
+Para que nunca se publique un producto con el link de otro:
+
+- Si la ventanita no muestra el link pero tú lo **copiaste**, el marcador lo
+  toma de lo copiado (Chrome pide permiso la primera vez) y lo deja en el
+  formulario para que lo confirmes con **«Guardar en la lista»**: pudo ser el
+  del producto anterior.
+- Si el link ya lo usa **otro producto de tu vitrina**, no se guarda y el panel
+  te dice de cuál es.
+- Si a la ficha le falta algo (precio, por ejemplo), se abre el formulario
+  lleno para que lo completes.
+
+La nota, los links por canal, el «destacado» y el código del producto se
+conservan cuando vuelves a pasar el marcador por un producto que ya tenías: solo
+se actualiza lo que viene de la ficha (y su precio entra a su historial).
 
 ### Subir los cambios
 
@@ -152,8 +180,9 @@ pegar» → selecciona todo, pega y toca **«Commit changes»**.
 
 ### Desde el celular
 
-El marcador es para la computadora. En el teléfono, usa **«Ideas para
-empezar»** al final de `/panel/agregar`:
+En el teléfono lo más rápido es compartir desde la app (ver «En Android:
+compartir directo» arriba). Otra opción son las **«Ideas para empezar»** al
+final de `/panel/agregar`:
 
 1. Toca **«Agregar esta»**: se llena el formulario (título, foto, calificación,
    vendidos y el id de artículo para el histórico) y se abre la ficha en

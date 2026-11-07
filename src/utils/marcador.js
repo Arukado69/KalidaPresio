@@ -7,8 +7,9 @@
  * puede leer una ficha de producto por su cuenta. Tu navegador sí, porque eres
  * tú, con tu sesión. Este marcador corre EN la página del producto, lee lo que
  * ya está ahí (título, precio, foto, calificación, vendidos) y lo manda a
- * /panel/agregar. Lo único que te pide es el link oficial, que generas con la
- * barra azul de afiliados de esa misma página.
+ * /panel/agregar, siempre a la misma pestaña. El link oficial lo toma de la
+ * ventanita «Compartir» de la barra azul de afiliados si la abriste; si no,
+ * del que copiaste, y solo si no hay ninguno te lo pide.
  *
  * ── CÓMO ESTÁ HECHO ────────────────────────────────────────────────────────
  * `marcador` es una función de verdad (se puede leer, probar y editar como
@@ -106,31 +107,57 @@ export function marcador() {
   }
   if (art) d.id_articulo = art[1].toUpperCase() + art[2];
 
-  // 2) El link oficial. Si ya abriste «Compartir» en la barra de afiliados, el
-  //    link está en la página y se toma de ahí; si no, se te pide.
+  // 2) El link oficial, sin pegarlo a mano:
+  //    a) Si abriste «Compartir» en la barra de afiliados de ESTA página, el
+  //       link está en un campo de la ventanita: se toma sin preguntar.
+  //    b) Si no, el que copiaste (portapapeles) o uno escrito en la página.
+  //       Podría ser el de OTRO producto que copiaste antes, así que se marca
+  //       y el panel te pide confirmarlo con un clic.
+  //    c) Si no hay ninguno, se pide.
+  //    `link_origen` le dice al panel de dónde salió.
   var oficial = /https:\/\/(meli\.la\/|(www\.)?mercadolibre\.com(\.mx)?\/sec\/)[A-Za-z0-9_-]{4,}/;
-  var hallado = '';
+  var enCampo = '';
   document.querySelectorAll('input, textarea').forEach(function (e) {
     var m = String(e.value || '').match(oficial);
-    if (m && !hallado) hallado = m[0];
+    if (m && !enCampo) enCampo = m[0];
   });
-  if (!hallado) {
+  var enTexto = '';
+  if (!enCampo) {
     var m2 = String(document.body.innerText || '').match(oficial);
-    if (m2) hallado = m2[0];
+    if (m2) enTexto = m2[0];
   }
 
-  var link = window.prompt(
-    'KalidaPresio · Pega tu link OFICIAL de afiliado (meli.la/… o mercadolibre.com/sec/…).\n'
-    + 'Lo generas con «Compartir» en la barra azul de afiliados de esta página.\n'
-    + 'Si lo dejas vacío, lo pegas después en el panel.',
-    hallado,
-  );
-  if (link === null) return;
-  d.link = String(link).trim();
+  function enviar(link, origen) {
+    d.link = String(link || '').trim();
+    d.link_origen = d.link ? origen : '';
+    var destino = SITIO + '/panel/agregar/#nuevo=' + encodeURIComponent(JSON.stringify(d));
+    // Siempre la MISMA pestaña del panel: producto tras producto, sin juntar pestañas.
+    var ventana = window.open(destino, 'kalidapresio-panel');
+    if (!ventana) location.href = destino;
+  }
+  function pedir() {
+    var link = window.prompt(
+      'KalidaPresio · Pega tu link OFICIAL de afiliado (meli.la/… o mercadolibre.com/sec/…).\n'
+      + 'Lo generas con «Compartir» en la barra azul de afiliados de esta página.\n'
+      + 'Si lo dejas vacío, lo pegas después en el panel.',
+      '',
+    );
+    if (link !== null) enviar(link, 'escrito');
+  }
 
-  var destino = SITIO + '/panel/agregar#nuevo=' + encodeURIComponent(JSON.stringify(d));
-  var ventana = window.open(destino, '_blank');
-  if (!ventana) location.href = destino;
+  if (enCampo) {
+    enviar(enCampo, 'pagina');
+  } else if (enTexto) {
+    enviar(enTexto, 'texto');
+  } else if (navigator.clipboard && navigator.clipboard.readText) {
+    navigator.clipboard.readText().then(function (t) {
+      var m3 = String(t || '').match(oficial);
+      if (m3) enviar(m3[0], 'portapapeles');
+      else pedir();
+    }, pedir);
+  } else {
+    pedir();
+  }
 }
 
 /**

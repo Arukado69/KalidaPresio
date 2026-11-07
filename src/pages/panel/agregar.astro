@@ -110,6 +110,8 @@ const datos = JSON.stringify({
     .pegar-texto:focus { outline: 2px solid var(--acento); outline-offset: 1px; }
     .pegar-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
     .pegar-acciones input[type=date] { background: var(--fondo); border: 1px solid var(--linea); color: var(--tinta); border-radius: 6px; padding: 5px 8px; font: inherit; font-size: .82rem; }
+    .pegar-auto { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0; cursor: pointer; }
+    .pegar-auto input { margin-top: 3px; accent-color: var(--acento); }
     .pegar-resultado { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; font-size: .88rem; background: rgba(87, 198, 142, .12); border: 1px solid var(--bien); }
     .pegar-resultado[data-tipo='error'] { background: rgba(240, 119, 108, .12); border-color: var(--mal); }
     .instalar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: rgba(255, 138, 61, .1); border: 1px dashed var(--acento); font-size: .88rem; }
@@ -194,6 +196,10 @@ const datos = JSON.stringify({
         <button class="btn" type="button" data-pegar-portapapeles>Pegar del portapapeles</button>
         <button class="btn btn-principal" type="button" data-pegar-agregar>Agregar a mi vitrina</button>
       </div>
+      <label class="pegar-auto ayuda">
+        <input type="checkbox" data-auto-publicar />
+        <span><b>Publicar solo cada vez que agregas un producto</b> (desde la app, el marcador de la computadora o el formulario). Sin tocar «Publicar ahora»: en unos minutos está en el sitio. Usa tu token de GitHub (te lo pide la primera vez).</span>
+      </label>
       <p class="pegar-resultado" data-pegar-resultado role="status" hidden></p>
       <p class="ayuda">Sin foto ni calificación el producto se publica igual (sale «sin calificar»). Puedes completarlo cuando quieras con el marcador: se reconoce por su link y no se duplica.</p>
     </section>
@@ -211,20 +217,26 @@ const datos = JSON.stringify({
     </details>
 
     <details class="guia" data-guia>
-      <summary>Cómo agregar un producto (2 minutos)</summary>
+      <summary>En la computadora: el marcador (dos clics por producto)</summary>
       <ol>
         <li>
           <b>Instala el marcador una sola vez:</b> arrastra este botón a tu barra de marcadores
-          (en la computadora; si no ves la barra: Ctrl/Cmd + Shift + B).<br />
+          (si no ves la barra: Ctrl/Cmd + Shift + B). <b>Si ya tenías uno, bórralo e instala este</b>: el de antes te pedía pegar el link.<br />
           <a class="marcador" href={marcador} title="Arrástrame a tu barra de marcadores">➕ Agregar a KalidaPresio</a>
           <br /><button class="btn" type="button" data-copiar-marcador>Copiar el código del marcador</button>
           <span class="ayuda">(si tu navegador no deja arrastrarlo: crea un marcador nuevo y pega el código como dirección)</span>
         </li>
         <li><b>En Mercado Libre, con tu sesión iniciada</b>, abre la página del producto.</li>
-        <li><b>Genera tu link</b> con «Compartir» en la barra azul de afiliados (arriba de la página) y cópialo.</li>
-        <li><b>Toca el marcador.</b> Pega el link cuando te lo pida. Se abre esta página con todo lleno.</li>
-        <li><b>Revisa y guarda.</b> Cuando termines de agregar, sube los cambios con el botón de abajo.</li>
+        <li><b>Toca «Compartir»</b> en la barra azul de afiliados (arriba de la página) y deja abierta la ventanita con tu link.</li>
+        <li>
+          <b>Toca el marcador.</b> El producto se guarda solo en esta pestaña del panel, con foto, precio, calificación y tu link
+          (y se publica, si activaste «Publicar solo»). Regresa a Mercado Libre y sigue con el siguiente: el marcador usa siempre esta misma pestaña.
+        </li>
       </ol>
+      <p class="ayuda">
+        Si la ventanita no muestra el link pero tú lo copiaste, el marcador lo toma de lo que copiaste (Chrome te pide permiso la primera vez)
+        y te lo deja aquí para confirmarlo con «Guardar», por si era el del producto anterior. Un link que ya usa otro producto de tu vitrina nunca se guarda.
+      </p>
       <p class="ayuda">Para separar las ventas por red: en tu panel de afiliados crea una etiqueta por canal (whatsapp, telegram, instagram…), genera el link con esa etiqueta y pégalo en «Links por canal».</p>
     </details>
 
@@ -352,6 +364,7 @@ const datos = JSON.stringify({
   <script>
     import { normalizarProducto, esLinkOficial, claveProducto, urlProductoLimpia, idArticulo, DIAS_VIGENCIA_PRECIO } from '../../utils/vitrina.js';
     import { leerEnvioMarcador } from '../../utils/marcador.js';
+    import { mezclarDelMarcador } from '../../utils/marcadorEntrada.js';
     import { publicarVitrina } from '../../utils/publicarGithub.js';
     import { asignarCodigos, formatoCodigo } from '../../utils/codigos.js';
     import { leerMensajesCompartidos, leerCompartido, traeLinkSinComision, mezclarCompartidos } from '../../utils/compartir.js';
@@ -475,35 +488,49 @@ const datos = JSON.stringify({
       if (t) { try { localStorage.setItem(CLAVE_TOKEN, t); } catch { /* sin almacenamiento: sirve solo esta vez */ } }
       return t;
     }
-    async function publicarAhora(btn: HTMLButtonElement) {
-      const token = leerToken() || pedirToken();
-      if (!token) return;
+    /**
+     * Sube la vitrina del panel a GitHub. Lo usan el botón «Publicar ahora»
+     * (que pregunta ante un conflicto) y la publicación sola al compartir (que
+     * no pregunta: si algo no cuadra, no publica y lo dice).
+     */
+    async function subirVitrina(token: string, preguntar: boolean) {
       const contenido = archivoCompleto();
       const publicables = productos.filter((p) => !('motivo' in normalizarProducto(p, Date.now()))).length;
       const opciones = {
         token, contenido, base: BASE, repo: DATOS.repo, rama: DATOS.rama,
         mensaje: `vitrina: ${publicables} producto(s) publicable(s), desde el panel`,
       };
+      let r: any = await publicarVitrina(opciones);
+      if (!r.ok && r.motivo === 'conflicto' && preguntar) {
+        if (!confirm('La vitrina en GitHub cambió desde la última vez que la viste aquí (¿la editaste desde otro lado?). ¿Reemplazarla con la de este panel?')) return { ...r, cancelado: true, publicables };
+        r = await publicarVitrina({ ...opciones, forzar: true });
+      }
+      if (r.ok) {
+        BASE = JSON.parse(contenido);
+        try { localStorage.setItem(CLAVE_PUBLICADA, JSON.stringify({ archivo: BASE, cuando: Date.now() })); } catch { /* la base vive mientras la pestaña esté abierta */ }
+        enArchivo = yaSubidos();
+        guardarBorrador();
+        pintar();
+      } else if (r.motivo === 'token') {
+        olvidarToken();
+      }
+      return { ...r, publicables };
+    }
+
+    async function publicarAhora(btn: HTMLButtonElement) {
+      const token = leerToken() || pedirToken();
+      if (!token) return;
       const original = btn.textContent;
       btn.disabled = true;
       btn.textContent = 'Publicando…';
       try {
-        let r: any = await publicarVitrina(opciones);
-        if (!r.ok && r.motivo === 'conflicto') {
-          if (!confirm('La vitrina en GitHub cambió desde la última vez que la viste aquí (¿la editaste desde otro lado?). ¿Reemplazarla con la de este panel?')) return;
-          r = await publicarVitrina({ ...opciones, forzar: true });
-        }
+        const r: any = await subirVitrina(token, true);
+        if (r.cancelado) return;
         if (r.ok) {
-          BASE = JSON.parse(contenido);
-          try { localStorage.setItem(CLAVE_PUBLICADA, JSON.stringify({ archivo: BASE, cuando: Date.now() })); } catch { /* la base vive mientras la pestaña esté abierta */ }
-          enArchivo = yaSubidos();
-          guardarBorrador();
-          pintar();
           avisar(r.sinCambios
             ? 'GitHub ya tenía esta misma vitrina: no hacía falta publicar nada.'
-            : `✓ Publicado: ${publicables} producto(s) publicable(s). El sitio se reconstruye solo; en unos minutos lo verás en línea.`);
+            : `✓ Publicado: ${r.publicables} producto(s) publicable(s). El sitio se reconstruye solo; en unos minutos lo verás en línea.`);
         } else if (r.motivo === 'token') {
-          olvidarToken();
           alert(`GitHub no aceptó el token (${r.detalle}). Revisa que sea de este repositorio y tenga Contents de lectura y escritura; al volver a tocar «Publicar ahora» te pedirá uno nuevo.`);
         } else {
           alert(`No se pudo publicar: ${r.detalle}. Tus cambios siguen guardados en este navegador; inténtalo otra vez o usa «Copiar vitrina.json» + «Abrir en GitHub y pegar».`);
@@ -512,6 +539,40 @@ const datos = JSON.stringify({
         btn.disabled = false;
         btn.textContent = original;
       }
+    }
+
+    // ── Publicar solo al compartir (opcional) ─────────────────────────────
+    const CLAVE_AUTO = 'kp-auto-publicar';
+    const autoPublicar = () => { try { return localStorage.getItem(CLAVE_AUTO) === '1'; } catch { return false; } };
+
+    // Una publicación a la vez: si agregas otro mientras se publica el
+    // anterior, se publica una vez más al terminar (con todo junto). Dos
+    // escrituras al mismo tiempo chocarían en GitHub.
+    let publicandoSolo = false;
+    let otraVez: string | null = null;
+    /**
+     * Publica sola si la opción está activa y hay token. Devuelve si lo hará.
+     * `dicho` es el mensaje del producto: se completa con el resultado.
+     */
+    function publicarSiToca(dicho = ''): boolean {
+      const token = leerToken();
+      if (!autoPublicar() || !token) return false;
+      if (publicandoSolo) { otraVez = dicho; return true; }
+      publicandoSolo = true;
+      subirVitrina(token, false).then((r: any) => {
+        publicandoSolo = false;
+        const siguiente = otraVez;
+        otraVez = null;
+        if (r.ok) {
+          if (dicho && siguiente === null) decirPegar(`${dicho} ✓ Publicado: en unos minutos está en el sitio.`, 'ok');
+        } else {
+          const motivo = r.motivo === 'conflicto' ? 'la vitrina cambió en GitHub' : r.motivo === 'token' ? 'GitHub no aceptó tu token' : r.detalle;
+          decirPegar(`${dicho ? `${dicho} ` : ''}No se pudo publicar solo (${motivo}). Quedó guardado aquí: toca «Publicar ahora».`, 'error');
+          return;
+        }
+        if (siguiente !== null) publicarSiToca(siguiente);
+      });
+      return true;
     }
 
     function pintar() {
@@ -687,6 +748,7 @@ const datos = JSON.stringify({
       // Si estaba retirado, vuelve: no puede estar en las dos listas.
       if (clave) retirados = retirados.filter((x) => claveProducto(x.url_producto) !== clave);
       guardarBorrador();
+      if (publicarSiToca(`✓ Guardado: «${recortar(String(entrada.titulo ?? ''), 70)}».`)) decirPegar(`✓ Guardado: «${recortar(String(entrada.titulo ?? ''), 70)}». Publicando…`, 'ok');
       form.reset();
       editar(null);
       validarLink();
@@ -834,8 +896,12 @@ const datos = JSON.stringify({
     const SIN_COMISION = 'Ese link es del «Compartir» normal y no lleva tu comisión. En la app de Mercado Libre usa «Compartir para ganar una comisión».';
     const recortar = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t);
 
-    /** Agrega a la vitrina lo leído (pegado o compartido) y dice qué pasó. */
-    function agregarLeidos(leidos: ReturnType<typeof leerMensajesCompartidos>, compartido = false) {
+    /**
+     * Agrega a la vitrina lo leído (pegado o compartido) y dice qué pasó.
+     * Devuelve lo que dijo, sin el «qué sigue», para poder completarlo cuando
+     * se publica solo.
+     */
+    function agregarLeidos(leidos: ReturnType<typeof leerMensajesCompartidos>, compartido = false, seguira = ''): string {
       const r = mezclarCompartidos(productos, leidos, revisadoPegado());
       productos = r.productos;
       if (editando !== null) { form.reset(); editar(null); }
@@ -846,30 +912,26 @@ const datos = JSON.stringify({
       if (compartido && leidos.length === 1) {
         const p = productos.find((x) => String(x?.link ?? '').trim() === leidos[0].link);
         if (!p?.titulo || !p?.precio) {
-          decirPegar('✓ Llegó tu link, pero sin título o precio: complétalo en tu lista con «Editar». Después toca «Publicar ahora».', 'ok');
-          return;
+          const dicho = '✓ Llegó tu link, pero sin título o precio: complétalo en tu lista con «Editar».';
+          decirPegar(`${dicho} Después toca «Publicar ahora».`, 'ok');
+          return dicho;
         }
         const codigo = p.codigo ? ` (${formatoCodigo(p.codigo)})` : '';
         // Si ya lo habías visto otro día, cómo cambió: lo mismo que dirá el sitio.
         const v = veredictoPrecio(p.precio, resumirHistorico(vistosValidos(p.vistos)));
         const cambio = v.dias >= 2 && v.texto ? ` ${v.texto}.` : '';
-        decirPegar(
-          `✓ ${r.nuevos ? 'Agregado' : 'Actualizado'}: «${recortar(p.titulo, 70)}» a ${pesos(p.precio)}${codigo}.${cambio} `
-            + 'Regresa a Mercado Libre y comparte el siguiente, o toca «Publicar ahora» cuando termines.',
-          'ok',
-        );
-        return;
+        const dicho = `✓ ${r.nuevos ? 'Agregado' : 'Actualizado'}: «${recortar(p.titulo, 70)}» a ${pesos(p.precio)}${codigo}.${cambio}`;
+        decirPegar(`${dicho} ${seguira || 'Regresa a Mercado Libre y comparte el siguiente, o toca «Publicar ahora» cuando termines.'}`, 'ok');
+        return dicho;
       }
 
       const partes = [];
       if (r.nuevos) partes.push(`${r.nuevos} nuevo${r.nuevos === 1 ? '' : 's'}`);
       if (r.actualizados) partes.push(`${r.actualizados} actualizado${r.actualizados === 1 ? '' : 's'}`);
-      decirPegar(
-        `✓ ${partes.join(' y ')}.`
-          + (r.incompletos ? ` ${r.incompletos} sin título o precio: complétalo${r.incompletos === 1 ? '' : 's'} en la lista con «Editar».` : '')
-          + ' Cuando termines, toca «Publicar ahora» abajo.',
-        'ok',
-      );
+      const dicho = `✓ ${partes.join(' y ')}.`
+        + (r.incompletos ? ` ${r.incompletos} sin título o precio: complétalo${r.incompletos === 1 ? '' : 's'} en la lista con «Editar».` : '');
+      decirPegar(`${dicho} ${seguira || 'Cuando termines, toca «Publicar ahora» abajo.'}`, 'ok');
+      return dicho;
     }
 
     $('[data-pegar-agregar]')!.addEventListener('click', () => {
@@ -884,7 +946,9 @@ const datos = JSON.stringify({
         );
         return;
       }
-      agregarLeidos(leidos);
+      const auto = autoPublicar() && Boolean(leerToken());
+      const dicho = agregarLeidos(leidos, false, auto ? 'Publicando…' : '');
+      if (auto) publicarSiToca(dicho);
       caja.value = '';
       $('[data-lista]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -899,7 +963,9 @@ const datos = JSON.stringify({
       history.replaceState(null, '', location.pathname);
       const leidos = leerCompartido(partes);
       if (leidos.length) {
-        agregarLeidos(leidos, true);
+        const auto = autoPublicar() && Boolean(leerToken());
+        const dicho = agregarLeidos(leidos, true, auto ? 'Publicando…' : '');
+        if (auto) publicarSiToca(dicho);
       } else {
         // No traía tu link: se deja a la vista lo que llegó, para que se entienda por qué.
         const caja = $('[data-pegar-texto]') as HTMLTextAreaElement;
@@ -913,6 +979,13 @@ const datos = JSON.stringify({
       }
       resultadoPegar.scrollIntoView({ block: 'center' });
     }
+
+    const casillaAuto = $('[data-auto-publicar]') as HTMLInputElement;
+    casillaAuto.checked = autoPublicar() && Boolean(leerToken());
+    casillaAuto.addEventListener('change', () => {
+      if (casillaAuto.checked && !(leerToken() || pedirToken())) casillaAuto.checked = false;
+      try { localStorage.setItem(CLAVE_AUTO, casillaAuto.checked ? '1' : '0'); } catch { /* sin almacenamiento no se recuerda */ }
+    });
 
     // ── Instalar como app (Chrome en Android y en computadora) ─────────────
     // Chrome avisa que se puede instalar con «beforeinstallprompt»; dentro de
@@ -937,27 +1010,66 @@ const datos = JSON.stringify({
       avisar('✓ Listo: el panel ya está en tu celular. En la app de Mercado Libre toca «Compartir para ganar una comisión» y elige KalidaPresio.');
     });
 
-    // ── Lo que manda el marcador ───────────────────────────────────────────
-    const enviado = leerEnvioMarcador(location.hash);
-    if (enviado) {
+    // ── Lo que manda el marcador (computadora) ─────────────────────────────
+    // Completo y con el link de la ventanita «Compartir» de esa página: se
+    // guarda solo (y se publica, si activaste «Publicar solo»). Si no, o si el
+    // link pudo ser de otro producto, se abre el formulario para revisarlo
+    // (ver src/utils/marcadorEntrada.js). El marcador abre siempre la MISMA
+    // pestaña, así que cada producto nuevo llega como cambio de #.
+    function procesarMarcador(enviado: any) {
       history.replaceState(null, '', location.pathname);
+      const r: any = mezclarDelMarcador(productos, enviado, new Date().toISOString());
+      if (r.estado === 'agregado' || r.estado === 'actualizado') {
+        productos = r.productos;
+        if (editando !== null) { form.reset(); editar(null); }
+        guardarBorrador();
+        pintar();
+        const p = productos.find((x) => String(x?.link ?? '').trim() === r.producto.link) ?? r.producto;
+        const codigo = p.codigo ? ` (${formatoCodigo(p.codigo)})` : '';
+        const v = veredictoPrecio(p.precio, resumirHistorico(vistosValidos(p.vistos)));
+        const cambio = v.dias >= 2 && v.texto ? ` ${v.texto}.` : '';
+        const dicho = `✓ ${r.estado === 'agregado' ? 'Agregado' : 'Actualizado'} desde Mercado Libre: «${recortar(p.titulo, 70)}» a ${pesos(p.precio)}${codigo}.${cambio}`;
+        const auto = publicarSiToca(dicho);
+        decirPegar(`${dicho} ${auto ? 'Publicando…' : 'Sigue con el siguiente producto, o toca «Publicar ahora» cuando termines.'}`, 'ok');
+        resultadoPegar.scrollIntoView({ block: 'center' });
+        return;
+      }
+
+      // Al formulario, como antes: para revisarlo y tocar «Guardar».
       const clave = claveProducto(enviado.url_producto);
       let i = clave ? productos.findIndex((p) => claveProducto(p.url_producto) === clave) : -1;
       // Un producto que pegaste desde la app no tiene ficha: se reconoce por el link.
-      if (i < 0 && enviado.link) i = productos.findIndex((p) => String(p.link ?? '').trim() === String(enviado.link).trim());
+      if (i < 0 && enviado.link && r.estado !== 'link-ajeno') i = productos.findIndex((p) => String(p.link ?? '').trim() === String(enviado.link).trim());
+      const recibido = { ...enviado };
+      delete recibido.link_origen;
+      if (r.estado === 'link-ajeno') recibido.link = '';
       if (i >= 0) {
         // Ya estaba: se actualiza el precio y se conserva lo tuyo (link, nota,
         // links por canal) si el marcador no trajo uno nuevo.
         const actual = productos[i];
-        llenar({ ...actual, ...Object.fromEntries(Object.entries(enviado).filter(([, v]) => v !== '' && v !== null && v !== undefined)), link: enviado.link || actual.link, nota: actual.nota, enlaces: actual.enlaces, destacado: actual.destacado });
+        llenar({ ...actual, ...Object.fromEntries(Object.entries(recibido).filter(([, v]) => v !== '' && v !== null && v !== undefined)), link: recibido.link || actual.link, nota: actual.nota, enlaces: actual.enlaces, destacado: actual.destacado });
         editar(i);
       } else {
-        llenar(enviado);
+        llenar(recibido);
         editar(null);
       }
+      const error = $('[data-error]')!;
+      if (r.estado === 'link-ajeno') {
+        error.textContent = `Ese link ya es de «${recortar(String(r.ajeno?.titulo ?? 'otro producto'), 60)}». Abre «Compartir» en la barra de afiliados de ESTE producto, copia su link y pégalo aquí.`;
+        error.hidden = false;
+      } else if (r.motivo === 'confirmar-link') {
+        error.textContent = 'Revisa que el link sea de este producto (lo tomé de lo que copiaste) y toca «Guardar en la lista».';
+        error.hidden = false;
+      }
       form.scrollIntoView({ block: 'start' });
-      if (!enviado.link) campo('link').focus();
+      if (!campo('link').value) campo('link').focus();
     }
+    const enviado = leerEnvioMarcador(location.hash);
+    if (enviado) procesarMarcador(enviado);
+    window.addEventListener('hashchange', () => {
+      const otro = leerEnvioMarcador(location.hash);
+      if (otro) procesarMarcador(otro);
+    });
 
     pintar();
   </script>
